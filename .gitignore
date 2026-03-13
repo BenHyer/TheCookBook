@@ -1,0 +1,16 @@
+.vs/
+# .NET Aspire
+.aspire/
+
+# MAUI / Mobile
+*.apk
+*.aab
+*.ipa
+[Bb]in/
+[Oo]bj/
+
+
+
+# Secret files
+/secrets.json
+.env

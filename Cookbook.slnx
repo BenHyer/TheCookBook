@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="Cookbook.ApiService/Cookbook.ApiService.csproj" />
+  <Project Path="Cookbook.AppHost/Cookbook.AppHost.csproj" />
+  <Project Path="Cookbook.Maui/Cookbook.Maui.csproj" />
+  <Project Path="Cookbook.ServiceDefaults/Cookbook.ServiceDefaults.csproj" />
+  <Project Path="Cookbook.Shared/Cookbook.Shared.csproj" />
+  <Project Path="Cookbook.Web/Cookbook.Web.csproj" />
+</Solution>

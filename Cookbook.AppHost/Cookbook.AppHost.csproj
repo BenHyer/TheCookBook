@@ -1,0 +1,19 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.1.0">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UserSecretsId>c8de608b-4cd5-4870-8f7e-45f03b8d7ee5</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Cookbook.ApiService\Cookbook.ApiService.csproj" />
+    <ProjectReference Include="..\Cookbook.Maui\Cookbook.Maui.csproj">
+      <SetTargetFramework>TargetFramework=net10.0</SetTargetFramework>
+    </ProjectReference>
+    <ProjectReference Include="..\Cookbook.Web\Cookbook.Web.csproj" />
+  </ItemGroup>
+
+</Project>
