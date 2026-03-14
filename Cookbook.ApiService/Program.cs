@@ -9,6 +9,9 @@ builder.Services.AddProblemDetails();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
+// The name "sqldb" MUST match the name in the AppHost
+builder.AddSqlServerClient("sqldb");
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

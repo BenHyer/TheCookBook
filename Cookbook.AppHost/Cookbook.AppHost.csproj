@@ -9,6 +9,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.SqlServer" Version="13.1.2" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Cookbook.ApiService\Cookbook.ApiService.csproj" />
     <ProjectReference Include="..\Cookbook.Maui\Cookbook.Maui.csproj">
       <SetTargetFramework>TargetFramework=net10.0</SetTargetFramework>
