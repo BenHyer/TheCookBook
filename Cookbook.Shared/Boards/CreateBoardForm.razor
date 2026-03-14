@@ -1,0 +1,28 @@
+@using Microsoft.AspNetCore.Components.Forms
+
+<EditForm Model="_model" OnValidSubmit="HandleValidSubmitAsync">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="mb-3">
+        <label for="board-name" class="form-label">Board name</label>
+        <InputText id="board-name" class="form-control" @bind-Value="_model.Name" />
+        <ValidationMessage For="() => _model.Name" />
+    </div>
+
+    <div class="mb-3">
+        <label for="board-description" class="form-label">Description (optional)</label>
+        <InputTextArea id="board-description" class="form-control" @bind-Value="_model.Description" />
+        <ValidationMessage For="() => _model.Description" />
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(_errorMessage))
+    {
+        <div class="alert alert-danger" role="alert">@_errorMessage</div>
+    }
+
+    <button type="submit" class="btn btn-primary" disabled="@_isSubmitting">
+        @(_isSubmitting ? "Creating..." : "Create board")
+    </button>
+</EditForm>
+

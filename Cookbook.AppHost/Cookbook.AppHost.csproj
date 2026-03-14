@@ -15,7 +15,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Cookbook.ApiService\Cookbook.ApiService.csproj" />
     <ProjectReference Include="..\Cookbook.Maui\Cookbook.Maui.csproj">
-      <SetTargetFramework>TargetFramework=net10.0</SetTargetFramework>
+      <SetTargetFramework>TargetFramework=net10.0-windows10.0.19041.0</SetTargetFramework>
     </ProjectReference>
     <ProjectReference Include="..\Cookbook.Web\Cookbook.Web.csproj" />
   </ItemGroup>

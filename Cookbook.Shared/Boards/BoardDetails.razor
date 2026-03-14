@@ -1,0 +1,26 @@
+@if (Board is null)
+{
+    <p>Select a board to view details.</p>
+}
+else
+{
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">@Board.Name</h5>
+            @if (!string.IsNullOrWhiteSpace(Board.Description))
+            {
+                <p class="card-text">@Board.Description</p>
+            }
+            <dl class="row mb-0">
+                <dt class="col-sm-3">Owner</dt>
+                <dd class="col-sm-9">@Board.OwnerUserId</dd>
+
+                <dt class="col-sm-3">Created</dt>
+                <dd class="col-sm-9">@Board.CreatedUtc.ToLocalTime()</dd>
+
+                <dt class="col-sm-3">Updated</dt>
+                <dd class="col-sm-9">@Board.UpdatedUtc.ToLocalTime()</dd>
+            </dl>
+        </div>
+    </div>
+}

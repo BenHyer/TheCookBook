@@ -1,21 +1,22 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
-var sql = builder.AddSqlServer("sql")
+var sqlContainer = builder.AddSqlServer("sql")
     .WithDataVolume();
 
-var db = sql.AddDatabase("sqldb");
+var sqldb = sqlContainer.AddDatabase("sqldb");
 
-var apiService = builder.AddProject<Projects.Cookbook_ApiService>("apiservice")
+var apiProject = builder.AddProject<Projects.Cookbook_ApiService>("apiservice")
     .WithHttpHealthCheck("/health")
-    .WithReference(db);
+    .WithReference(sqldb)
+    .WaitFor(sqldb);
 
 builder.AddProject<Projects.Cookbook_Web>("webfrontend")
     .WithExternalHttpEndpoints()
     .WithHttpHealthCheck("/health")
-    .WithReference(apiService)
-    .WaitFor(apiService);
+    .WithReference(apiProject)
+    .WaitFor(apiProject);
 
 builder.AddProject<Projects.Cookbook_Maui>("mauiapp")
-    .WithReference(apiService);
+    .WithReference(apiProject);
 
 builder.Build().Run();

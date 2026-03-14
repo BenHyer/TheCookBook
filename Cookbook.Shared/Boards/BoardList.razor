@@ -1,0 +1,30 @@
+@if (_isLoading)
+{
+    <p>Loading boards...</p>
+}
+else if (!string.IsNullOrWhiteSpace(_errorMessage))
+{
+    <div class="alert alert-danger" role="alert">@_errorMessage</div>
+}
+else if (_boards.Count == 0)
+{
+    <p>No boards found.</p>
+}
+else
+{
+    <ul class="list-group">
+        @foreach (var board in _boards)
+        {
+            <li class="list-group-item d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="fw-semibold">@board.Name</div>
+                    @if (!string.IsNullOrWhiteSpace(board.Description))
+                    {
+                        <div class="text-muted">@board.Description</div>
+                    }
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => SelectBoardAsync(board)">View</button>
+            </li>
+        }
+    </ul>
+}
