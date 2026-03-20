@@ -1,5 +1,6 @@
 using Cookbook.Web;
 using Cookbook.Web.Components;
+using Cookbook.Shared.Boards;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.Identity.Web;
 
@@ -7,12 +8,16 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add service defaults & Aspire client integrations.
 builder.AddServiceDefaults();
- 
+
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 builder.Services.AddOutputCache();
+
+// Add shared services
+builder.Services.AddScoped<IBoardService, BoardService>();
+builder.Services.AddScoped<BoardViewModel>();
 
 builder.Services.AddHttpClient<WeatherApiClient>(client =>
     {

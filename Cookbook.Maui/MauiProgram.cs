@@ -1,6 +1,8 @@
 ﻿using CommunityToolkit.Maui;
+using Microsoft.AspNetCore.Components.WebView.Maui;
 using Microsoft.Extensions.Logging;
 using Syncfusion.Maui.Toolkit.Hosting;
+using Cookbook.Shared.Boards;
 
 namespace Cookbook.Maui;
 
@@ -43,6 +45,7 @@ public static class MauiProgram
 		builder.Services.AddLogging(configure => configure.AddDebug());
 #endif
 
+		// Existing MAUI repositories and services
 		builder.Services.AddSingleton<ProjectRepository>();
 		builder.Services.AddSingleton<TaskRepository>();
 		builder.Services.AddSingleton<CategoryRepository>();
@@ -53,9 +56,20 @@ public static class MauiProgram
 		builder.Services.AddSingleton<ProjectListPageModel>();
 		builder.Services.AddSingleton<ManageMetaPageModel>();
 
+		// Shared services for Blazor Hybrid
+		builder.Services.AddScoped<IBoardService, BoardService>();
+		builder.Services.AddScoped<BoardViewModel>();
+
+		// Add Blazor Hybrid services
+		builder.Services.AddMauiBlazorWebView();
+
+#if DEBUG
+		builder.Services.AddBlazorWebViewDeveloperTools();
+#endif
+
 		builder.Services.AddTransientWithShellRoute<ProjectDetailPage, ProjectDetailPageModel>("project");
 		builder.Services.AddTransientWithShellRoute<TaskDetailPage, TaskDetailPageModel>("task");
-		
+
 		return builder.Build();
 	}
 }
