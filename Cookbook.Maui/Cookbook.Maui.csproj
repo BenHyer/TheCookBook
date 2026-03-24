@@ -18,6 +18,7 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 		<MauiEnableXamlCBindingWithSourceCompilation>true</MauiEnableXamlCBindingWithSourceCompilation>
+		<SuppressStaticWebAssetsBuildWarning>true</SuppressStaticWebAssetsBuildWarning>
 
 		<!-- Display name -->
 		<ApplicationTitle>Cookbook.Maui</ApplicationTitle>
@@ -74,9 +75,16 @@
 	</ItemGroup>
 
 	<ItemGroup>
+	  <MauiXaml Update="Pages\BlazorPage.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
 	  <MauiXaml Update="Pages\MainPage.xaml">
 		<Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Folder Include="Components\Pages\" />
 	</ItemGroup>
 
 </Project>

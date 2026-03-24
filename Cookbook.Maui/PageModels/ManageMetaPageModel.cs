@@ -46,7 +46,6 @@ public partial class ManageMetaPageModel : ObservableObject
 			await _categoryRepository.SaveItemAsync(category);
 		}
 
-		await AppShell.DisplayToastAsync("Categories saved");
 		SemanticScreenReader.Announce("Categories saved");
 	}
 
@@ -55,7 +54,6 @@ public partial class ManageMetaPageModel : ObservableObject
 	{
 		Categories.Remove(category);
 		await _categoryRepository.DeleteItemAsync(category);
-		await AppShell.DisplayToastAsync("Category deleted");
 		SemanticScreenReader.Announce("Category deleted");
 	}
 
@@ -65,7 +63,6 @@ public partial class ManageMetaPageModel : ObservableObject
 		var category = new Category();
 		Categories.Add(category);
 		await _categoryRepository.SaveItemAsync(category);
-		await AppShell.DisplayToastAsync("Category added");
 		SemanticScreenReader.Announce("Category added");
 	}
 
@@ -77,7 +74,6 @@ public partial class ManageMetaPageModel : ObservableObject
 			await _tagRepository.SaveItemAsync(tag);
 		}
 
-		await AppShell.DisplayToastAsync("Tags saved");
 		SemanticScreenReader.Announce("Tags saved");
 	}
 
@@ -86,7 +82,6 @@ public partial class ManageMetaPageModel : ObservableObject
 	{
 		Tags.Remove(tag);
 		await _tagRepository.DeleteItemAsync(tag);
-		await AppShell.DisplayToastAsync("Tag deleted");
 		SemanticScreenReader.Announce("Tags deleted");
 	}
 
@@ -96,7 +91,6 @@ public partial class ManageMetaPageModel : ObservableObject
 		var tag = new Tag();
 		Tags.Add(tag);
 		await _tagRepository.SaveItemAsync(tag);
-		await AppShell.DisplayToastAsync("Tag added");
 		SemanticScreenReader.Announce("Tags added");
 	}
 

@@ -1,8 +1,10 @@
-﻿@using Cookbook.Shared.Boards
+@using Cookbook.Shared.Boards
+@using Cookbook.Shared.Components
+@using Cookbook.Shared.Hybrid
 
-<Router AppAssembly="@typeof(Routes).Assembly" AdditionalAssemblies="new[] { typeof(BoardList).Assembly }">
+<Router AppAssembly="@typeof(Root).Assembly" AdditionalAssemblies="new[] { typeof(BoardList).Assembly }">
     <Found Context="routeData">
-        <RouteView RouteData="@routeData" DefaultLayout="@typeof(Cookbook.Shared.Components.Layout.MainLayout)" />
+        <RouteView RouteData="@routeData" DefaultLayout="@typeof(HybridMainLayout)" />
         <FocusOnNavigate RouteData="@routeData" Selector="h1" />
     </Found>
     <NotFound>
@@ -15,3 +17,4 @@
         </div>
     </NotFound>
 </Router>
+

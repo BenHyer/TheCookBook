@@ -1,7 +1,68 @@
-﻿@page "/"
+@page "/"
 
 <PageTitle>Home</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="container">
+    <h1>Welcome to Cookbook</h1>
+    <p>This is your recipe collection manager.</p>
 
-Welcome to your new app.
+    <div class="info-box">
+        <h2>Getting Started</h2>
+        <ul>
+            <li>View all your recipes and organize them into collections</li>
+            <li>Manage recipe details and ingredients</li>
+            <li>Share and collaborate with others</li>
+        </ul>
+    </div>
+
+    <NavLink class="btn btn-primary" href="/boards" Match="NavLinkMatch.All">
+        View Boards
+    </NavLink>
+</div>
+
+<style>
+    .container {
+        max-width: 1200px;
+        margin: 20px auto;
+        padding: 20px;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    h1 {
+        color: #333;
+    }
+
+    .info-box {
+        background-color: #f5f5f5;
+        padding: 20px;
+        border-radius: 8px;
+        margin-top: 20px;
+    }
+
+    .info-box ul {
+        list-style: none;
+        padding: 0;
+    }
+
+    .info-box li {
+        padding: 8px 0;
+        color: #555;
+    }
+
+    .btn {
+        padding: 10px 20px;
+        margin-top: 15px;
+        text-decoration: none;
+        border-radius: 4px;
+        display: inline-block;
+    }
+
+    .btn-primary {
+        background-color: #007bff;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background-color: #0056b3;
+    }
+</style>

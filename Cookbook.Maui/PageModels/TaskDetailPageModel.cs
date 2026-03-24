@@ -142,17 +142,14 @@ public partial class TaskDetailPageModel : ObservableObject, IQueryAttributable
 			Project.Tasks.Add(_task);
 
 		if (_task.ProjectID > 0)
-			_taskRepository.SaveItemAsync(_task).FireAndForgetSafeAsync(_errorHandler);
+				_taskRepository.SaveItemAsync(_task).FireAndForgetSafeAsync(_errorHandler);
 
-		await Shell.Current.GoToAsync("..?refresh=true");
+				await Shell.Current.GoToAsync("..?refresh=true");
+			}
 
-		if (_task.ID > 0)
-			await AppShell.DisplayToastAsync("Task saved");
-	}
-
-	[RelayCommand(CanExecute = nameof(CanDelete))]
-	private async Task Delete()
-	{
+			[RelayCommand(CanExecute = nameof(CanDelete))]
+			private async Task Delete()
+			{
 		if (_task is null || Project is null)
 		{
 			_errorHandler.HandleError(
@@ -165,9 +162,8 @@ public partial class TaskDetailPageModel : ObservableObject, IQueryAttributable
 			Project.Tasks.Remove(_task);
 
 		if (_task.ID > 0)
-			await _taskRepository.DeleteItemAsync(_task);
+					await _taskRepository.DeleteItemAsync(_task);
 
-		await Shell.Current.GoToAsync("..?refresh=true");
-		await AppShell.DisplayToastAsync("Task deleted");
-	}
-}
+					await Shell.Current.GoToAsync("..?refresh=true");
+				}
+			}

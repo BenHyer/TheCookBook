@@ -207,17 +207,16 @@ public partial class ProjectDetailPageModel : ObservableObject, IQueryAttributab
 			if (task.ID == 0)
 			{
 				task.ProjectID = _project.ID;
-				await _taskRepository.SaveItemAsync(task);
-			}
-		}
+							await _taskRepository.SaveItemAsync(task);
+						}
+					}
 
-		await Shell.Current.GoToAsync("..");
-		await AppShell.DisplayToastAsync("Project saved");
-	}
+					await Shell.Current.GoToAsync("..");
+				}
 
-	[RelayCommand]
-	private async Task AddTask()
-	{
+				[RelayCommand]
+				private async Task AddTask()
+				{
 		if (_project is null)
 		{
 			_errorHandler.HandleError(
@@ -243,17 +242,16 @@ public partial class ProjectDetailPageModel : ObservableObject, IQueryAttributab
 			return;
 		}
 
-		await _projectRepository.DeleteItemAsync(_project);
-		await Shell.Current.GoToAsync("..");
-		await AppShell.DisplayToastAsync("Project deleted");
-	}
+			await _projectRepository.DeleteItemAsync(_project);
+			await Shell.Current.GoToAsync("..");
+		}
 
-	[RelayCommand]
-	private Task NavigateToTask(ProjectTask task) =>
-		Shell.Current.GoToAsync($"task?id={task.ID}");
+		[RelayCommand]
+		private Task NavigateToTask(ProjectTask task) =>
+			Shell.Current.GoToAsync($"task?id={task.ID}");
 
-	[RelayCommand]
-	internal async Task ToggleTag(Tag tag)
+		[RelayCommand]
+		internal async Task ToggleTag(Tag tag)
 	{
 		tag.IsSelected = !tag.IsSelected;
 
@@ -289,22 +287,21 @@ public partial class ProjectDetailPageModel : ObservableObject, IQueryAttributab
 			Tasks.Remove(task);
 		}
 
-		Tasks = new(Tasks);
-		OnPropertyChanged(nameof(HasCompletedTasks));
-		await AppShell.DisplayToastAsync("All cleaned up!");
-	}
+			Tasks = new(Tasks);
+			OnPropertyChanged(nameof(HasCompletedTasks));
+		}
 
-	[RelayCommand]
-	private async Task SelectionChanged(object parameter)
-	{
-		if (parameter is IEnumerable<object> enumerableParameter)
+		[RelayCommand]
+		private async Task SelectionChanged(object parameter)
 		{
-			var currentSelection = enumerableParameter.OfType<Tag>().ToList();
-			var previousSelection = AllTags.Where(t => t.IsSelected).ToList();
-
-			// Handle newly selected tags
-			foreach (var tag in currentSelection.Except(previousSelection))
+			if (parameter is IEnumerable<object> enumerableParameter)
 			{
+				var currentSelection = enumerableParameter.OfType<Tag>().ToList();
+				var previousSelection = AllTags.Where(t => t.IsSelected).ToList();
+
+				// Handle newly selected tags
+				foreach (var tag in currentSelection.Except(previousSelection))
+				{
 				tag.IsSelected = true;
 				if (!_project.IsNullOrNew())
 				{

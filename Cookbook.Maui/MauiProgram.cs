@@ -13,6 +13,12 @@ public static class MauiProgram
 		var builder = MauiApp.CreateBuilder();
 		builder
 			.UseMauiApp<App>()
+			.ConfigureFonts(fonts =>
+			{
+				fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
+				fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
+				fonts.AddFont("SegoeUI-Semibold.ttf", "SegoeSemibold");
+			})
 			.UseMauiCommunityToolkit()
 			.ConfigureSyncfusionToolkit()
 			.ConfigureMauiHandlers(handlers =>
@@ -22,30 +28,27 @@ public static class MauiProgram
 				{
 					handler.PlatformView.SingleSelectionFollowsFocus = false;
 				});
-
-				Microsoft.Maui.Handlers.ContentViewHandler.Mapper.AppendToMapping(nameof(Pages.Controls.CategoryChart), (handler, view) =>
-				{
-					if (view is Pages.Controls.CategoryChart && handler.PlatformView is Microsoft.Maui.Platform.ContentPanel contentPanel)
-					{
-						contentPanel.IsTabStop = true;
-					}
-				});
 #endif
-			})
-			.ConfigureFonts(fonts =>
-			{
-				fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
-				fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
-				fonts.AddFont("SegoeUI-Semibold.ttf", "SegoeSemibold");
-				fonts.AddFont("FluentSystemIcons-Regular.ttf", FluentUI.FontFamily);
 			});
 
 #if DEBUG
-		builder.Logging.AddDebug();
-		builder.Services.AddLogging(configure => configure.AddDebug());
+		builder
+			.Logging
+			.AddDebug();
 #endif
 
-		// Existing MAUI repositories and services
+		// Add Blazor Web View
+		builder.Services.AddMauiBlazorWebView();
+
+#if DEBUG
+		builder.Services.AddBlazorWebViewDeveloperTools();
+#endif
+
+		// Add shared services for Blazor components
+		builder.Services.AddScoped<IBoardService, BoardService>();
+		builder.Services.AddScoped<BoardViewModel>();
+
+		// Legacy MAUI services (for other MAUI pages if needed)
 		builder.Services.AddSingleton<ProjectRepository>();
 		builder.Services.AddSingleton<TaskRepository>();
 		builder.Services.AddSingleton<CategoryRepository>();
@@ -55,17 +58,6 @@ public static class MauiProgram
 		builder.Services.AddSingleton<MainPageModel>();
 		builder.Services.AddSingleton<ProjectListPageModel>();
 		builder.Services.AddSingleton<ManageMetaPageModel>();
-
-		// Shared services for Blazor Hybrid
-		builder.Services.AddScoped<IBoardService, BoardService>();
-		builder.Services.AddScoped<BoardViewModel>();
-
-		// Add Blazor Hybrid services
-		builder.Services.AddMauiBlazorWebView();
-
-#if DEBUG
-		builder.Services.AddBlazorWebViewDeveloperTools();
-#endif
 
 		builder.Services.AddTransientWithShellRoute<ProjectDetailPage, ProjectDetailPageModel>("project");
 		builder.Services.AddTransientWithShellRoute<TaskDetailPage, TaskDetailPageModel>("task");

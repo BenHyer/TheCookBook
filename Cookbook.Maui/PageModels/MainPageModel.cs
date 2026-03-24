@@ -171,6 +171,5 @@ public partial class MainPageModel : ObservableObject, IProjectTaskPageModel
 
 		OnPropertyChanged(nameof(HasCompletedTasks));
 		Tasks = new(Tasks);
-		await AppShell.DisplayToastAsync("All cleaned up!");
 	}
 }
