@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-lint-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+          include-prerelease: true
+          cache: true
+
+      - name: Restore
+        run: |
+          dotnet restore Cookbook.ApiService/Cookbook.ApiService.csproj
+          dotnet restore Cookbook.Web/Cookbook.Web.csproj
+
+      - name: Build
+        run: |
+          dotnet build Cookbook.ApiService/Cookbook.ApiService.csproj --configuration Release --no-restore
+          dotnet build Cookbook.Web/Cookbook.Web.csproj --configuration Release --no-restore
+
+      - name: Lint (format check)
+        run: |
+          dotnet format Cookbook.ApiService/Cookbook.ApiService.csproj --verify-no-changes --no-restore
+          dotnet format Cookbook.Web/Cookbook.Web.csproj --verify-no-changes --no-restore
+
+      - name: Detect test projects
+        id: detect_tests
+        shell: bash
+        run: |
+          count=$(find . -type f \( -name '*Tests.csproj' -o -name '*Test.csproj' \) | wc -l)
+          if [ "$count" -gt 0 ]; then
+            echo "has_tests=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_tests=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Test
+        if: steps.detect_tests.outputs.has_tests == 'true'
+        shell: bash
+        run: |
+          while IFS= read -r proj; do
+            dotnet test "$proj" --configuration Release --nologo
+          done < <(find . -type f \( -name '*Tests.csproj' -o -name '*Test.csproj' \))
+
+  container-validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Docker images
+        run: docker compose build --pull api app
