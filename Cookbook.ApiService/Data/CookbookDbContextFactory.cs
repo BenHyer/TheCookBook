@@ -10,7 +10,7 @@ public class CookbookDbContextFactory : IDesignTimeDbContextFactory<CookbookDbCo
         var optionsBuilder = new DbContextOptionsBuilder<CookbookDbContext>();
 
         var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__sqldb")
-            ?? "Server=localhost,1433;Database=sqldb;User Id=sa;Password=Your_password123;TrustServerCertificate=True;";
+            ?? "Server=localhost,1433;Database=sqldb;User Id=sa;TrustServerCertificate=True;Encrypt=False;";
 
         optionsBuilder.UseSqlServer(connectionString);
 

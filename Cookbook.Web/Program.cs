@@ -19,11 +19,15 @@ builder.Services.AddOutputCache();
 builder.Services.AddScoped<IBoardService, BoardService>();
 builder.Services.AddScoped<BoardViewModel>();
 
+var apiBaseUrl = builder.Configuration["ApiService:BaseUrl"];
+
 builder.Services.AddHttpClient<WeatherApiClient>(client =>
     {
         // This URL uses "https+http://" to indicate HTTPS is preferred over HTTP.
         // Learn more about service discovery scheme resolution at https://aka.ms/dotnet/sdschemes.
-        client.BaseAddress = new("https+http://apiservice");
+        client.BaseAddress = string.IsNullOrWhiteSpace(apiBaseUrl)
+            ? new("https+http://apiservice")
+            : new(apiBaseUrl);
     });
 
 var azureAdClientId = builder.Configuration["AzureAd:ClientId"];
