@@ -2,6 +2,9 @@ using Cookbook.Web.Components;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Add service defaults & Aspire client integrations.
+builder.AddServiceDefaults();
+
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
@@ -26,5 +29,7 @@ app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
     .AddAdditionalAssemblies(
         typeof(Cookbook.Shared._Imports).Assembly);
+
+app.MapDefaultEndpoints();
 
 app.Run();
