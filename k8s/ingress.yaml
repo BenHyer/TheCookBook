@@ -8,7 +8,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-    - host: cookbook.local
+    - host: cookbook.bencampus.duckdns.org
       http:
         paths:
           - path: /api

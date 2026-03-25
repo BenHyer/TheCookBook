@@ -15,8 +15,8 @@ spec:
     spec:
       containers:
         - name: cookbook-web
-          image: ghcr.io/your-org/cookbook-web:latest
-          imagePullPolicy: IfNotPresent
+          image: benhyer/cookbook-web:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
           env:

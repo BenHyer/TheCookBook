@@ -15,8 +15,8 @@ spec:
     spec:
       containers:
         - name: cookbook-api
-          image: ghcr.io/your-org/cookbook-api:latest
-          imagePullPolicy: IfNotPresent
+          image: benhyer/cookbook-api:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
           env:
@@ -32,18 +32,19 @@ spec:
                 secretKeyRef:
                   name: cookbook-secrets
                   key: ConnectionStrings__sqldb
-          readinessProbe:
-            httpGet:
-              path: /
-              port: 8080
-            initialDelaySeconds: 10
-            periodSeconds: 10
-          livenessProbe:
-            httpGet:
-              path: /
-              port: 8080
-            initialDelaySeconds: 20
-            periodSeconds: 20
+          # Probes disabled temporarily to see startup logs
+          # readinessProbe:
+          #   httpGet:
+          #     path: /
+          #     port: 8080
+          #   initialDelaySeconds: 10
+          #   periodSeconds: 10
+          # livenessProbe:
+          #   httpGet:
+          #     path: /
+          #     port: 8080
+          #   initialDelaySeconds: 20
+          #   periodSeconds: 20
           resources:
             requests:
               cpu: 100m
