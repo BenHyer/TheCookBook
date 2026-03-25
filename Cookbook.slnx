@@ -1,8 +1,7 @@
 <Solution>
   <Project Path="Cookbook.ApiService/Cookbook.ApiService.csproj" />
   <Project Path="Cookbook.AppHost/Cookbook.AppHost.csproj" />
-  <Project Path="Cookbook.Maui/Cookbook.Maui.csproj" />
   <Project Path="Cookbook.ServiceDefaults/Cookbook.ServiceDefaults.csproj" />
-  <Project Path="Cookbook.Shared/Cookbook.Shared.csproj" />
-  <Project Path="Cookbook.Web/Cookbook.Web.csproj" />
+  <Project Path="Cookbook/Cookbook.Shared/Cookbook.Shared.csproj" Id="2e40548d-c935-47eb-ad75-d65a8c2bca57" />
+  <Project Path="Cookbook/Cookbook.Web/Cookbook.Web.csproj" Id="33955243-0e05-4167-8be5-8624844b3ff7" />
 </Solution>

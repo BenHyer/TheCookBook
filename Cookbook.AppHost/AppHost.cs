@@ -16,7 +16,4 @@ builder.AddProject<Projects.Cookbook_Web>("webfrontend")
     .WithReference(apiProject)
     .WaitFor(apiProject);
 
-builder.AddProject<Projects.Cookbook_Maui>("mauiapp")
-    .WithReference(apiProject);
-
 builder.Build().Run();
