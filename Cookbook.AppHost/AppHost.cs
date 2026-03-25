@@ -10,7 +10,7 @@ var apiProject = builder.AddProject<Projects.Cookbook_ApiService>("apiservice")
     .WithReference(sqldb)
     .WaitFor(sqldb);
 
-builder.AddProject<Projects.Cookbook_Web>("webfrontend")
+builder.AddProject<Projects.CookbookMauiBlazor_Web>("webfrontend")
     .WithExternalHttpEndpoints()
     .WithHttpHealthCheck("/health")
     .WithReference(apiProject)
