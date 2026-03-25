@@ -2,6 +2,9 @@
   <Project Path="Cookbook.ApiService/Cookbook.ApiService.csproj" />
   <Project Path="Cookbook.AppHost/Cookbook.AppHost.csproj" />
   <Project Path="Cookbook.ServiceDefaults/Cookbook.ServiceDefaults.csproj" />
-  <Project Path="Cookbook/Cookbook.Shared/Cookbook.Shared.csproj" Id="2e40548d-c935-47eb-ad75-d65a8c2bca57" />
-  <Project Path="Cookbook/Cookbook.Web/Cookbook.Web.csproj" Id="33955243-0e05-4167-8be5-8624844b3ff7" />
+  <Project Path="CookbookMauiBlazor/CookbookMauiBlazor.Shared/CookbookMauiBlazor.Shared.csproj" Id="2158e849-b237-45da-bb23-044c70e7231c" />
+  <Project Path="CookbookMauiBlazor/CookbookMauiBlazor.Web/CookbookMauiBlazor.Web.csproj" Id="df9a95cc-b6fa-4d9c-bd50-41795accd326" />
+  <Project Path="CookbookMauiBlazor/CookbookMauiBlazor/CookbookMauiBlazor.csproj" Id="74aaf0b0-b3ea-4a8f-976e-0606429ce609">
+    <Deploy Solution="Debug|*" />
+  </Project>
 </Solution>
