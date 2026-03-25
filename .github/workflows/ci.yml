@@ -59,7 +59,30 @@ jobs:
             dotnet test "$proj" --configuration Release --nologo --no-restore
           done < <(find . -type f \( -name '*Tests.csproj' -o -name '*Test.csproj' \))
 
+  detect-docker-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      docker_changed: ${{ steps.filter.outputs.docker }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Detect Docker-related changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            docker:
+              - 'docker-compose.yml'
+              - 'docker-compose.dev.yml'
+              - '**/Dockerfile'
+              - '**/Dockerfile.*'
+              - '.dockerignore'
+
   container-validate:
+    needs: detect-docker-changes
+    if: needs.detect-docker-changes.outputs.docker_changed == 'true'
     runs-on: ubuntu-latest
 
     steps:
