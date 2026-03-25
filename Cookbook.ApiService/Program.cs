@@ -13,13 +13,18 @@ builder.Services.AddProblemDetails();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
-var connectionString = builder.Configuration.GetConnectionString("sqldb")
-    ?? "Server=localhost,1433;Database=sqldb;User Id=sa;Password=Your_password123;TrustServerCertificate=True;";
+var connectionString = builder.Configuration.GetConnectionString("sqldb");
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    throw new InvalidOperationException("Connection string 'sqldb' is not configured.");
+}
 
 builder.Services.AddDbContext<CookbookDbContext>(options =>
-    options.UseSqlServer(connectionString));
+    options.UseSqlServer(connectionString, sql => sql.EnableRetryOnFailure()));
 
 var app = builder.Build();
+
+await ApplyDatabaseMigrationsAsync(app);
 
 // Configure the HTTP request pipeline.
 app.UseExceptionHandler();
@@ -106,6 +111,37 @@ app.MapPost("/api/boards", async (CreateBoardRequest request, CookbookDbContext 
 app.MapDefaultEndpoints();
 
 app.Run();
+
+static async Task ApplyDatabaseMigrationsAsync(WebApplication app)
+{
+    using var scope = app.Services.CreateScope();
+    var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("DatabaseMigration");
+    var dbContext = scope.ServiceProvider.GetRequiredService<CookbookDbContext>();
+
+    const int maxAttempts = 10;
+
+    for (var attempt = 1; attempt <= maxAttempts; attempt++)
+    {
+        try
+        {
+            await dbContext.Database.MigrateAsync();
+            logger.LogInformation("Database migration completed.");
+            return;
+        }
+        catch (Exception ex) when (attempt < maxAttempts)
+        {
+            var delay = TimeSpan.FromSeconds(Math.Min(30, attempt * 3));
+            logger.LogWarning(ex,
+                "Database migration attempt {Attempt}/{MaxAttempts} failed. Retrying in {DelaySeconds} seconds.",
+                attempt,
+                maxAttempts,
+                delay.TotalSeconds);
+            await Task.Delay(delay);
+        }
+    }
+
+    await dbContext.Database.MigrateAsync();
+}
 
 record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
 {

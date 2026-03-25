@@ -1,0 +1,32 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Cookbook.ApiService/Dockerfile.dev
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_HTTP_PORTS: "8080"
+      DOTNET_USE_POLLING_FILE_WATCHER: "1"
+    working_dir: /src/Cookbook.ApiService
+    command: dotnet watch run --no-launch-profile --project Cookbook.ApiService.csproj
+    volumes:
+      - ./:/src
+      - nuget_cache:/root/.nuget/packages
+
+  app:
+    build:
+      context: .
+      dockerfile: Cookbook.Web/Dockerfile.dev
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_HTTP_PORTS: "8080"
+      DOTNET_USE_POLLING_FILE_WATCHER: "1"
+      ApiService__BaseUrl: http://api:8080
+    working_dir: /src/Cookbook.Web
+    command: dotnet watch run --no-launch-profile --project Cookbook.Web.csproj
+    volumes:
+      - ./:/src
+      - nuget_cache:/root/.nuget/packages
+
+volumes:
+  nuget_cache:
