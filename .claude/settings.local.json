@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C /c/Users/marc.semadeni/source/repos/TheCookBook show --stat HEAD)",
+      "Bash(git -C /c/Users/marc.semadeni/source/repos/TheCookBook log --all --oneline --follow -- \"Cookbook.Web/Dockerfile\")",
+      "Bash(git -C /c/Users/marc.semadeni/source/repos/TheCookBook ls-files Cookbook.Web/)",
+      "Bash(git -C /c/Users/marc.semadeni/source/repos/TheCookBook show 5c4cda9:docker-compose.yml)",
+      "Bash(git -C /c/Users/marc.semadeni/source/repos/TheCookBook log --oneline --all)"
+    ]
+  }
+}

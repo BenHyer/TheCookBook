@@ -41,7 +41,7 @@ services:
   app:
     build:
       context: .
-      dockerfile: Cookbook.Web/Dockerfile
+      dockerfile: CookbookMauiBlazor/CookbookMauiBlazor.Web/Dockerfile
     container_name: cookbook-app
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
