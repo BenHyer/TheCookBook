@@ -7,6 +7,8 @@ on:
 jobs:
   build-lint-test:
     runs-on: ubuntu-latest
+    env:
+      NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
 
     steps:
       - name: Checkout
@@ -16,6 +18,12 @@ jobs:
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 10.0.x
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            **/Directory.Packages.props
+            **/NuGet.config
+            **/global.json
 
       - name: Restore
         run: |
@@ -48,7 +56,7 @@ jobs:
         shell: bash
         run: |
           while IFS= read -r proj; do
-            dotnet test "$proj" --configuration Release --nologo
+            dotnet test "$proj" --configuration Release --nologo --no-restore
           done < <(find . -type f \( -name '*Tests.csproj' -o -name '*Test.csproj' \))
 
   container-validate:
