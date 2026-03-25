@@ -17,6 +17,32 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Detect changed projects
+        id: detect_projects
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+            changed_files=$(git diff --name-only --diff-filter=ACMR "origin/${{ github.base_ref }}...HEAD")
+
+            build_api=false
+            build_web=false
+
+            if echo "$changed_files" | grep -Eq '^(Cookbook.ApiService/|Cookbook.Shared/|Cookbook.ServiceDefaults/)'; then
+              build_api=true
+            fi
+
+            if echo "$changed_files" | grep -Eq '^(Cookbook.Web/|Cookbook.Shared/|Cookbook.ServiceDefaults/)'; then
+              build_web=true
+            fi
+
+            echo "build_api=$build_api" >> "$GITHUB_OUTPUT"
+            echo "build_web=$build_web" >> "$GITHUB_OUTPUT"
+          else
+            echo "build_api=true" >> "$GITHUB_OUTPUT"
+            echo "build_web=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Setup .NET 10 SDK
         uses: actions/setup-dotnet@v5
         with:
@@ -29,15 +55,40 @@ jobs:
             **/global.json
 
       - name: Restore
+        shell: bash
         run: |
-          dotnet restore Cookbook.ApiService/Cookbook.ApiService.csproj
-          dotnet restore Cookbook.Web/Cookbook.Web.csproj
+          build_api="${{ steps.detect_projects.outputs.build_api }}"
+          build_web="${{ steps.detect_projects.outputs.build_web }}"
+
+          if [ "$build_api" = "true" ] && [ "$build_web" = "true" ]; then
+            dotnet restore Cookbook.ApiService/Cookbook.ApiService.csproj &
+            dotnet restore Cookbook.Web/Cookbook.Web.csproj &
+            wait
+          elif [ "$build_api" = "true" ]; then
+            dotnet restore Cookbook.ApiService/Cookbook.ApiService.csproj
+          elif [ "$build_web" = "true" ]; then
+            dotnet restore Cookbook.Web/Cookbook.Web.csproj
+          else
+            echo "No API/Web-related changes detected; skipping restore."
+          fi
 
       - name: Build
+        shell: bash
         run: |
-          dotnet build Cookbook.ApiService/Cookbook.ApiService.csproj --configuration Release --no-restore &
-          dotnet build Cookbook.Web/Cookbook.Web.csproj --configuration Release --no-restore &
-          wait
+          build_api="${{ steps.detect_projects.outputs.build_api }}"
+          build_web="${{ steps.detect_projects.outputs.build_web }}"
+
+          if [ "$build_api" = "true" ] && [ "$build_web" = "true" ]; then
+            dotnet build Cookbook.ApiService/Cookbook.ApiService.csproj --configuration Release --no-restore &
+            dotnet build Cookbook.Web/Cookbook.Web.csproj --configuration Release --no-restore &
+            wait
+          elif [ "$build_api" = "true" ]; then
+            dotnet build Cookbook.ApiService/Cookbook.ApiService.csproj --configuration Release --no-restore
+          elif [ "$build_web" = "true" ]; then
+            dotnet build Cookbook.Web/Cookbook.Web.csproj --configuration Release --no-restore
+          else
+            echo "No API/Web-related changes detected; skipping build."
+          fi
 
       - name: Lint (format check)
         shell: bash
