@@ -1,0 +1,28 @@
+@if (_boards.Count == 0)
+{
+    <p>No boards yet.</p>
+}
+else
+{
+    <ul class="list-group">
+        @foreach (var board in _boards)
+        {
+            <li class="list-group-item">@board.Name</li>
+        }
+    </ul>
+}
+
+@code {
+    [Inject]
+    private BoardViewModel BoardViewModel { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public string OwnerUserId { get; set; } = string.Empty;
+
+    private IReadOnlyList<BoardSummary> _boards = [];
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _boards = await BoardViewModel.LoadBoardsAsync(OwnerUserId);
+    }
+}
