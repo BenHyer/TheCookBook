@@ -1,9 +1,9 @@
 using CookbookMauiBlazor.Shared.Services;
 using CookbookMauiBlazor.Web.Components;
 using CookbookMauiBlazor.Web.Services;
-using Cookbook.Shared.Boards;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.Identity.Web;
+using CookbookMauiBlazor.Shared.Viewmodels;
 
 var builder = WebApplication.CreateBuilder(args);
 

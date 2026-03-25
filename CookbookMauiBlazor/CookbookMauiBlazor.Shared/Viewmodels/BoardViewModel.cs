@@ -1,4 +1,7 @@
-namespace Cookbook.Shared.Boards;
+using Cookbook.Shared.Boards;
+using CookbookMauiBlazor.Shared.Services;
+
+namespace CookbookMauiBlazor.Shared.Viewmodels;
 
 public sealed class BoardViewModel
 {

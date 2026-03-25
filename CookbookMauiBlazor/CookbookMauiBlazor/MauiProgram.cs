@@ -1,7 +1,7 @@
 ﻿using CookbookMauiBlazor.Services;
 using CookbookMauiBlazor.Shared.Services;
-using Cookbook.Shared.Boards;
 using Microsoft.Extensions.Logging;
+using CookbookMauiBlazor.Shared.Viewmodels;
 
 namespace CookbookMauiBlazor
 {

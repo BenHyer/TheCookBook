@@ -1,4 +1,6 @@
-namespace Cookbook.Shared.Boards;
+using Cookbook.Shared.Boards;
+
+namespace CookbookMauiBlazor.Shared.Services;
 
 public interface IBoardService
 {
