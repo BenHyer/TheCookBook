@@ -1,0 +1,15 @@
+@page "/boards"
+
+<PageTitle>Boards</PageTitle>
+
+<h1>Boards</h1>
+
+<CreateBoardForm OwnerUserId="@_ownerUserId" />
+
+<hr />
+
+<BoardList OwnerUserId="@_ownerUserId" />
+
+@code {
+    private readonly string _ownerUserId = "demo-user";
+}

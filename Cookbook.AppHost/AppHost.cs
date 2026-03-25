@@ -12,7 +12,6 @@ var apiProject = builder.AddProject<Projects.Cookbook_ApiService>("apiservice")
 
 builder.AddProject<Projects.CookbookMauiBlazor_Web>("webfrontend")
     .WithExternalHttpEndpoints()
-    .WithHttpHealthCheck("/health")
     .WithReference(apiProject)
     .WaitFor(apiProject);
 

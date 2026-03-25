@@ -1,5 +1,6 @@
 ﻿using CookbookMauiBlazor.Services;
 using CookbookMauiBlazor.Shared.Services;
+using Cookbook.Shared.Boards;
 using Microsoft.Extensions.Logging;
 
 namespace CookbookMauiBlazor
@@ -18,6 +19,8 @@ namespace CookbookMauiBlazor
 
             // Add device-specific services used by the CookbookMauiBlazor.Shared project
             builder.Services.AddSingleton<IFormFactor, FormFactor>();
+            builder.Services.AddScoped<IBoardService, BoardService>();
+            builder.Services.AddScoped<BoardViewModel>();
 
             builder.Services.AddMauiBlazorWebView();
 

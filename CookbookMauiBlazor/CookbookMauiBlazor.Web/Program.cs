@@ -1,6 +1,7 @@
 using CookbookMauiBlazor.Shared.Services;
 using CookbookMauiBlazor.Web.Components;
 using CookbookMauiBlazor.Web.Services;
+using Cookbook.Shared.Boards;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.Identity.Web;
 
@@ -12,6 +13,8 @@ builder.Services.AddRazorComponents()
 
 // Add device-specific services used by the CookbookMauiBlazor.Shared project
 builder.Services.AddSingleton<IFormFactor, FormFactor>();
+builder.Services.AddScoped<IBoardService, BoardService>();
+builder.Services.AddScoped<BoardViewModel>();
 
 var apiBaseUrl = builder.Configuration["ApiService:BaseUrl"];
 
