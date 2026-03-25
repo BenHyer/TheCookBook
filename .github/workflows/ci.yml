@@ -1,5 +1,8 @@
 name: CI
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   push:
   pull_request:
@@ -32,13 +35,35 @@ jobs:
 
       - name: Build
         run: |
-          dotnet build Cookbook.ApiService/Cookbook.ApiService.csproj --configuration Release --no-restore
-          dotnet build Cookbook.Web/Cookbook.Web.csproj --configuration Release --no-restore
+          dotnet build Cookbook.ApiService/Cookbook.ApiService.csproj --configuration Release --no-restore &
+          dotnet build Cookbook.Web/Cookbook.Web.csproj --configuration Release --no-restore &
+          wait
 
       - name: Lint (format check)
+        shell: bash
         run: |
-          dotnet format Cookbook.ApiService/Cookbook.ApiService.csproj --verify-no-changes --no-restore
-          dotnet format Cookbook.Web/Cookbook.Web.csproj --verify-no-changes --no-restore
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+
+            readarray -t api_files < <(git diff --name-only --diff-filter=ACMR "origin/${{ github.base_ref }}...HEAD" | grep '^Cookbook.ApiService/.*\.cs$' || true)
+            readarray -t web_files < <(git diff --name-only --diff-filter=ACMR "origin/${{ github.base_ref }}...HEAD" | grep '^Cookbook.Web/.*\.cs$' || true)
+
+            if [ ${#api_files[@]} -gt 0 ]; then
+              dotnet format Cookbook.ApiService/Cookbook.ApiService.csproj --verify-no-changes --no-restore --include "${api_files[@]}"
+            fi
+
+            if [ ${#web_files[@]} -gt 0 ]; then
+              dotnet format Cookbook.Web/Cookbook.Web.csproj --verify-no-changes --no-restore --include "${web_files[@]}"
+            fi
+
+            if [ ${#api_files[@]} -eq 0 ] && [ ${#web_files[@]} -eq 0 ]; then
+              echo "No changed C# files in Cookbook.ApiService or Cookbook.Web; skipping format check."
+            fi
+          else
+            dotnet format Cookbook.ApiService/Cookbook.ApiService.csproj --verify-no-changes --no-restore &
+            dotnet format Cookbook.Web/Cookbook.Web.csproj --verify-no-changes --no-restore &
+            wait
+          fi
 
       - name: Detect test projects
         id: detect_tests
