@@ -1,3 +1,4 @@
+using System.Net.Http.Json;
 using Cookbook.Shared.Boards;
 
 namespace CookbookMauiBlazor.Shared.Services;
@@ -17,7 +18,8 @@ public sealed class BoardService : IBoardService
         {
             var response = await _httpClient.GetAsync($"/api/boards/owner/{ownerUserId}", cancellationToken);
             response.EnsureSuccessStatusCode();
-            return await response.Content.ReadAsAsync<List<BoardSummary>>(cancellationToken: cancellationToken);
+            var boards = await response.Content.ReadFromJsonAsync<List<BoardSummary>>(cancellationToken: cancellationToken);
+            return boards ?? [];
         }
         catch
         {
