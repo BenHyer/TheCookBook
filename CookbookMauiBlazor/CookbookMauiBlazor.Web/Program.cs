@@ -27,12 +27,12 @@ var apiBaseUrl = builder.Configuration["ApiService:BaseUrl"];
 //        : new(apiBaseUrl);
 //});
 
-var azureAdClientId = builder.Configuration["AzureAd:ClientId"];
-if (!string.IsNullOrWhiteSpace(azureAdClientId))
-{
-    builder.Services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
-        .AddMicrosoftIdentityWebApp(builder.Configuration.GetSection("AzureAd"));
-}
+// var azureAdClientId = builder.Configuration["AzureAd:ClientId"];
+// if (!string.IsNullOrWhiteSpace(azureAdClientId))
+// {
+//     builder.Services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
+//         .AddMicrosoftIdentityWebApp(builder.Configuration.GetSection("AzureAd"));
+// }
 
 var app = builder.Build();
 
