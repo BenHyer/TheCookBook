@@ -1,5 +1,6 @@
 using Cookbook.ApiService.Data;
 using Cookbook.ApiService.Models;
+using Cookbook.Shared.Boards;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -35,6 +36,18 @@ if (app.Environment.IsDevelopment())
 }
 
 app.MapGet("/", () => "API service is running.");
+
+app.MapGet("/api/boards/owner/{ownerUserId}", async (string ownerUserId, CookbookDbContext dbContext) =>
+{
+    var boards = await dbContext.Boards
+        .Where(b => b.OwnerUserId == ownerUserId)
+        .OrderBy(b => b.Name)
+        .Select(b => new BoardSummary(b.Id, b.Name, b.OwnerUserId, b.CreatedUtc))
+        .ToListAsync();
+
+    return Results.Ok(boards);
+})
+.WithName("GetBoardsByOwner");
 
 app.MapPost("/api/boards", async (CreateBoardRequest request, CookbookDbContext dbContext) =>
 {
