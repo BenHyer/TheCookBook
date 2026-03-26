@@ -25,4 +25,21 @@ spec:
                 name: cookbook-web
                 port:
                   number: 80
-                  
+    - host: cookbook.benhhome.duckdns.org
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: cookbook-api
+                port:
+                  number: 80
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: cookbook-web
+                port:
+                  number: 80
+
