@@ -1,7 +1,8 @@
 using Cookbook.ApiService.Data;
 using Cookbook.ApiService.Models;
-using Cookbook.Shared.Boards;
 using Microsoft.EntityFrameworkCore;
+using CookbookMauiBlazor.Shared.Boards;
+using Cookbook.Shared.Boards;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -142,4 +143,4 @@ static async Task ApplyDatabaseMigrationsAsync(WebApplication app)
 
 record CreateBoardRequest(string Name, string? Description, string OwnerUserId);
 
-record BoardDto(int Id, string Name, string? Description, string OwnerUserId, DateTime CreatedUtc, DateTime UpdatedUtc);
+record BoardDto(Guid Id, string Name, string? Description, string OwnerUserId, DateTime CreatedUtc, DateTime UpdatedUtc);
