@@ -15,7 +15,7 @@ builder.Services.AddRazorComponents()
 builder.Services.AddSingleton<IFormFactor, FormFactor>();
 builder.Services.AddScoped<BoardViewModel>();
 
-var apiBaseUrl = builder.Configuration["ApiService:BaseUrl"] ?? "http://cookbook-api";
+var apiBaseUrl = builder.Configuration["ApiService:BaseUrl"] ?? "http://localhost:5346";
 builder.Services.AddHttpClient<IBoardService, BoardService>(client =>
 {
     client.BaseAddress = new Uri(apiBaseUrl);

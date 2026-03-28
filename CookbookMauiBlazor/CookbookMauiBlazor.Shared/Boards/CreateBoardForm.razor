@@ -19,12 +19,16 @@
     [Parameter, EditorRequired]
     public string OwnerUserId { get; set; } = string.Empty;
 
+    [Parameter]
+    public EventCallback OnCreated { get; set; }
+
     private CreateBoardModel _model = new();
 
     private async Task CreateBoardAsync()
     {
         await BoardViewModel.CreateBoardAsync(OwnerUserId, _model.Name);
         _model = new();
+        await OnCreated.InvokeAsync();
     }
 
     private sealed class CreateBoardModel

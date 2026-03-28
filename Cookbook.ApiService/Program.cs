@@ -68,8 +68,6 @@ app.MapPost("/api/boards", async (CreateBoardRequest request, CookbookDbContext 
         });
     }
 
-    await using var transaction = await dbContext.Database.BeginTransactionAsync();
-
     var utcNow = DateTime.UtcNow;
     var board = new Board
     {
@@ -80,9 +78,6 @@ app.MapPost("/api/boards", async (CreateBoardRequest request, CookbookDbContext 
         UpdatedUtc = utcNow
     };
 
-    dbContext.Boards.Add(board);
-    await dbContext.SaveChangesAsync();
-
     var ownerPermission = new BoardPermission
     {
         BoardId = board.Id,
@@ -91,10 +86,9 @@ app.MapPost("/api/boards", async (CreateBoardRequest request, CookbookDbContext 
         CreatedUtc = utcNow
     };
 
+    dbContext.Boards.Add(board);
     dbContext.BoardPermissions.Add(ownerPermission);
     await dbContext.SaveChangesAsync();
-
-    await transaction.CommitAsync();
 
     return Results.Created($"/api/boards/{board.Id}", new BoardDto(
         board.Id,
