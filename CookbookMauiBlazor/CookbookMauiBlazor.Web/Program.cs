@@ -1,9 +1,11 @@
 using CookbookMauiBlazor.Shared.Services;
 using CookbookMauiBlazor.Web.Components;
 using CookbookMauiBlazor.Web.Services;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.Identity.Web;
 using Microsoft.Identity.Web.UI;
+using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using CookbookMauiBlazor.Shared.Viewmodels;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -26,8 +28,19 @@ builder.Services.AddHttpClient<IBoardService, BoardService>(client =>
     client.BaseAddress = new Uri(apiBaseUrl);
 });
 
-builder.Services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
-    .AddMicrosoftIdentityWebApp(builder.Configuration.GetSection("AzureAd"));
+builder.Services
+    .AddAuthentication(options =>
+    {
+        options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+        options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
+    })
+    .AddMicrosoftIdentityWebApp(options =>
+    {
+        builder.Configuration.Bind("AzureAd", options);
+        options.ResponseType = OpenIdConnectResponseType.Code;
+        options.UsePkce = true;
+    });
 builder.Services.AddAuthorization();
 
 //builder.Services.AddHttpClient<WeatherApiClient>(client =>
