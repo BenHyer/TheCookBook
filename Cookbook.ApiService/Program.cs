@@ -1,10 +1,12 @@
 using Cookbook.ApiService.Data;
 using Cookbook.ApiService.Models;
+using Cookbook.ApiService.Telemetry;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Web;
 using CookbookMauiBlazor.Shared.Boards;
 using Cookbook.Shared.Boards;
+using System.Diagnostics;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,9 +16,13 @@ builder.AddServiceDefaults();
 // Add services to the container.
 builder.Services.AddProblemDetails();
 
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
 builder.Services.AddAuthorization();
+var azureAdClientId = builder.Configuration["AzureAd:ClientId"];
+if (!string.IsNullOrWhiteSpace(azureAdClientId))
+{
+    builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
+}
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
@@ -37,7 +43,61 @@ await ApplyDatabaseMigrationsAsync(app);
 // Configure the HTTP request pipeline.
 app.UseExceptionHandler();
 
-app.UseAuthentication();
+app.Use(async (context, next) =>
+{
+    if (!context.Request.Path.StartsWithSegments("/api"))
+    {
+        await next();
+        return;
+    }
+
+    var pathSegments = context.Request.Path.Value?.Split('/');
+    var version = pathSegments?.Length > 2 ? pathSegments[2] : "unknown";
+
+    if (context.Request.ContentLength.HasValue)
+    {
+        CookbookMetrics.RequestBodySize.Record(
+            context.Request.ContentLength.Value,
+            new KeyValuePair<string, object?>("method", context.Request.Method),
+            new KeyValuePair<string, object?>("route", context.Request.Path.Value ?? "unknown"));
+    }
+
+    var timer = Stopwatch.StartNew();
+    try
+    {
+        await next();
+    }
+    finally
+    {
+        timer.Stop();
+        var statusCode = context.Response.StatusCode;
+
+        if (context.Response.ContentLength.HasValue)
+        {
+            CookbookMetrics.ResponseBodySize.Record(
+                context.Response.ContentLength.Value,
+                new KeyValuePair<string, object?>("method", context.Request.Method),
+                new KeyValuePair<string, object?>("route", context.Request.Path.Value ?? "unknown"));
+        }
+
+        CookbookMetrics.ApiRequestDuration.Record(
+            timer.Elapsed.TotalMilliseconds,
+            new KeyValuePair<string, object?>("method", context.Request.Method),
+            new KeyValuePair<string, object?>("route", context.Request.Path.Value ?? "unknown"),
+            new KeyValuePair<string, object?>("status_code", statusCode),
+            new KeyValuePair<string, object?>("version", version));
+
+        if (statusCode >= 400)
+        {
+            CookbookMetrics.TrackApiError(version, statusCode);
+        }
+    }
+});
+
+if (!string.IsNullOrWhiteSpace(azureAdClientId))
+{
+    app.UseAuthentication();
+}
 app.UseAuthorization();
 
 if (app.Environment.IsDevelopment())
@@ -47,7 +107,7 @@ if (app.Environment.IsDevelopment())
 
 app.MapGet("/", () => "API service is running.");
 
-app.MapGet("/api/boards/owner/{ownerUserId}", async (string ownerUserId, CookbookDbContext dbContext) =>
+app.MapGet("/api/v1/boards/owner/{ownerUserId}", async (string ownerUserId, CookbookDbContext dbContext) =>
 {
     var boards = await dbContext.Boards
         .Where(b => b.OwnerUserId == ownerUserId)
@@ -59,8 +119,10 @@ app.MapGet("/api/boards/owner/{ownerUserId}", async (string ownerUserId, Cookboo
 })
 .WithName("GetBoardsByOwner");
 
-app.MapPost("/api/boards", async (CreateBoardRequest request, CookbookDbContext dbContext) =>
+app.MapPost("/api/v1/boards", async (CreateBoardRequest request, CookbookDbContext dbContext) =>
 {
+    CookbookMetrics.TrackUploadAttempt();
+
     if (string.IsNullOrWhiteSpace(request.Name))
     {
         return Results.ValidationProblem(new Dictionary<string, string[]>
@@ -97,9 +159,19 @@ app.MapPost("/api/boards", async (CreateBoardRequest request, CookbookDbContext 
 
     dbContext.Boards.Add(board);
     dbContext.BoardPermissions.Add(ownerPermission);
-    await dbContext.SaveChangesAsync();
+    try
+    {
+        await dbContext.SaveChangesAsync();
+    }
+    catch (Exception)
+    {
+        CookbookMetrics.TrackDbError("board_create");
+        throw;
+    }
 
-    return Results.Created($"/api/boards/{board.Id}", new BoardDto(
+    CookbookMetrics.TrackUploadSuccess();
+
+    return Results.Created($"/api/v1/boards/{board.Id}", new BoardDto(
         board.Id,
         board.Name,
         board.Description,

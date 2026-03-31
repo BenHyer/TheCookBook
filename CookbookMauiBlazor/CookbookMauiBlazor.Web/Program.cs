@@ -1,14 +1,33 @@
 using CookbookMauiBlazor.Shared.Services;
 using CookbookMauiBlazor.Web.Components;
 using CookbookMauiBlazor.Web.Services;
+using CookbookMauiBlazor.Web.Telemetry;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.Identity.Web;
 using Microsoft.Identity.Web.UI;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using CookbookMauiBlazor.Shared.Viewmodels;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Exporter;
+using OpenTelemetry.Resources;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var otlpEndpoint = builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"] ?? "http://localhost:4317";
+
+builder.Services
+    .AddOpenTelemetry()
+    .ConfigureResource(resource => resource.AddService("CookbookWeb"))
+    .WithMetrics(metrics =>
+    {
+        metrics.AddMeter(CookbookWebMetrics.MeterName);
+        metrics.AddOtlpExporter(otlpOptions =>
+        {
+            otlpOptions.Endpoint = new Uri(otlpEndpoint);
+            otlpOptions.Protocol = OtlpExportProtocol.Grpc;
+        });
+    });
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
@@ -40,6 +59,19 @@ builder.Services
         builder.Configuration.Bind("AzureAd", options);
         options.ResponseType = OpenIdConnectResponseType.Code;
         options.UsePkce = true;
+        options.Events = new OpenIdConnectEvents
+        {
+            OnTokenValidated = ctx =>
+            {
+                CookbookWebMetrics.TrackLoginSuccess();
+                return Task.CompletedTask;
+            },
+            OnAuthenticationFailed = ctx =>
+            {
+                CookbookWebMetrics.TrackLoginFailure();
+                return Task.CompletedTask;
+            }
+        };
     });
 builder.Services.AddAuthorization();
 

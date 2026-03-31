@@ -32,6 +32,11 @@ spec:
                 secretKeyRef:
                   name: cookbook-secrets
                   key: ConnectionStrings__sqldb
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: cookbook-config
+                  key: OTEL_EXPORTER_OTLP_ENDPOINT
           # Probes disabled temporarily to see startup logs
           # readinessProbe:
           #   httpGet:

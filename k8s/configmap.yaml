@@ -6,3 +6,4 @@ metadata:
 data:
   ASPNETCORE_ENVIRONMENT: Production
   ApiService__BaseUrl: http://cookbook-api
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
