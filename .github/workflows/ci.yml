@@ -16,6 +16,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Detect changed projects
         id: detect_projects
@@ -167,3 +169,15 @@ jobs:
 
       - name: Build Docker images
         run: docker compose build --pull api app
+
+  deploy:
+    needs: build-lint-test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Apply Kubernetes manifests
+        run: kubectl apply -f k8s/

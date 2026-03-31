@@ -24,11 +24,9 @@ namespace Cookbook.ApiService.Data.Migrations
 
             modelBuilder.Entity("Cookbook.ApiService.Models.Board", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime>("CreatedUtc")
                         .HasColumnType("datetime2");
@@ -65,8 +63,8 @@ namespace Cookbook.ApiService.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("BoardId")
-                        .HasColumnType("int");
+                    b.Property<Guid>("BoardId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime>("CreatedUtc")
                         .HasColumnType("datetime2");

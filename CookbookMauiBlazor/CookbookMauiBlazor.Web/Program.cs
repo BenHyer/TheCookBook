@@ -1,22 +1,79 @@
 using CookbookMauiBlazor.Shared.Services;
 using CookbookMauiBlazor.Web.Components;
 using CookbookMauiBlazor.Web.Services;
+using CookbookMauiBlazor.Web.Telemetry;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.Identity.Web;
+using Microsoft.Identity.Web.UI;
+using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using CookbookMauiBlazor.Shared.Viewmodels;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Exporter;
+using OpenTelemetry.Resources;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var otlpEndpoint = builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"] ?? "http://localhost:4317";
+
+builder.Services
+    .AddOpenTelemetry()
+    .ConfigureResource(resource => resource.AddService("CookbookWeb"))
+    .WithMetrics(metrics =>
+    {
+        metrics.AddMeter(CookbookWebMetrics.MeterName);
+        metrics.AddOtlpExporter(otlpOptions =>
+        {
+            otlpOptions.Endpoint = new Uri(otlpEndpoint);
+            otlpOptions.Protocol = OtlpExportProtocol.Grpc;
+        });
+    });
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
+builder.Services.AddRazorPages();
+builder.Services.AddControllersWithViews()
+    .AddMicrosoftIdentityUI();
+
 // Add device-specific services used by the CookbookMauiBlazor.Shared project
 builder.Services.AddSingleton<IFormFactor, FormFactor>();
-builder.Services.AddScoped<IBoardService, BoardService>();
 builder.Services.AddScoped<BoardViewModel>();
 
-var apiBaseUrl = builder.Configuration["ApiService:BaseUrl"];
+var apiBaseUrl = builder.Configuration["ApiService:BaseUrl"] ?? "http://localhost:5346";
+builder.Services.AddHttpClient<IBoardService, BoardService>(client =>
+{
+    client.BaseAddress = new Uri(apiBaseUrl);
+});
+
+builder.Services
+    .AddAuthentication(options =>
+    {
+        options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+        options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
+    })
+    .AddMicrosoftIdentityWebApp(options =>
+    {
+        builder.Configuration.Bind("AzureAd", options);
+        options.ResponseType = OpenIdConnectResponseType.Code;
+        options.UsePkce = true;
+        options.Events = new OpenIdConnectEvents
+        {
+            OnTokenValidated = ctx =>
+            {
+                CookbookWebMetrics.TrackLoginSuccess();
+                return Task.CompletedTask;
+            },
+            OnAuthenticationFailed = ctx =>
+            {
+                CookbookWebMetrics.TrackLoginFailure();
+                return Task.CompletedTask;
+            }
+        };
+    });
+builder.Services.AddAuthorization();
 
 //builder.Services.AddHttpClient<WeatherApiClient>(client =>
 //{
@@ -27,12 +84,12 @@ var apiBaseUrl = builder.Configuration["ApiService:BaseUrl"];
 //        : new(apiBaseUrl);
 //});
 
-var azureAdClientId = builder.Configuration["AzureAd:ClientId"];
-if (!string.IsNullOrWhiteSpace(azureAdClientId))
-{
-    builder.Services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
-        .AddMicrosoftIdentityWebApp(builder.Configuration.GetSection("AzureAd"));
-}
+// var azureAdClientId = builder.Configuration["AzureAd:ClientId"];
+// if (!string.IsNullOrWhiteSpace(azureAdClientId))
+// {
+//     builder.Services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
+//         .AddMicrosoftIdentityWebApp(builder.Configuration.GetSection("AzureAd"));
+// }
 
 var app = builder.Build();
 
@@ -46,9 +103,15 @@ if (!app.Environment.IsDevelopment())
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.UseAntiforgery();
 
 app.MapStaticAssets();
+
+app.MapControllers();
+app.MapRazorPages();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()

@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cookbook-web
+  namespace: cookbook
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cookbook-web
+  template:
+    metadata:
+      labels:
+        app: cookbook-web
+    spec:
+      containers:
+        - name: cookbook-web
+          image: benhyer/cookbook-web:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          env:
+            - name: ASPNETCORE_URLS
+              value: http://+:8080
+            - name: ASPNETCORE_ENVIRONMENT
+              valueFrom:
+                configMapKeyRef:
+                  name: cookbook-config
+                  key: ASPNETCORE_ENVIRONMENT
+            - name: ApiService__BaseUrl
+              valueFrom:
+                configMapKeyRef:
+                  name: cookbook-config
+                  key: ApiService__BaseUrl
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: cookbook-config
+                  key: OTEL_EXPORTER_OTLP_ENDPOINT
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

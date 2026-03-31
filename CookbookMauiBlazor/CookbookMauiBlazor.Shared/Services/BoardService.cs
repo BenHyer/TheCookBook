@@ -1,29 +1,48 @@
+using System.Net.Http.Json;
 using Cookbook.Shared.Boards;
 
 namespace CookbookMauiBlazor.Shared.Services;
 
 public sealed class BoardService : IBoardService
 {
-    private readonly List<BoardSummary> _boards = [];
+    private readonly HttpClient _httpClient;
 
-    public Task<IReadOnlyList<BoardSummary>> GetByOwnerAsync(string ownerUserId, CancellationToken cancellationToken = default)
+    public BoardService(HttpClient httpClient)
     {
-        var boards = _boards
-            .Where(board => board.OwnerUserId.Equals(ownerUserId, StringComparison.OrdinalIgnoreCase))
-            .OrderBy(board => board.Name)
-            .ToArray();
-
-        return Task.FromResult<IReadOnlyList<BoardSummary>>(boards);
+        _httpClient = httpClient;
     }
 
-    public Task CreateAsync(string ownerUserId, string name, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<BoardSummary>> GetByOwnerAsync(string ownerUserId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var response = await _httpClient.GetAsync($"/api/boards/owner/{ownerUserId}", cancellationToken);
+            response.EnsureSuccessStatusCode();
+            var boards = await response.Content.ReadFromJsonAsync<List<BoardSummary>>(cancellationToken: cancellationToken);
+            return boards ?? [];
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    public async Task CreateAsync(string ownerUserId, string name, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(ownerUserId) || string.IsNullOrWhiteSpace(name))
         {
-            return Task.CompletedTask;
+            return;
         }
 
-        _boards.Add(new BoardSummary(Guid.NewGuid(), name.Trim(), ownerUserId, DateTimeOffset.UtcNow));
-        return Task.CompletedTask;
+        try
+        {
+            var request = new { name = name.Trim(), ownerUserId };
+            var response = await _httpClient.PostAsJsonAsync("/api/boards", request, cancellationToken);
+            response.EnsureSuccessStatusCode();
+        }
+        catch
+        {
+            // Handle error
+        }
     }
 }

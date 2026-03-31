@@ -1,16 +1,24 @@
 @page "/boards"
+@using Microsoft.AspNetCore.Authorization
 @using CookbookMauiBlazor.Shared.Boards
+@attribute [Authorize]
 
 <PageTitle>Boards</PageTitle>
 
 <h1>Boards</h1>
 
-<CreateBoardForm OwnerUserId="@_ownerUserId" />
+<CreateBoardForm OwnerUserId="@_ownerUserId" OnCreated="HandleBoardCreated" />
 
 <hr />
 
-<BoardList OwnerUserId="@_ownerUserId" />
+<BoardList OwnerUserId="@_ownerUserId" ReloadToken="@_reloadToken" />
 
 @code {
     private readonly string _ownerUserId = "demo-user";
+    private int _reloadToken;
+
+    private void HandleBoardCreated()
+    {
+        _reloadToken++;
+    }
 }

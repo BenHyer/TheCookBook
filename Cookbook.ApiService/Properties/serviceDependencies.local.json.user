@@ -1,0 +1,25 @@
+{
+  "dependencies": {
+    "mssql1": {
+      "restored": true,
+      "restoreTime": "2026-03-28T04:35:20.5961026Z"
+    }
+  },
+  "parameters": {
+    "mssql1.subscriptionId": {
+      "Name": "mssql1.subscriptionId",
+      "Type": "subscription",
+      "Value": "14d3e0d4-6e7f-4c22-974d-b49696ba205a"
+    },
+    "mssql1.resourceGroupName": {
+      "Name": "mssql1.resourceGroupName",
+      "Type": "resourceGroup",
+      "Value": "rg-Cookbook"
+    },
+    "mssql1.serviceConnectorResourceGroupName": {
+      "Name": "mssql1.serviceConnectorResourceGroupName",
+      "Type": "resourceGroup",
+      "Value": "rg-Cookbook"
+    }
+  }
+}
