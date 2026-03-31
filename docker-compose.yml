@@ -51,6 +51,12 @@ services:
       ASPNETCORE_HTTP_PORTS: "8080"
       ApiService__BaseUrl: http://api:8080
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      AzureAd__Instance: ${AZURE_AD_INSTANCE:-}
+      AzureAd__TenantId: ${AZURE_AD_TENANT_ID:-}
+      AzureAd__ClientId: ${AZURE_AD_CLIENT_ID:-}
+      AzureAd__ClientSecret: ${AZURE_AD_CLIENT_SECRET:-}
+      AzureAd__CallbackPath: /signin-oidc
+      AzureAd__SignedOutCallbackPath: /signout-oidc
     ports:
       - "${APP_PORT:-8081}:8080"
     depends_on:
