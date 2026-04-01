@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cookbook-web
+  namespace: cookbook
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cookbook-web
+  template:
+    metadata:
+      labels:
+        app: cookbook-web
+    spec:
+      containers:
+        - name: cookbook-web
+          image: benhyer/cookbook-web:${IMAGE_TAG}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          env:
+            - name: ASPNETCORE_URLS
+              value: http://+:8080
+            - name: ASPNETCORE_ENVIRONMENT
+              valueFrom:
+                configMapKeyRef:
+                  name: cookbook-config
+                  key: ASPNETCORE_ENVIRONMENT
+            - name: ApiService__BaseUrl
+              valueFrom:
+                configMapKeyRef:
+                  name: cookbook-config
+                  key: ApiService__BaseUrl
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: cookbook-config
+                  key: OTEL_EXPORTER_OTLP_ENDPOINT
+            - name: AzureAd__Instance
+              valueFrom:
+                configMapKeyRef:
+                  name: cookbook-config
+                  key: AzureAd__Instance
+            - name: AzureAd__CallbackPath
+              valueFrom:
+                configMapKeyRef:
+                  name: cookbook-config
+                  key: AzureAd__CallbackPath
+            - name: AzureAd__SignedOutCallbackPath
+              valueFrom:
+                configMapKeyRef:
+                  name: cookbook-config
+                  key: AzureAd__SignedOutCallbackPath
+            - name: AzureAd__TenantId
+              valueFrom:
+                secretKeyRef:
+                  name: cookbook-secrets
+                  key: AZURE_AD_TENANT_ID
+            - name: AzureAd__ClientId
+              valueFrom:
+                secretKeyRef:
+                  name: cookbook-secrets
+                  key: AZURE_AD_CLIENT_ID
+            - name: AzureAd__ClientSecret
+              valueFrom:
+                secretKeyRef:
+                  name: cookbook-secrets
+                  key: AZURE_AD_CLIENT_SECRET
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

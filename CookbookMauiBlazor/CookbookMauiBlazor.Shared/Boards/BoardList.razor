@@ -21,6 +21,9 @@ else
     [Parameter, EditorRequired]
     public string OwnerUserId { get; set; } = string.Empty;
 
+    [Parameter]
+    public int ReloadToken { get; set; }
+
     private IReadOnlyList<BoardSummary> _boards = [];
 
     protected override async Task OnParametersSetAsync()

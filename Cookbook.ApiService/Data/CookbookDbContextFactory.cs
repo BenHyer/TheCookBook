@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using Microsoft.Extensions.Configuration;
 
 namespace Cookbook.ApiService.Data;
 
@@ -7,10 +8,23 @@ public class CookbookDbContextFactory : IDesignTimeDbContextFactory<CookbookDbCo
 {
     public CookbookDbContext CreateDbContext(string[] args)
     {
-        var optionsBuilder = new DbContextOptionsBuilder<CookbookDbContext>();
+        var environmentName = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
 
-        var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__sqldb")
-            ?? "Server=localhost,1433;Database=sqldb;User Id=sa;TrustServerCertificate=True;Encrypt=False;";
+        var configuration = new ConfigurationBuilder()
+            .SetBasePath(Directory.GetCurrentDirectory())
+            .AddJsonFile("appsettings.json", optional: true)
+            .AddJsonFile($"appsettings.{environmentName}.json", optional: true)
+            .AddUserSecrets<CookbookDbContextFactory>(optional: true)
+            .AddEnvironmentVariables()
+            .Build();
+
+        var connectionString = configuration.GetConnectionString("sqldb");
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException("Connection string 'sqldb' is not configured for design-time operations.");
+        }
+
+        var optionsBuilder = new DbContextOptionsBuilder<CookbookDbContext>();
 
         optionsBuilder.UseSqlServer(connectionString);
 

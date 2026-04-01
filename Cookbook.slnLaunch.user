@@ -1,0 +1,15 @@
+[
+  {
+    "Name": "MauiandApi",
+    "Projects": [
+      {
+        "Path": "Cookbook.ApiService\\Cookbook.ApiService.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "CookbookMauiBlazor\\CookbookMauiBlazor\\CookbookMauiBlazor.csproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]
