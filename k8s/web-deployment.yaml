@@ -56,17 +56,17 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: cookbook-secrets
-                  key: AzureAd__TenantId
+                  key: AZURE_AD_TENANT_ID
             - name: AzureAd__ClientId
               valueFrom:
                 secretKeyRef:
                   name: cookbook-secrets
-                  key: AzureAd__ClientId
+                  key: AZURE_AD_CLIENT_ID
             - name: AzureAd__ClientSecret
               valueFrom:
                 secretKeyRef:
                   name: cookbook-secrets
-                  key: AzureAd__ClientSecret
+                  key: AZURE_AD_CLIENT_SECRET
           readinessProbe:
             httpGet:
               path: /
