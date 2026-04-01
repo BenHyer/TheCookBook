@@ -98,9 +98,11 @@ services:
   loki:
     image: grafana/loki:latest
     container_name: cookbook-loki
-    command: ["-config.file=/etc/loki/local-config.yaml"]
+    command: ["-config.file=/etc/loki/loki.yaml"]
     ports:
       - "${LOKI_PORT:-3100}:3100"
+    volumes:
+      - ./config/loki-config.yaml:/etc/loki/loki.yaml:ro
     restart: unless-stopped
 
   grafana:

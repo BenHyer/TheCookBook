@@ -15,13 +15,19 @@ spec:
       containers:
         - name: loki
           image: grafana/loki:latest
-          args: ["-config.file=/etc/loki/local-config.yaml"]
+          args: ["-config.file=/etc/loki/loki.yaml"]
           ports:
             - containerPort: 3100
           volumeMounts:
             - name: loki-storage
               mountPath: /loki
+            - name: loki-config
+              mountPath: /etc/loki/loki.yaml
+              subPath: loki.yaml
       volumes:
         - name: loki-storage
           persistentVolumeClaim:
             claimName: loki-pvc
+        - name: loki-config
+          configMap:
+            name: loki-config
