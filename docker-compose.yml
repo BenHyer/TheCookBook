@@ -25,7 +25,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       ASPNETCORE_HTTP_PORTS: "8080"
-      ConnectionStrings__sqldb: Server=db,1433;Database=${DB_NAME:-sqldb};User Id=${DB_USER:-sa};Password=${DB_PASSWORD:-ChangeThisPassword_123!};TrustServerCertificate=True;Encrypt=False;
+      ConnectionStrings__sqldb: Server=db,1433;Database=${DB_NAME:-sqldb};User Id=sa;Password=${DB_PASSWORD:-ChangeThisPassword_123!};TrustServerCertificate=True;Encrypt=False;
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
     ports:
       - "${API_PORT:-8080}:8080"
