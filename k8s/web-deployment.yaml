@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: cookbook-web
-          image: benhyer/cookbook-web:latest
+          image: benhyer/cookbook-web:${IMAGE_TAG}
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
