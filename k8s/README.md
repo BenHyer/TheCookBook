@@ -3,9 +3,16 @@
 These manifests deploy:
 - `Cookbook.ApiService` as `cookbook-api`
 - `CookbookMauiBlazor.Web` as `cookbook-web`
-- NGINX `Ingress` routing:
-  - `/api` -> `cookbook-api`
-  - `/` -> `cookbook-web`
+- NGINX `Ingress` routing on two hosts:
+
+| Host | Path | Service |
+|------|------|---------|
+| `cookbook.bencampus.duckdns.org` | `/api` | `cookbook-api` |
+| `cookbook.bencampus.duckdns.org` | `/grafana` | `grafana` |
+| `cookbook.bencampus.duckdns.org` | `/` | `cookbook-web` |
+| `cookbook.benhhome.duckdns.org` | `/api` | `cookbook-api` |
+| `cookbook.benhhome.duckdns.org` | `/grafana` | `grafana` |
+| `cookbook.benhhome.duckdns.org` | `/` | `cookbook-web` |
 
 ## 1) Build and push images
 
@@ -26,9 +33,9 @@ Update image names/tags in:
 ## 2) Set runtime configuration
 
 Edit:
-- `k8s/secret.yaml` -> `ConnectionStrings__sqldb`
-- `k8s/configmap.yaml` -> `ApiService__BaseUrl` and environment
-- `k8s/ingress.yaml` -> `spec.rules[0].host` (currently `cookbook.local`)
+- `k8s/secret.yaml` -> `ConnectionStrings__sqldb`, `AZURE_AD_TENANT_ID`, `AZURE_AD_CLIENT_ID`, `AZURE_AD_CLIENT_SECRET` (not committed to git)
+- `k8s/configmap.yaml` -> `ApiService__BaseUrl`, `AzureAd__Instance`, and environment
+- `k8s/ingress.yaml` -> `spec.rules[*].host` if adding/changing DuckDNS hostnames
 
 ## 3) Deploy
 
