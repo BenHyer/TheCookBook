@@ -9,8 +9,8 @@ using Microsoft.Identity.Web.UI;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using CookbookMauiBlazor.Shared.Viewmodels;
 using OpenTelemetry;
-using OpenTelemetry.Metrics;
 using OpenTelemetry.Exporter;
+using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -29,11 +29,6 @@ builder.Services
     .WithMetrics(metrics =>
     {
         metrics.AddMeter(CookbookWebMetrics.MeterName);
-        metrics.AddOtlpExporter(otlpOptions =>
-        {
-            otlpOptions.Endpoint = new Uri(otlpEndpoint);
-            otlpOptions.Protocol = OtlpExportProtocol.Grpc;
-        });
     })
     .UseOtlpExporter(OtlpExportProtocol.Grpc, new Uri(otlpEndpoint));
 
