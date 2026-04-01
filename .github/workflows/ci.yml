@@ -230,8 +230,8 @@ jobs:
 
       - name: Wait for rollouts
         run: |
-          kubectl rollout status deployment/cookbook-api -n cookbook --timeout=120s
-          kubectl rollout status deployment/cookbook-web -n cookbook --timeout=120s
+          kubectl rollout status deployment/cookbook-api -n cookbook --timeout=30s
+          kubectl rollout status deployment/cookbook-web -n cookbook --timeout=30s
 
       - name: Debug failed rollout
         if: failure()
@@ -239,7 +239,14 @@ jobs:
           echo "=== Pod status ==="
           kubectl get pods -n cookbook -o wide
           echo "=== Web crash logs (previous container) ==="
-          kubectl logs -n cookbook -l app=cookbook-web --previous --tail=40 --prefix 2>/dev/null || echo "No previous logs"
+          crash_pod=$(kubectl get pods -n cookbook -l app=cookbook-web --field-selector=status.phase!=Running -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+          if [ -n "$crash_pod" ]; then
+            echo "Crashing pod: $crash_pod"
+            kubectl logs -n cookbook "$crash_pod" --tail=60 || true
+            kubectl logs -n cookbook "$crash_pod" --previous --tail=60 || true
+          else
+            echo "No non-running web pod found"
+          fi
           echo "=== Web events ==="
           kubectl describe pods -n cookbook -l app=cookbook-web | grep -A 20 "^Events:"
           echo "=== API events ==="
