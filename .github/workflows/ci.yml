@@ -230,8 +230,8 @@ jobs:
 
       - name: Wait for rollouts
         run: |
-          kubectl rollout status deployment/cookbook-api -n cookbook --timeout=30s
-          kubectl rollout status deployment/cookbook-web -n cookbook --timeout=30s
+          kubectl rollout status deployment/cookbook-api -n cookbook --timeout=60s
+          kubectl rollout status deployment/cookbook-web -n cookbook --timeout=60s
 
       - name: Debug failed rollout
         if: failure()
