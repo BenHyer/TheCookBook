@@ -25,7 +25,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       ASPNETCORE_HTTP_PORTS: "8080"
-      ConnectionStrings__sqldb: Server=db,1433;Database=${DB_NAME:-sqldb};User Id=${DB_USER:-sa};Password=${DB_PASSWORD:-ChangeThisPassword_123!};TrustServerCertificate=True;Encrypt=False;
+      ConnectionStrings__sqldb: Server=db,1433;Database=${DB_NAME:-sqldb};User Id=sa;Password=${DB_PASSWORD:-ChangeThisPassword_123!};TrustServerCertificate=True;Encrypt=False;
     ports:
       - "${API_PORT:-8080}:8080"
     depends_on:
@@ -47,6 +47,10 @@ services:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       ASPNETCORE_HTTP_PORTS: "8080"
       ApiService__BaseUrl: http://api:8080
+      AzureAd__Instance: ${AZURE_AD_INSTANCE:-}
+      AzureAd__TenantId: ${AZURE_AD_TENANT_ID:-}
+      AzureAd__ClientId: ${AZURE_AD_CLIENT_ID:-}
+      AzureAd__ClientSecret: ${AZURE_AD_CLIENT_SECRET:-}
     ports:
       - "${APP_PORT:-8081}:8080"
     depends_on:

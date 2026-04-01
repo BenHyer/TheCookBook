@@ -22,6 +22,10 @@ services:
       ASPNETCORE_HTTP_PORTS: "8080"
       DOTNET_USE_POLLING_FILE_WATCHER: "1"
       ApiService__BaseUrl: http://api:8080
+      AzureAd__Instance: ${AZURE_AD_INSTANCE:-}
+      AzureAd__TenantId: ${AZURE_AD_TENANT_ID:-}
+      AzureAd__ClientId: ${AZURE_AD_CLIENT_ID:-}
+      AzureAd__ClientSecret: ${AZURE_AD_CLIENT_SECRET:-}
     working_dir: /src/CookbookMauiBlazor/CookbookMauiBlazor.Web
     command: dotnet watch run --no-launch-profile --project CookbookMauiBlazor.Web.csproj
     volumes:
