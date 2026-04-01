@@ -8,6 +8,7 @@ using Microsoft.Identity.Web;
 using Microsoft.Identity.Web.UI;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using CookbookMauiBlazor.Shared.Viewmodels;
+using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Exporter;
 using OpenTelemetry.Resources;
@@ -15,6 +16,12 @@ using OpenTelemetry.Resources;
 var builder = WebApplication.CreateBuilder(args);
 
 var otlpEndpoint = builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"] ?? "http://localhost:4317";
+
+builder.Logging.AddOpenTelemetry(logging =>
+{
+    logging.IncludeFormattedMessage = true;
+    logging.IncludeScopes = true;
+});
 
 builder.Services
     .AddOpenTelemetry()
@@ -27,7 +34,8 @@ builder.Services
             otlpOptions.Endpoint = new Uri(otlpEndpoint);
             otlpOptions.Protocol = OtlpExportProtocol.Grpc;
         });
-    });
+    })
+    .UseOtlpExporter(OtlpExportProtocol.Grpc, new Uri(otlpEndpoint));
 
 // Add services to the container.
 builder.Services.AddRazorComponents()

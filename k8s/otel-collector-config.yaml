@@ -21,7 +21,7 @@ data:
       debug:
         verbosity: detailed
 
-      otlp_http:
+      otlphttp:
         endpoint: "http://loki:3100/otlp"
 
       prometheus:
@@ -32,7 +32,7 @@ data:
         logs:
           receivers: [otlp]
           processors: [batch]
-          exporters: [debug, otlp_http]
+          exporters: [debug, otlphttp]
 
         metrics:
           receivers: [otlp]
