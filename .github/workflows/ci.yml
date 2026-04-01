@@ -209,29 +209,38 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Apply Kubernetes secrets
+        run: |
+          kubectl create secret generic cookbook-secrets \
+            --namespace cookbook \
+            --from-literal=ConnectionStrings__sqldb="${{ secrets.DB_CONNECTION_STRING }}" \
+            --from-literal=AZURE_AD_TENANT_ID="${{ secrets.AZURE_AD_TENANT_ID }}" \
+            --from-literal=AZURE_AD_CLIENT_ID="${{ secrets.AZURE_AD_CLIENT_ID }}" \
+            --from-literal=AZURE_AD_CLIENT_SECRET="${{ secrets.AZURE_AD_CLIENT_SECRET }}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Apply Kubernetes manifests
         env:
           IMAGE_TAG: ${{ github.sha }}
         run: |
           for f in k8s/*.yaml; do
+            [ "$(basename $f)" = "secret.yaml" ] && continue
             envsubst '${IMAGE_TAG}' < "$f" | kubectl apply -f -
           done
 
       - name: Wait for rollouts
         run: |
-          kubectl rollout status deployment/cookbook-api -n cookbook --timeout=300s
-          kubectl rollout status deployment/cookbook-web -n cookbook --timeout=300s
+          kubectl rollout status deployment/cookbook-api -n cookbook --timeout=120s
+          kubectl rollout status deployment/cookbook-web -n cookbook --timeout=120s
 
       - name: Debug failed rollout
         if: failure()
         run: |
           echo "=== Pod status ==="
           kubectl get pods -n cookbook -o wide
-          echo "=== API pod events ==="
-          kubectl describe pods -n cookbook -l app=cookbook-api | tail -30
-          echo "=== Web pod events ==="
-          kubectl describe pods -n cookbook -l app=cookbook-web | tail -30
-          echo "=== API logs (last 50 lines) ==="
-          kubectl logs -n cookbook -l app=cookbook-api --tail=50 --prefix || true
-          echo "=== Web logs (last 50 lines) ==="
-          kubectl logs -n cookbook -l app=cookbook-web --tail=50 --prefix || true
+          echo "=== Web crash logs (previous container) ==="
+          kubectl logs -n cookbook -l app=cookbook-web --previous --tail=40 --prefix 2>/dev/null || echo "No previous logs"
+          echo "=== Web events ==="
+          kubectl describe pods -n cookbook -l app=cookbook-web | grep -A 20 "^Events:"
+          echo "=== API events ==="
+          kubectl describe pods -n cookbook -l app=cookbook-api | grep -A 10 "^Events:"
