@@ -1,4 +1,5 @@
 using CookbookMauiBlazor.Shared.Services;
+using Microsoft.AspNetCore.DataProtection;
 using CookbookMauiBlazor.Web.Components;
 using CookbookMauiBlazor.Web.Services;
 using CookbookMauiBlazor.Web.Telemetry;
