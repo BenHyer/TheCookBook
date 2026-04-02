@@ -7,6 +7,10 @@ on:
   push:
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   build-lint-test:
     runs-on: ubuntu-latest
@@ -170,7 +174,7 @@ jobs:
       - name: Build Docker images
         run: docker compose build --pull api app
 
-  build-and-push:
+  push-api:
     needs: build-lint-test
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
@@ -178,6 +182,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
@@ -192,6 +199,26 @@ jobs:
           file: Cookbook.ApiService/Dockerfile
           push: true
           tags: benhyer/cookbook-api:${{ github.sha }}
+          cache-from: type=registry,ref=benhyer/cookbook-api:cache
+          cache-to: type=registry,ref=benhyer/cookbook-api:cache,mode=max
+
+  push-web:
+    needs: build-lint-test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push Web image
         uses: docker/build-push-action@v6
@@ -200,9 +227,11 @@ jobs:
           file: CookbookMauiBlazor/CookbookMauiBlazor.Web/Dockerfile
           push: true
           tags: benhyer/cookbook-web:${{ github.sha }}
+          cache-from: type=registry,ref=benhyer/cookbook-web:cache
+          cache-to: type=registry,ref=benhyer/cookbook-web:cache,mode=max
 
   deploy:
-    needs: build-and-push
+    needs: [push-api, push-web]
     runs-on: self-hosted
 
     steps:
