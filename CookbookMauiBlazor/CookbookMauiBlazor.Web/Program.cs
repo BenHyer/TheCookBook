@@ -1,5 +1,6 @@
 using CookbookMauiBlazor.Shared.Services;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 using CookbookMauiBlazor.Web.Components;
 using CookbookMauiBlazor.Web.Services;
 using CookbookMauiBlazor.Web.Telemetry;
@@ -107,6 +108,11 @@ if (!app.Environment.IsDevelopment())
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
+
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 if (app.Environment.IsDevelopment())
 {
