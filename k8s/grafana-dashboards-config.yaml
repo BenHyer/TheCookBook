@@ -504,7 +504,7 @@ data:
       "schemaVersion": 42,
       "tags": [],
       "templating": { "list": [] },
-      "time": { "from": "now-3h", "to": "now" },
+      "time": { "from": "now-24h", "to": "now" },
       "timepicker": {},
       "timezone": "browser",
       "title": "TheCookBook",
