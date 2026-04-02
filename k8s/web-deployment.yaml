@@ -67,6 +67,9 @@ spec:
                 secretKeyRef:
                   name: cookbook-secrets
                   key: AZURE_AD_CLIENT_SECRET
+          volumeMounts:
+            - name: dp-keys
+              mountPath: /root/.aspnet/DataProtection-Keys
           readinessProbe:
             httpGet:
               path: /
@@ -87,3 +90,7 @@ spec:
             limits:
               cpu: 500m
               memory: 512Mi
+      volumes:
+        - name: dp-keys
+          persistentVolumeClaim:
+            claimName: web-dp-keys

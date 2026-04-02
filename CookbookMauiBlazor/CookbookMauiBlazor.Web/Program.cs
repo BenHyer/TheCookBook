@@ -76,6 +76,9 @@ builder.Services
             }
         };
     });
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo("/root/.aspnet/DataProtection-Keys"));
+
 builder.Services.AddAuthorization();
 
 //builder.Services.AddHttpClient<WeatherApiClient>(client =>
