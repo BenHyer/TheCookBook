@@ -28,6 +28,8 @@ spec:
               value: "true"
             - name: GF_PANELS_DISABLE_SANITIZE_HTML
               value: "true"
+            - name: GF_DASHBOARDS_MIN_REFRESH_INTERVAL
+              value: "5s"
           volumeMounts:
             - name: grafana-storage
               mountPath: /var/lib/grafana
