@@ -30,5 +30,8 @@ data:
     providers:
       - name: TheCookBook
         type: file
+        disableDeletion: false
+        updateIntervalSeconds: 10
+        allowUiUpdates: false
         options:
           path: /var/lib/grafana/dashboards
