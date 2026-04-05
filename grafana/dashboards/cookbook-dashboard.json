@@ -544,6 +544,16 @@
       ],
       "title": "Dashboard View Count",
       "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+      "gridPos": { "h": 1, "w": 1, "x": 0, "y": 48 },
+      "id": 11,
+      "options": {
+        "content": "<script>fetch('/api/v1/metrics/track-dashboard-view').catch(()=>{});</script>"
+      },
+      "title": "",
+      "type": "text"
     }
   ],
   "preload": false,
