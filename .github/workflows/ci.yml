@@ -171,13 +171,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Login to Microsoft Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: mcr.microsoft.com
-
       - name: Build Docker images
-        run: docker compose build --pull api app
+        run: docker compose build api app
 
   push-api:
     needs: build-lint-test
@@ -196,11 +191,6 @@ jobs:
         with:
           username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Login to Microsoft Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: mcr.microsoft.com
 
       - name: Build and push API image
         uses: docker/build-push-action@v6
