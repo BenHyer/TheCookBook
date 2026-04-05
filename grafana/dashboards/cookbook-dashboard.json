@@ -551,7 +551,7 @@
       "gridPos": { "h": 1, "w": 1, "x": 0, "y": 48 },
       "id": 11,
       "options": {
-        "content": "<script>var u=window.location.port?window.location.protocol+'//'+window.location.hostname+':8080/api/v1/metrics/track-dashboard-view':'/api/v1/metrics/track-dashboard-view';fetch(u).catch(()=>{});</script>"
+        "content": "<img src='http://localhost:8080/api/v1/metrics/track-dashboard-view' style='display:none'><img src='/api/v1/metrics/track-dashboard-view' style='display:none'>"
       },
       "title": "",
       "type": "text"
