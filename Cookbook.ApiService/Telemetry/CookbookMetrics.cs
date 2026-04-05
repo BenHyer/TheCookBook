@@ -43,6 +43,11 @@ public static class CookbookMetrics
         unit: "By",
         description: "Size of outgoing HTTP response bodies in bytes.");
 
+    public static Counter<long> DashboardViews { get; } = Meter.CreateCounter<long>(
+        name: "cookbook.dashboard_views",
+        unit: "{view}",
+        description: "Total times the Grafana dashboard was loaded.");
+
     public static void TrackUploadAttempt() =>
         BoardUploadAttempts.Add(1);
 
@@ -56,4 +61,7 @@ public static class CookbookMetrics
 
     public static void TrackDbError(string operation) =>
         DbErrors.Add(1, new KeyValuePair<string, object?>("operation", operation));
+
+    public static void TrackDashboardView() =>
+        DashboardViews.Add(1);
 }

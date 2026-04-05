@@ -181,6 +181,14 @@ app.MapPost("/api/v1/boards", async (CreateBoardRequest request, CookbookDbConte
 })
 .WithName("CreateBoard");
 
+app.MapGet("/api/v1/metrics/track-dashboard-view", () =>
+{
+    CookbookMetrics.TrackDashboardView();
+    return Results.Ok();
+})
+.WithName("TrackDashboardView")
+.AllowAnonymous();
+
 app.MapDefaultEndpoints();
 
 app.Run();
