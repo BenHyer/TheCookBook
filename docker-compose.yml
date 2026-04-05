@@ -113,6 +113,8 @@ services:
       - loki
     ports:
       - "${GRAFANA_PORT:-3000}:3000"
+    environment:
+      - GF_PANELS_DISABLE_SANITIZE_HTML=true
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro

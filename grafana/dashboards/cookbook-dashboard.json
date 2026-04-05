@@ -473,6 +473,7 @@
       "options": {
         "dedupStrategy": "none",
         "enableLogDetails": true,
+        "liveStreaming": true,
         "prettifyLogMessage": false,
         "showCommonLabels": false,
         "showLabels": false,
@@ -550,7 +551,7 @@
       "gridPos": { "h": 1, "w": 1, "x": 0, "y": 48 },
       "id": 11,
       "options": {
-        "content": "<script>fetch('/api/v1/metrics/track-dashboard-view').catch(()=>{});</script>"
+        "content": "<script>var u=window.location.port?window.location.protocol+'//'+window.location.hostname+':8080/api/v1/metrics/track-dashboard-view':'/api/v1/metrics/track-dashboard-view';fetch(u).catch(()=>{});</script>"
       },
       "title": "",
       "type": "text"
