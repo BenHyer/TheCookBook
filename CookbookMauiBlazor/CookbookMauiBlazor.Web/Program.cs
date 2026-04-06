@@ -1,18 +1,18 @@
+using CookbookMauiBlazor.Web.Telemetry;
 using CookbookMauiBlazor.Shared.Services;
-using Microsoft.AspNetCore.DataProtection;
-using Microsoft.AspNetCore.HttpOverrides;
 using CookbookMauiBlazor.Web.Components;
 using CookbookMauiBlazor.Web.Services;
-using CookbookMauiBlazor.Web.Telemetry;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Identity.Web;
-using Microsoft.Identity.Web.UI;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using Microsoft.Identity.Web.UI;
 using CookbookMauiBlazor.Shared.Viewmodels;
 using OpenTelemetry;
-using OpenTelemetry.Exporter;
 using OpenTelemetry.Metrics;
+using OpenTelemetry.Exporter;
 using OpenTelemetry.Resources;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -31,8 +31,12 @@ builder.Services
     .WithMetrics(metrics =>
     {
         metrics.AddMeter(CookbookWebMetrics.MeterName);
-    })
-    .UseOtlpExporter(OtlpExportProtocol.Grpc, new Uri(otlpEndpoint));
+        metrics.AddOtlpExporter(otlpOptions =>
+        {
+            otlpOptions.Endpoint = new Uri(otlpEndpoint);
+            otlpOptions.Protocol = OtlpExportProtocol.Grpc;
+        });
+    });
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
@@ -45,6 +49,7 @@ builder.Services.AddControllersWithViews()
 // Add device-specific services used by the CookbookMauiBlazor.Shared project
 builder.Services.AddSingleton<IFormFactor, FormFactor>();
 builder.Services.AddScoped<BoardViewModel>();
+builder.Services.AddCascadingAuthenticationState();
 
 var apiBaseUrl = builder.Configuration["ApiService:BaseUrl"] ?? "http://localhost:5346";
 builder.Services.AddHttpClient<IBoardService, BoardService>(client =>
@@ -78,9 +83,6 @@ builder.Services
             }
         };
     });
-builder.Services.AddDataProtection()
-    .PersistKeysToFileSystem(new DirectoryInfo("/root/.aspnet/DataProtection-Keys"));
-
 builder.Services.AddAuthorization();
 
 //builder.Services.AddHttpClient<WeatherApiClient>(client =>
@@ -92,14 +94,27 @@ builder.Services.AddAuthorization();
 //        : new(apiBaseUrl);
 //});
 
-// var azureAdClientId = builder.Configuration["AzureAd:ClientId"];
-// if (!string.IsNullOrWhiteSpace(azureAdClientId))
-// {
-//     builder.Services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
-//         .AddMicrosoftIdentityWebApp(builder.Configuration.GetSection("AzureAd"));
-// }
+var azureAdClientId = builder.Configuration["AzureAd:ClientId"];
+var hasAzureAdAuth = !string.IsNullOrWhiteSpace(azureAdClientId);
+
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
+if (!hasAzureAdAuth && !builder.Environment.IsDevelopment())
+{
+    builder.Logging.AddFilter("CookbookMauiBlazor.Web.Startup", LogLevel.Warning);
+}
 
 var app = builder.Build();
+
+if (!hasAzureAdAuth)
+{
+    app.Logger.LogWarning("Azure AD authentication is disabled because AzureAd:ClientId is not configured.");
+}
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
@@ -108,26 +123,35 @@ if (!app.Environment.IsDevelopment())
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
-app.UseForwardedHeaders(new ForwardedHeadersOptions
-{
-    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
-});
+
+app.UseForwardedHeaders();
 
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
-if (app.Environment.IsDevelopment())
-{
-    app.UseHttpsRedirection();
-}
+app.UseHttpsRedirection();
 
-app.UseAuthentication();
-app.UseAuthorization();
+if (hasAzureAdAuth)
+{
+    app.UseAuthentication();
+    app.UseAuthorization();
+}
 
 app.UseAntiforgery();
 
 app.MapStaticAssets();
 
-app.MapControllers();
-app.MapRazorPages();
+app.MapGet("/signin", async (HttpContext context, string? redirectUri) =>
+{
+    if (!hasAzureAdAuth)
+    {
+        return Results.BadRequest("Authentication is not configured.");
+    }
+
+    var targetUri = string.IsNullOrWhiteSpace(redirectUri) ? "/" : redirectUri;
+    await context.ChallengeAsync(OpenIdConnectDefaults.AuthenticationScheme,
+        new AuthenticationProperties { RedirectUri = targetUri });
+
+    return Results.Empty;
+});
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()

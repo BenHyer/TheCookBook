@@ -7,4 +7,5 @@
   <Project Path="CookbookMauiBlazor/CookbookMauiBlazor/CookbookMauiBlazor.csproj" Id="74aaf0b0-b3ea-4a8f-976e-0606429ce609">
     <Deploy Solution="Debug|*" />
   </Project>
+  <Project Path="TestProject1/TestProject1.csproj" Id="2ed1d3a6-3055-4b63-8864-41dff804da7b" />
 </Solution>
