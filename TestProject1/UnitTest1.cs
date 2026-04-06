@@ -17,6 +17,15 @@ namespace TestProject1
         }
 
         [Fact]
+        public void testworkflow()
+        {
+            int a = 1;
+            int b = 2;
+
+            Assert.Equal(0, a + b);
+        }
+
+        [Fact]
         public async Task CreateBoardAsync_WithValidInputs_CallsServiceCreateAsync()
         {
             // Arrange
