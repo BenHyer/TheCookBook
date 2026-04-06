@@ -174,8 +174,34 @@ jobs:
       - name: Build Docker images
         run: docker compose build api app
 
+  test-testproject:
+    runs-on: ubuntu-latest
+    env:
+      NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            **/Directory.Packages.props
+            **/NuGet.config
+            **/global.json
+
+      - name: Restore TestProject1
+        run: dotnet restore TestProject1/TestProject1.csproj
+
+      - name: Test TestProject1
+        run: dotnet test TestProject1/TestProject1.csproj --configuration Release --nologo --no-restore
+
   push-api:
-    needs: build-lint-test
+    needs: [build-lint-test, test-testproject]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
 
@@ -203,7 +229,7 @@ jobs:
           cache-to: type=registry,ref=benhyer/cookbook-api:cache,mode=max
 
   push-web:
-    needs: build-lint-test
+    needs: [build-lint-test, test-testproject]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
 
