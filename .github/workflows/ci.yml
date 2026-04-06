@@ -137,9 +137,16 @@ jobs:
         if: steps.detect_tests.outputs.has_tests == 'true'
         shell: bash
         run: |
+          pids=()
           while IFS= read -r proj; do
-            dotnet test "$proj" --configuration Release --nologo --no-restore
+            dotnet test "$proj" --configuration Release --nologo --no-restore &
+            pids+=($!)
           done < <(find . -type f \( -name '*Tests.csproj' -o -name '*Test.csproj' \))
+          failed=0
+          for pid in "${pids[@]}"; do
+            wait "$pid" || failed=1
+          done
+          exit $failed
 
   detect-docker-changes:
     runs-on: ubuntu-latest
@@ -257,7 +264,13 @@ jobs:
           cache-to: type=registry,ref=benhyer/cookbook-web:cache,mode=max
 
   deploy:
-    needs: [push-api, push-web]
+    needs: [push-api, push-web, container-validate]
+    if: |
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push' &&
+      needs.push-api.result == 'success' &&
+      needs.push-web.result == 'success' &&
+      (needs.container-validate.result == 'success' || needs.container-validate.result == 'skipped')
     runs-on: self-hosted
 
     steps:
@@ -285,8 +298,8 @@ jobs:
 
       - name: Wait for rollouts
         run: |
-          kubectl rollout status deployment/cookbook-api -n cookbook --timeout=60s
-          kubectl rollout status deployment/cookbook-web -n cookbook --timeout=60s
+          kubectl rollout status deployment/cookbook-api -n cookbook --timeout=120s
+          kubectl rollout status deployment/cookbook-web -n cookbook --timeout=120s
 
       - name: Debug failed rollout
         if: failure()
@@ -304,3 +317,10 @@ jobs:
           kubectl describe pods -n cookbook -l app=cookbook-web | grep -A 20 "^Events:"
           echo "=== API events ==="
           kubectl describe pods -n cookbook -l app=cookbook-api | grep -A 10 "^Events:"
+
+      - name: Rollback on failed rollout
+        if: failure()
+        run: |
+          echo "Rolling back deployments..."
+          kubectl rollout undo deployment/cookbook-api -n cookbook || true
+          kubectl rollout undo deployment/cookbook-web -n cookbook || true
