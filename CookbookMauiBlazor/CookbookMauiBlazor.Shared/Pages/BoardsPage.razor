@@ -9,21 +9,12 @@
 
 <h1>Boards</h1>
 
-@if (string.IsNullOrEmpty(_ownerUserId))
-{
-    <div class="alert alert-warning">Could not resolve user ID from token. Claims available: @_debugClaims</div>
-}
-else
-{
-    <p class="text-muted small">Signed in as: @_ownerUserId</p>
-    <CreateBoardForm OwnerUserId="@_ownerUserId" OnCreated="HandleBoardCreated" />
-    <hr />
-    <BoardList OwnerUserId="@_ownerUserId" ReloadToken="@_reloadToken" />
-}
+<CreateBoardForm OwnerUserId="@_ownerUserId" OnCreated="HandleBoardCreated" />
+<hr />
+<BoardList OwnerUserId="@_ownerUserId" ReloadToken="@_reloadToken" />
 
 @code {
     private string _ownerUserId = string.Empty;
-    private string _debugClaims = string.Empty;
     private int _reloadToken;
 
     protected override async Task OnInitializedAsync()
@@ -38,8 +29,6 @@ else
             ?? user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
             ?? string.Empty;
 
-        if (string.IsNullOrEmpty(_ownerUserId))
-            _debugClaims = string.Join(", ", user.Claims.Select(c => c.Type));
     }
 
     private void HandleBoardCreated()
