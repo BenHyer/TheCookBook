@@ -99,27 +99,19 @@ jobs:
       - name: Lint (format check)
         shell: bash
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+          build_api="${{ steps.detect_projects.outputs.build_api }}"
+          build_web="${{ steps.detect_projects.outputs.build_web }}"
 
-            readarray -t api_files < <(git diff --name-only --diff-filter=ACMR "origin/${{ github.base_ref }}...HEAD" | grep '^Cookbook.ApiService/.*\.cs$' || true)
-            readarray -t web_files < <(git diff --name-only --diff-filter=ACMR "origin/${{ github.base_ref }}...HEAD" | grep '^Cookbook.Web/.*\.cs$' || true)
-
-            if [ ${#api_files[@]} -gt 0 ]; then
-              dotnet format Cookbook.ApiService/Cookbook.ApiService.csproj --verify-no-changes --no-restore --include "${api_files[@]}"
-            fi
-
-            if [ ${#web_files[@]} -gt 0 ]; then
-              dotnet format Cookbook.Web/Cookbook.Web.csproj --verify-no-changes --no-restore --include "${web_files[@]}"
-            fi
-
-            if [ ${#api_files[@]} -eq 0 ] && [ ${#web_files[@]} -eq 0 ]; then
-              echo "No changed C# files in Cookbook.ApiService or Cookbook.Web; skipping format check."
-            fi
-          else
+          if [ "$build_api" = "true" ] && [ "$build_web" = "true" ]; then
             dotnet format Cookbook.ApiService/Cookbook.ApiService.csproj --verify-no-changes --no-restore &
             dotnet format Cookbook.Web/Cookbook.Web.csproj --verify-no-changes --no-restore &
             wait
+          elif [ "$build_api" = "true" ]; then
+            dotnet format Cookbook.ApiService/Cookbook.ApiService.csproj --verify-no-changes --no-restore
+          elif [ "$build_web" = "true" ]; then
+            dotnet format Cookbook.Web/Cookbook.Web.csproj --verify-no-changes --no-restore
+          else
+            echo "No API/Web-related changes detected; skipping format check."
           fi
 
       - name: Detect test projects

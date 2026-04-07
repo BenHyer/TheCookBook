@@ -16,7 +16,7 @@ public sealed class BoardService : IBoardService
     {
         try
         {
-            var response = await _httpClient.GetAsync($"/api/boards/owner/{ownerUserId}", cancellationToken);
+            var response = await _httpClient.GetAsync($"/api/v1/boards/owner/{ownerUserId}", cancellationToken);
             response.EnsureSuccessStatusCode();
             var boards = await response.Content.ReadFromJsonAsync<List<BoardSummary>>(cancellationToken: cancellationToken);
             return boards ?? [];
@@ -37,7 +37,7 @@ public sealed class BoardService : IBoardService
         try
         {
             var request = new { name = name.Trim(), ownerUserId };
-            var response = await _httpClient.PostAsJsonAsync("/api/boards", request, cancellationToken);
+            var response = await _httpClient.PostAsJsonAsync("/api/v1/boards", request, cancellationToken);
             response.EnsureSuccessStatusCode();
         }
         catch

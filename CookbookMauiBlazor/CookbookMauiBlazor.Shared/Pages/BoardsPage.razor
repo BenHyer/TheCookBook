@@ -1,22 +1,36 @@
 @page "/boards"
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
 @using CookbookMauiBlazor.Shared.Boards
 
 @attribute [Authorize]
+@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Boards</PageTitle>
 
 <h1>Boards</h1>
 
 <CreateBoardForm OwnerUserId="@_ownerUserId" OnCreated="HandleBoardCreated" />
-
 <hr />
-
 <BoardList OwnerUserId="@_ownerUserId" ReloadToken="@_reloadToken" />
 
 @code {
-    private readonly string _ownerUserId = "demo-user";
+    private string _ownerUserId = string.Empty;
     private int _reloadToken;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        _ownerUserId =
+            user.FindFirst("oid")?.Value
+            ?? user.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value
+            ?? user.FindFirst("sub")?.Value
+            ?? user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? string.Empty;
+
+    }
 
     private void HandleBoardCreated()
     {
