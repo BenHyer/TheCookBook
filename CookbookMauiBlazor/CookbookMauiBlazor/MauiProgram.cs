@@ -20,6 +20,7 @@ namespace CookbookMauiBlazor
             // Add device-specific services used by the CookbookMauiBlazor.Shared project
             builder.Services.AddSingleton<IFormFactor, FormFactor>();
             builder.Services.AddScoped<BoardViewModel>();
+            builder.Services.AddScoped<CookbookViewModel>();
 
             var apiBaseUrl = builder.Configuration["ApiService:BaseUrl"] ?? "http://localhost:5346";
             builder.Services.AddHttpClient<IBoardService, BoardService>(client =>
