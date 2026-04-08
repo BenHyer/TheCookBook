@@ -49,6 +49,7 @@ builder.Services.AddControllersWithViews();
 // Add device-specific services used by the CookbookMauiBlazor.Shared project
 builder.Services.AddSingleton<IFormFactor, FormFactor>();
 builder.Services.AddScoped<BoardViewModel>();
+builder.Services.AddScoped<CookbookViewModel>();
 builder.Services.AddCascadingAuthenticationState();
 
 var apiBaseUrl = builder.Configuration["ApiService:BaseUrl"] ?? "http://localhost:5346";
@@ -108,6 +109,8 @@ if (!hasAzureAdAuth && !builder.Environment.IsDevelopment())
 {
     builder.Logging.AddFilter("CookbookMauiBlazor.Web.Startup", LogLevel.Warning);
 }
+
+builder.Services.AddScoped<CookbookViewModel>();
 
 var app = builder.Build();
 

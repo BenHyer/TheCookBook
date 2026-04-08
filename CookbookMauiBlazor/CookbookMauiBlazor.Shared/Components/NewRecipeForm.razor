@@ -1,0 +1,201 @@
+﻿@using System.ComponentModel.DataAnnotations
+@using CookbookMauiBlazor.Shared.Models
+
+<EditForm Model="_model" OnValidSubmit="CreateRecipeAsync">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="mb-3">
+        <label class="form-label">Title</label>
+        <InputText class="form-control" @bind-Value="_model.Title" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Description</label>
+        <InputTextArea class="form-control" rows="3" @bind-Value="_model.Description" />
+    </div>
+
+    <div class="row">
+        <div class="col-md-4 mb-3">
+            <label class="form-label">Yield/Servings</label>
+            <InputText class="form-control" @bind-Value="_model.YieldServings" />
+        </div>
+        <div class="col-md-4 mb-3">
+            <label class="form-label">Prep Time</label>
+            <InputText class="form-control" @bind-Value="_model.PrepTime" />
+        </div>
+        <div class="col-md-4 mb-3">
+            <label class="form-label">Cook Time</label>
+            <InputText class="form-control" @bind-Value="_model.CookTime" />
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-4 mb-3">
+            <label class="form-label">Total Time</label>
+            <InputText class="form-control" @bind-Value="_model.TotalTime" />
+        </div>
+        <div class="col-md-4 mb-3">
+            <label class="form-label">Cooking Temperature</label>
+            <InputText class="form-control" @bind-Value="_model.CookingTemperature" />
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Ingredients (one per line)</label>
+        <InputTextArea class="form-control" rows="4" @bind-Value="_model.IngredientsText" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Quantities (one per line)</label>
+        <InputTextArea class="form-control" rows="4" @bind-Value="_model.QuantitiesText" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Equipment (one per line)</label>
+        <InputTextArea class="form-control" rows="4" @bind-Value="_model.EquipmentText" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Instructions (one per line)</label>
+        <InputTextArea class="form-control" rows="6" @bind-Value="_model.InstructionsText" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Nutrition Facts</label>
+        <InputTextArea class="form-control" rows="3" @bind-Value="_model.NutritionFacts" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Storage Info</label>
+        <InputTextArea class="form-control" rows="3" @bind-Value="_model.StorageInfo" />
+    </div>
+
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-secondary" type="button" @onclick="PopulateSample">Populate fields</button>
+        <button class="btn btn-primary" type="submit">Create recipe</button>
+    </div>
+</EditForm>
+
+@code {
+    [Parameter]
+    public EventCallback<Recipe> OnCreated { get; set; }
+
+    private CreateRecipeModel _model = new();
+
+    private async Task CreateRecipeAsync()
+    {
+        var recipe = new Recipe
+        {
+            Title = _model.Title.Trim(),
+            Description = TrimToNull(_model.Description),
+            YieldServings = TrimToNull(_model.YieldServings),
+            PrepTime = TrimToNull(_model.PrepTime),
+            CookTime = TrimToNull(_model.CookTime),
+            TotalTime = TrimToNull(_model.TotalTime),
+            CookingTemperature = TrimToNull(_model.CookingTemperature),
+            NutritionFacts = TrimToNull(_model.NutritionFacts),
+            StorageInfo = TrimToNull(_model.StorageInfo),
+            Ingredients = SplitLines(_model.IngredientsText),
+            Quantities = SplitLines(_model.QuantitiesText),
+            Equipment = SplitLines(_model.EquipmentText),
+            Instructions = SplitLines(_model.InstructionsText),
+        };
+
+        await OnCreated.InvokeAsync(recipe);
+        _model = new CreateRecipeModel();
+    }
+
+    private void PopulateSample()
+    {
+        _model = new CreateRecipeModel
+        {
+            Title = "Garlic Butter Salmon",
+            Description = "Pan-seared salmon finished with garlic butter and lemon.",
+            YieldServings = "4 servings",
+            PrepTime = "10 minutes",
+            CookTime = "12 minutes",
+            TotalTime = "22 minutes",
+            CookingTemperature = "Medium-high heat",
+            NutritionFacts = "Approx 420 kcal per serving",
+            StorageInfo = "Refrigerate up to 3 days; reheat gently.",
+            IngredientsText = string.Join("\n", new[]
+            {
+                "Salmon fillets",
+                "Butter",
+                "Garlic cloves",
+                "Lemon",
+                "Salt",
+                "Black pepper",
+                "Parsley"
+            }),
+            QuantitiesText = string.Join("\n", new[]
+            {
+                "4 fillets",
+                "3 tbsp",
+                "3 cloves",
+                "1, sliced",
+                "1 tsp",
+                "1/2 tsp",
+                "1 tbsp, chopped"
+            }),
+            EquipmentText = string.Join("\n", new[]
+            {
+                "Skillet",
+                "Spatula",
+                "Cutting board",
+                "Knife"
+            }),
+            InstructionsText = string.Join("\n", new[]
+            {
+                "Season salmon with salt and pepper.",
+                "Heat skillet and melt butter.",
+                "Add salmon skin-side down; cook 4-5 minutes.",
+                "Flip, add garlic and lemon; cook 4-5 minutes.",
+                "Spoon butter over salmon and serve with parsley."
+            })
+        };
+    }
+
+    private static string? TrimToNull(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        return value.Trim();
+    }
+
+    private static List<string> SplitLines(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return new List<string>();
+        }
+
+        return value
+            .Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(line => line.Trim())
+            .Where(line => !string.IsNullOrWhiteSpace(line))
+            .ToList();
+    }
+
+    private sealed class CreateRecipeModel
+    {
+        [Required]
+        public string Title { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public string? YieldServings { get; set; }
+        public string? PrepTime { get; set; }
+        public string? CookTime { get; set; }
+        public string? TotalTime { get; set; }
+        public string? CookingTemperature { get; set; }
+        public string? NutritionFacts { get; set; }
+        public string? StorageInfo { get; set; }
+        public string? IngredientsText { get; set; }
+        public string? QuantitiesText { get; set; }
+        public string? EquipmentText { get; set; }
+        public string? InstructionsText { get; set; }
+    }
+}
