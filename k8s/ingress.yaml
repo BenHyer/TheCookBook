@@ -11,8 +11,21 @@ metadata:
     nginx.ingress.kubernetes.io/session-cookie-max-age: "172800"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    
+    # === NEW: Enable cert-manager + automatic redirect from HTTP to HTTPS ===
+    cert-manager.io/cluster-issuer: "letsencrypt-staging"   # Change to "letsencrypt-prod" later
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
 spec:
   ingressClassName: nginx
+  
+  # === NEW: TLS section ===
+  tls:
+  - hosts:
+    - cookbook.bencampus.duckdns.org
+    - cookbook.benhhome.duckdns.org
+    secretName: cookbook-tls-secret
+
   rules:
   - host: cookbook.bencampus.duckdns.org
     http:
@@ -38,6 +51,7 @@ spec:
             name: cookbook-web
             port:
               number: 80
+
   - host: cookbook.benhhome.duckdns.org
     http:
       paths:
@@ -62,4 +76,3 @@ spec:
             name: cookbook-web
             port:
               number: 80
-
