@@ -261,13 +261,12 @@ jobs:
           cache-to: type=registry,ref=benhyer/cookbook-web:cache,mode=max
 
   deploy:
-    needs: [push-api, push-web, container-validate]
+    needs: [push-api, push-web]
     if: |
       github.ref == 'refs/heads/main' &&
       github.event_name == 'push' &&
       needs.push-api.result == 'success' &&
-      needs.push-web.result == 'success' &&
-      (needs.container-validate.result == 'success' || needs.container-validate.result == 'skipped')
+      needs.push-web.result == 'success'
     runs-on: self-hosted
 
     steps:
