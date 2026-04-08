@@ -45,8 +45,8 @@ jobs:
             echo "build_api=$build_api" >> "$GITHUB_OUTPUT"
             echo "build_web=$build_web" >> "$GITHUB_OUTPUT"
           else
-            echo "build_api=true" >> "$GITHUB_OUTPUT"
-            echo "build_web=true" >> "$GITHUB_OUTPUT"
+            [ -f "Cookbook.ApiService/Cookbook.ApiService.csproj" ] && echo "build_api=true" >> "$GITHUB_OUTPUT" || echo "build_api=false" >> "$GITHUB_OUTPUT"
+            [ -f "Cookbook.Web/Cookbook.Web.csproj" ] && echo "build_web=true" >> "$GITHUB_OUTPUT" || echo "build_web=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Setup .NET 10 SDK
