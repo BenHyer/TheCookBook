@@ -104,8 +104,13 @@ jobs:
 
           if [ "$build_api" = "true" ] && [ "$build_web" = "true" ]; then
             dotnet format Cookbook.ApiService/Cookbook.ApiService.csproj --verify-no-changes --no-restore &
+            api_pid=$!
             dotnet format Cookbook.Web/Cookbook.Web.csproj --verify-no-changes --no-restore &
-            wait
+            web_pid=$!
+            failed=0
+            wait "$api_pid" || failed=1
+            wait "$web_pid" || failed=1
+            exit $failed
           elif [ "$build_api" = "true" ]; then
             dotnet format Cookbook.ApiService/Cookbook.ApiService.csproj --verify-no-changes --no-restore
           elif [ "$build_web" = "true" ]; then
