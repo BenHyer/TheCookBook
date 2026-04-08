@@ -140,6 +140,9 @@ app.UseAntiforgery();
 app.MapStaticAssets();
 
 app.MapControllers();
+app.MapControllerRoute(
+    name: "default",
+    pattern: "{controller=Home}/{action=Index}/{id?}");
 app.MapRazorPages();
 
 app.MapGet("/signin", async (HttpContext context, string? redirectUri) =>
