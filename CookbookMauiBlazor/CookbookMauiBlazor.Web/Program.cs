@@ -42,9 +42,9 @@ builder.Services
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-builder.Services.AddRazorPages();
-builder.Services.AddControllersWithViews()
+builder.Services.AddRazorPages()
     .AddMicrosoftIdentityUI();
+builder.Services.AddControllersWithViews();
 
 // Add device-specific services used by the CookbookMauiBlazor.Shared project
 builder.Services.AddSingleton<IFormFactor, FormFactor>();
