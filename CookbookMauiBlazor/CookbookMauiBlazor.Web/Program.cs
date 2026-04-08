@@ -139,6 +139,9 @@ app.UseAntiforgery();
 
 app.MapStaticAssets();
 
+app.MapControllers();
+app.MapRazorPages();
+
 app.MapGet("/signin", async (HttpContext context, string? redirectUri) =>
 {
     if (!hasAzureAdAuth)
