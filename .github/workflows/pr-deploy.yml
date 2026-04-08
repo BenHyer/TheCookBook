@@ -1,0 +1,279 @@
+name: PR Preview Deploy
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+# Cancel in-progress deploys when a new push arrives, but never cancel teardown.
+concurrency:
+  group: pr-preview-${{ github.event.number }}
+  cancel-in-progress: ${{ github.event.action != 'closed' }}
+
+jobs:
+  # ── Build & push PR-tagged images ─────────────────────────────────────────
+  build-push-pr:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Cookbook.ApiService/Dockerfile
+          push: true
+          tags: benhyer/cookbook-api:pr-${{ github.event.number }}
+          cache-from: type=registry,ref=benhyer/cookbook-api:cache
+          cache-to: type=registry,ref=benhyer/cookbook-api:cache,mode=max
+
+      - name: Build and push Web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: CookbookMauiBlazor/CookbookMauiBlazor.Web/Dockerfile
+          push: true
+          tags: benhyer/cookbook-web:pr-${{ github.event.number }}
+          cache-from: type=registry,ref=benhyer/cookbook-web:cache
+          cache-to: type=registry,ref=benhyer/cookbook-web:cache,mode=max
+
+  # ── Deploy isolated namespace into the cluster ────────────────────────────
+  deploy-pr:
+    needs: build-push-pr
+    runs-on: self-hosted
+    env:
+      NS: cookbook-pr-${{ github.event.number }}
+      IMAGE_TAG: pr-${{ github.event.number }}
+      BENCAMPUS_HOST: pr-${{ github.event.number }}.bencampus.duckdns.org
+      BENHHOME_HOST: pr-${{ github.event.number }}.benhhome.duckdns.org
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Create namespace
+        run: kubectl create namespace "$NS" --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Apply secrets
+        run: |
+          kubectl create secret generic cookbook-secrets \
+            --namespace "$NS" \
+            --from-literal=ConnectionStrings__sqldb="${{ secrets.DB_CONNECTION_STRING }}" \
+            --from-literal=AZURE_AD_TENANT_ID="${{ secrets.AZURE_AD_TENANT_ID }}" \
+            --from-literal=AZURE_AD_CLIENT_ID="${{ secrets.AZURE_AD_CLIENT_ID }}" \
+            --from-literal=AZURE_AD_CLIENT_SECRET="${{ secrets.AZURE_AD_CLIENT_SECRET }}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Apply ConfigMap
+        # Reuse the production configmap but patch the namespace and point OTEL
+        # cross-namespace since the collector lives in the cookbook namespace.
+        run: |
+          sed \
+            -e "s/namespace: cookbook$/namespace: $NS/" \
+            -e "s|http://otel-collector:|http://otel-collector.cookbook:|" \
+            k8s/configmap.yaml | kubectl apply -f -
+
+      - name: Apply deployments, services, and PVC
+        # Reuse the production manifests as-is; sed patches the hardcoded
+        # namespace and envsubst fills in IMAGE_TAG.
+        run: |
+          for f in k8s/api-deployment.yaml k8s/api-service.yaml \
+                    k8s/web-deployment.yaml k8s/web-service.yaml \
+                    k8s/web-dp-keys-pvc.yaml; do
+            sed "s/namespace: cookbook$/namespace: $NS/" "$f" \
+              | envsubst '${IMAGE_TAG}' \
+              | kubectl apply -f -
+          done
+
+      - name: Apply Ingress
+        run: |
+          kubectl apply -f - <<EOF
+          apiVersion: networking.k8s.io/v1
+          kind: Ingress
+          metadata:
+            name: cookbook-pr-ingress
+            namespace: $NS
+            annotations:
+              nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+              nginx.ingress.kubernetes.io/affinity: "cookie"
+              nginx.ingress.kubernetes.io/session-cookie-name: "blazor-affinity"
+              nginx.ingress.kubernetes.io/session-cookie-expires: "172800"
+              nginx.ingress.kubernetes.io/session-cookie-max-age: "172800"
+              nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+              nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+          spec:
+            ingressClassName: nginx
+            rules:
+            - host: $BENCAMPUS_HOST
+              http:
+                paths:
+                - path: /api
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: cookbook-api
+                      port:
+                        number: 80
+                - path: /
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: cookbook-web
+                      port:
+                        number: 80
+            - host: $BENHHOME_HOST
+              http:
+                paths:
+                - path: /api
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: cookbook-api
+                      port:
+                        number: 80
+                - path: /
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: cookbook-web
+                      port:
+                        number: 80
+          EOF
+
+      - name: Wait for rollouts
+        run: |
+          kubectl rollout status deployment/cookbook-api -n "$NS" --timeout=120s
+          kubectl rollout status deployment/cookbook-web -n "$NS" --timeout=120s
+
+      - name: Debug failed rollout
+        if: failure()
+        run: |
+          echo "=== Pod status ==="
+          kubectl get pods -n "$NS" -o wide
+          echo "=== API logs ==="
+          kubectl logs -n "$NS" -l app=cookbook-api --tail=60 2>&1 || true
+          echo "=== Web logs ==="
+          kubectl logs -n "$NS" -l app=cookbook-web --tail=60 2>&1 || true
+          echo "=== Events ==="
+          kubectl get events -n "$NS" --sort-by='.lastTimestamp' | tail -20
+
+  # ── Post / update a comment with the preview URLs ─────────────────────────
+  comment-pr:
+    needs: deploy-pr
+    if: always() && github.event.action != 'closed' && needs.deploy-pr.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+
+    steps:
+      - name: Create or update preview comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const marker = '<!-- pr-preview-env -->';
+            const prNumber = context.issue.number;
+            const sha = '${{ github.sha }}'.slice(0, 7);
+            const bencampus = `http://pr-${prNumber}.bencampus.duckdns.org`;
+            const benhhome  = `http://pr-${prNumber}.benhhome.duckdns.org`;
+
+            const body = [
+              marker,
+              '## Preview Environment Deployed',
+              '',
+              '| Network | URL |',
+              '|---------|-----|',
+              `| Campus  | ${bencampus} |`,
+              `| Home    | ${benhhome}  |`,
+              '',
+              `Deployed from commit \`${sha}\` — updates automatically on each push.`,
+            ].join('\n');
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+            });
+
+            const existing = comments.find(c => c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body,
+              });
+            }
+
+  # ── Tear down the namespace when the PR is closed/merged ──────────────────
+  teardown-pr:
+    if: github.event.action == 'closed'
+    runs-on: self-hosted
+
+    steps:
+      - name: Delete PR namespace
+        run: |
+          kubectl delete namespace "cookbook-pr-${{ github.event.number }}" --ignore-not-found=true
+
+  # ── Update the comment to show the environment is gone ────────────────────
+  comment-teardown:
+    needs: teardown-pr
+    if: always() && github.event.action == 'closed' && needs.teardown-pr.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+
+    steps:
+      - name: Update preview comment to removed state
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const marker = '<!-- pr-preview-env -->';
+            const prNumber = context.issue.number;
+
+            const body = [
+              marker,
+              '## Preview Environment Removed',
+              '',
+              'The preview environment for this PR has been torn down.',
+            ].join('\n');
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+            });
+
+            const existing = comments.find(c => c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body,
+              });
+            }
