@@ -173,6 +173,8 @@ jobs:
     needs: deploy-pr
     if: always() && github.event.action != 'closed' && needs.deploy-pr.result == 'success'
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
 
     steps:
       - name: Create or update preview comment
@@ -235,6 +237,8 @@ jobs:
     needs: teardown-pr
     if: always() && github.event.action == 'closed' && needs.teardown-pr.result == 'success'
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
 
     steps:
       - name: Update preview comment to removed state
