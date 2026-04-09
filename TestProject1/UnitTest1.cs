@@ -23,7 +23,7 @@ namespace TestProject1
         {
             // Arrange
             var ownerUserId = "user123";
-            var oardName = "My Board";
+            var boardName = "My Board";
 
             // Act
             await _boardViewModel.CreateBoardAsync(ownerUserId, boardName);

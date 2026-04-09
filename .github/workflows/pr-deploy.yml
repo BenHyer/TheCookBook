@@ -277,3 +277,32 @@ jobs:
                 body,
               });
             }
+
+notify-discord:
+    needs: [build-push-pr, deploy-pr, comment-pr, teardown-pr, comment-teardown]
+    if: failure()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Send Discord notification
+        run: |
+          curl -X POST "${{ secrets.DISCORD_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "content": "❌ **Pipeline Failed**",
+              "embeds": [
+                {
+                  "title": "Build Failed",
+                  "description": "**Repository:** ${{ github.repository }}\n**Branch:** ${{ github.ref_name }}\n**Commit:** `${{ github.event.head_commit.message }}`\n**Author:** ${{ github.actor }}",
+                  "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+                  "color": 15158332,
+                  "fields": [
+                    {
+                      "name": "Workflow",
+                      "value": "${{ github.workflow }}",
+                      "inline": true
+                    }
+                  ]
+                }
+              ]
+            }'
