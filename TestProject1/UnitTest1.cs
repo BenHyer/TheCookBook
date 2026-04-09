@@ -22,7 +22,7 @@ namespace TestProject1
         public async Task CreateBoardAsync_WithValidInputs_CallsServiceCreateAsync()
         {
             // Arrange
-            var ownerUserId = "user123";
+            var wnerUserId = "user123";
             var boardName = "My Board";
 
             // Act
