@@ -320,3 +320,32 @@ jobs:
           echo "Rolling back deployments..."
           kubectl rollout undo deployment/cookbook-api -n cookbook || true
           kubectl rollout undo deployment/cookbook-web -n cookbook || true
+  
+  notify-discord:
+    needs: [build-lint-test, test-testproject, container-validate, push-api, push-web, deploy]
+    if: failure()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Send Discord notification
+        run: |
+          curl -X POST "${{ secrets.DISCORD_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "content": "❌ **Pipeline Failed**",
+              "embeds": [
+                {
+                  "title": "Build Failed",
+                  "description": "**Repository:** ${{ github.repository }}\n**Branch:** ${{ github.ref_name }}\n**Commit:** `${{ github.sha }}`\n**Author:** ${{ github.actor }}",
+                  "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+                  "color": 15158332,
+                  "fields": [
+                    {
+                      "name": "Workflow",
+                      "value": "${{ github.workflow }}",
+                      "inline": true
+                    }
+                  ]
+                }
+              ]
+            }'
