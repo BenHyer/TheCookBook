@@ -67,7 +67,8 @@ jobs:
           az login --service-principal \
             --username "${{ secrets.AZURE_PR_CLIENT_ID }}" \
             --password "${{ secrets.AZURE_PR_CLIENT_SECRET }}" \
-            --tenant "${{ secrets.AZURE_AD_TENANT_ID }}"
+            --tenant "${{ secrets.AZURE_AD_TENANT_ID }}" \
+            --allow-no-subscriptions
 
       - name: Register PR redirect URIs in Azure AD
         run: |
@@ -254,7 +255,8 @@ jobs:
           az login --service-principal \
             --username "${{ secrets.AZURE_PR_CLIENT_ID }}" \
             --password "${{ secrets.AZURE_PR_CLIENT_SECRET }}" \
-            --tenant "${{ secrets.AZURE_AD_TENANT_ID }}"
+            --tenant "${{ secrets.AZURE_AD_TENANT_ID }}" \
+            --allow-no-subscriptions
 
       - name: Remove PR redirect URIs from Azure AD
         run: |
