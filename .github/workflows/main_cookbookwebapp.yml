@@ -23,11 +23,14 @@ jobs:
         with:
           dotnet-version: "10.x"
 
-      - name: Build with dotnet
-        run: dotnet build TheCookBook.sln --configuration Release
+      - name: Build ApiService
+        run: dotnet build Cookbook.ApiService/Cookbook.ApiService.csproj --configuration Release
+
+      - name: Build Web App
+        run: dotnet build CookbookMauiBlazor/CookbookMauiBlazor.Web/CookbookMauiBlazor.Web.csproj --configuration Release
 
       - name: dotnet publish
-        run: dotnet publish TheCookBook.sln -c Release -o ${{env.DOTNET_ROOT}}/myapp
+        run: dotnet publish CookbookMauiBlazor/CookbookMauiBlazor.Web/CookbookMauiBlazor.Web.csproj -c Release -o ${{env.DOTNET_ROOT}}/myapp
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
