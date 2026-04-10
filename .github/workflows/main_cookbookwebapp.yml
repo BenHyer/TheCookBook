@@ -62,4 +62,3 @@ jobs:
           app-name: 'cookbookwebapp'
           slot-name: 'Production'
           package: .
-          
