@@ -48,16 +48,25 @@ jobs:
       - name: Build Web App
         run: dotnet build CookbookMauiBlazor/CookbookMauiBlazor.Web/CookbookMauiBlazor.Web.csproj --configuration Release --no-restore
 
-      - name: dotnet publish
-        run: dotnet publish CookbookMauiBlazor/CookbookMauiBlazor.Web/CookbookMauiBlazor.Web.csproj -c Release -o ${{env.DOTNET_ROOT}}/myapp --no-restore
+      - name: dotnet publish Web App
+        run: dotnet publish CookbookMauiBlazor/CookbookMauiBlazor.Web/CookbookMauiBlazor.Web.csproj -c Release -o ${{env.DOTNET_ROOT}}/publish/web --no-restore
 
-      - name: Upload artifact for deployment job
+      - name: Upload Web App artifact
         uses: actions/upload-artifact@v4
         with:
-          name: .net-app
-          path: ${{env.DOTNET_ROOT}}/myapp
+          name: .net-web
+          path: ${{env.DOTNET_ROOT}}/publish/web
 
-  deploy:
+      - name: dotnet publish ApiService
+        run: dotnet publish Cookbook.ApiService/Cookbook.ApiService.csproj -c Release -o ${{env.DOTNET_ROOT}}/publish/api --no-restore
+
+      - name: Upload ApiService artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: .net-api
+          path: ${{env.DOTNET_ROOT}}/publish/api
+
+  deploy-web:
     runs-on: ubuntu-latest
     needs: build
     permissions:
@@ -65,10 +74,10 @@ jobs:
       contents: read #This is required for actions/checkout
 
     steps:
-      - name: Download artifact from build job
+      - name: Download Web App artifact
         uses: actions/download-artifact@v4
         with:
-          name: .net-app
+          name: .net-web
 
       - name: Login to Azure
         uses: azure/login@v2
@@ -82,5 +91,33 @@ jobs:
         uses: azure/webapps-deploy@v3
         with:
           app-name: "cookbookwebapp"
+          slot-name: "Production"
+          package: .
+
+  deploy-api:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      id-token: write #This is required for requesting the JWT
+      contents: read #This is required for actions/checkout
+
+    steps:
+      - name: Download ApiService artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: .net-api
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_C69BC55505754472902A6F806EDDB0FB }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_C84A6F3413BE46779C694B332A018107 }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_0730FF961B8F49D989FF96D600AF2FA9}}
+
+      - name: Deploy to Azure API App
+        id: deploy-to-api
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: "cookbookAPI"
           slot-name: "Production"
           package: .
