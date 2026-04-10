@@ -41,14 +41,27 @@
         </div>
     </div>
 
-    <div class="mb-3">
-        <label class="form-label">Ingredients (one per line)</label>
-        <InputTextArea class="form-control" rows="4" @bind-Value="_model.IngredientsText" />
-    </div>
+    <div class="ingredients-section mb-3">
+        <div class="ingredients-header d-flex align-items-center gap-3">
+            <div class="ingredients-title">Ingredients</div>
+            <button class="btn btn-danger" type="button" @onclick="AddIngredientRow">Add Ingredient</button>
+        </div>
 
-    <div class="mb-3">
-        <label class="form-label">Quantities (one per line)</label>
-        <InputTextArea class="form-control" rows="4" @bind-Value="_model.QuantitiesText" />
+        <div class="ingredients-grid">
+            @for (var i = 0; i < _model.Ingredients.Count; i++)
+            {
+                var line = _model.Ingredients[i];
+
+                <div class="ingredients-row" @key="line.Id">
+                    <InputText class="form-control ingredient-input" placeholder="Ingredient" @bind-Value="line.Name" />
+                    <InputText class="form-control ingredient-input" placeholder="Qty" type="number" step="any"
+                               inputmode="decimal" @bind-Value="line.Quantity" />
+                    <InputText class="form-control ingredient-input" placeholder="Measurement"
+                               @bind-Value="line.Measurement" />
+                    <InputText class="form-control ingredient-input" placeholder="Custom" @bind-Value="line.Custom" />
+                </div>
+            }
+        </div>
     </div>
 
     <div class="mb-3">
@@ -83,8 +96,15 @@
 
     private CreateRecipeModel _model = new();
 
+    protected override void OnInitialized()
+    {
+        EnsureIngredientRow();
+    }
+
     private async Task CreateRecipeAsync()
     {
+        var ingredientLists = BuildIngredientLists(_model.Ingredients);
+
         var recipe = new Recipe
         {
             Title = _model.Title.Trim(),
@@ -96,14 +116,15 @@
             CookingTemperature = TrimToNull(_model.CookingTemperature),
             NutritionFacts = TrimToNull(_model.NutritionFacts),
             StorageInfo = TrimToNull(_model.StorageInfo),
-            Ingredients = SplitLines(_model.IngredientsText),
-            Quantities = SplitLines(_model.QuantitiesText),
+            Ingredients = ingredientLists.Ingredients,
+            Quantities = ingredientLists.Quantities,
             Equipment = SplitLines(_model.EquipmentText),
             Instructions = SplitLines(_model.InstructionsText),
         };
 
         await OnCreated.InvokeAsync(recipe);
         _model = new CreateRecipeModel();
+        EnsureIngredientRow();
     }
 
     private void PopulateSample()
@@ -119,26 +140,16 @@
             CookingTemperature = "Medium-high heat",
             NutritionFacts = "Approx 420 kcal per serving",
             StorageInfo = "Refrigerate up to 3 days; reheat gently.",
-            IngredientsText = string.Join("\n", new[]
+            Ingredients = new List<IngredientLine>
             {
-                "Salmon fillets",
-                "Butter",
-                "Garlic cloves",
-                "Lemon",
-                "Salt",
-                "Black pepper",
-                "Parsley"
-            }),
-            QuantitiesText = string.Join("\n", new[]
-            {
-                "4 fillets",
-                "3 tbsp",
-                "3 cloves",
-                "1, sliced",
-                "1 tsp",
-                "1/2 tsp",
-                "1 tbsp, chopped"
-            }),
+                new() { Name = "Salmon fillets", Quantity = "4", Measurement = "fillets" },
+                new() { Name = "Butter", Quantity = "3", Measurement = "tbsp" },
+                new() { Name = "Garlic cloves", Quantity = "3", Measurement = "cloves" },
+                new() { Name = "Lemon", Quantity = "1", Custom = "sliced" },
+                new() { Name = "Salt", Quantity = "1", Measurement = "tsp" },
+                new() { Name = "Black pepper", Quantity = "1/2", Measurement = "tsp" },
+                new() { Name = "Parsley", Quantity = "1", Custom = "tbsp, chopped" }
+            },
             EquipmentText = string.Join("\n", new[]
             {
                 "Skillet",
@@ -181,6 +192,59 @@
             .ToList();
     }
 
+    private static (List<string> Ingredients, List<string> Quantities) BuildIngredientLists(
+        IEnumerable<IngredientLine> lines)
+    {
+        var ingredients = new List<string>();
+        var quantities = new List<string>();
+
+        foreach (var line in lines)
+        {
+            var name = TrimToNull(line.Name);
+            if (name is null)
+            {
+                continue;
+            }
+
+            ingredients.Add(name);
+            quantities.Add(FormatQuantity(line));
+        }
+
+        return (ingredients, quantities);
+    }
+
+    private static string FormatQuantity(IngredientLine line)
+    {
+        var quantity = TrimToNull(line.Quantity);
+        var measurement = TrimToNull(line.Measurement);
+        var custom = TrimToNull(line.Custom);
+
+        if (!string.IsNullOrEmpty(custom))
+        {
+            return string.IsNullOrEmpty(quantity) ? custom : $"{quantity} {custom}";
+        }
+
+        if (!string.IsNullOrEmpty(quantity) && !string.IsNullOrEmpty(measurement))
+        {
+            return $"{quantity} {measurement}";
+        }
+
+        return quantity ?? measurement ?? string.Empty;
+    }
+
+    private void AddIngredientRow()
+    {
+        _model.Ingredients.Add(new IngredientLine());
+    }
+
+    private void EnsureIngredientRow()
+    {
+        if (_model.Ingredients is null || _model.Ingredients.Count == 0)
+        {
+            _model.Ingredients = new List<IngredientLine> { new IngredientLine() };
+        }
+    }
+
     private sealed class CreateRecipeModel
     {
         [Required]
@@ -193,9 +257,17 @@
         public string? CookingTemperature { get; set; }
         public string? NutritionFacts { get; set; }
         public string? StorageInfo { get; set; }
-        public string? IngredientsText { get; set; }
-        public string? QuantitiesText { get; set; }
+        public List<IngredientLine> Ingredients { get; set; } = new() { new IngredientLine() };
         public string? EquipmentText { get; set; }
         public string? InstructionsText { get; set; }
+    }
+
+    private sealed class IngredientLine
+    {
+        public Guid Id { get; } = Guid.NewGuid();
+        public string? Name { get; set; }
+        public string? Quantity { get; set; }
+        public string? Measurement { get; set; }
+        public string? Custom { get; set; }
     }
 }
