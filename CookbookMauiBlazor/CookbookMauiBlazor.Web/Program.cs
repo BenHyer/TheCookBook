@@ -57,6 +57,10 @@ builder.Services.AddHttpClient<IBoardService, BoardService>(client =>
 {
     client.BaseAddress = new Uri(apiBaseUrl);
 });
+builder.Services.AddHttpClient<IUserProfileService, UserProfileService>(client =>
+{
+    client.BaseAddress = new Uri(apiBaseUrl);
+});
 
 builder.Services
     .AddAuthentication(options =>

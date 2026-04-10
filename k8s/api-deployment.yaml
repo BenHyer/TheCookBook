@@ -32,6 +32,16 @@ spec:
                 secretKeyRef:
                   name: cookbook-secrets
                   key: ConnectionStrings__sqldb
+            - name: AZURE_STORAGE_CONNECTION_STRING
+              valueFrom:
+                secretKeyRef:
+                  name: cookbook-secrets
+                  key: AZURE_STORAGE_CONNECTION_STRING
+            - name: AZURE_STORAGE_CONTAINER_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: cookbook-secrets
+                  key: AZURE_STORAGE_CONTAINER_NAME
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               valueFrom:
                 configMapKeyRef:

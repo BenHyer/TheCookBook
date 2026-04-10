@@ -1,3 +1,5 @@
+using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 using Cookbook.ApiService.Data;
 using Cookbook.ApiService.Models;
 using Cookbook.ApiService.Telemetry;
@@ -35,6 +37,15 @@ if (string.IsNullOrWhiteSpace(connectionString))
 
 builder.Services.AddDbContext<CookbookDbContext>(options =>
     options.UseSqlServer(connectionString, sql => sql.EnableRetryOnFailure()));
+
+var storageConnectionString = builder.Configuration["AZURE_STORAGE_CONNECTION_STRING"];
+var storageContainerName = builder.Configuration["AZURE_STORAGE_CONTAINER_NAME"] ?? "profile-pictures";
+if (!string.IsNullOrWhiteSpace(storageConnectionString))
+{
+    builder.Services.AddSingleton(_ => new BlobServiceClient(storageConnectionString));
+    builder.Services.AddSingleton(provider =>
+        provider.GetRequiredService<BlobServiceClient>().GetBlobContainerClient(storageContainerName));
+}
 
 var app = builder.Build();
 
@@ -189,6 +200,118 @@ app.MapGet("/api/v1/metrics/track-dashboard-view", () =>
 .WithName("TrackDashboardView")
 .AllowAnonymous();
 
+app.MapGet("/api/v1/users/{userId}/profile", async (string userId, CookbookDbContext dbContext) =>
+{
+    var profile = await dbContext.UserProfiles.FindAsync(userId);
+    if (profile is null)
+        return Results.NotFound();
+
+    return Results.Ok(new UserProfileDto(
+        profile.UserId,
+        profile.FirstName,
+        profile.LastName,
+        profile.DisplayName,
+        profile.ProfilePictureUrl));
+})
+.WithName("GetUserProfile");
+
+app.MapPut("/api/v1/users/{userId}/profile", async (string userId, UpdateProfileRequest request, CookbookDbContext dbContext) =>
+{
+    var utcNow = DateTime.UtcNow;
+    var profile = await dbContext.UserProfiles.FindAsync(userId);
+
+    if (profile is null)
+    {
+        profile = new UserProfile
+        {
+            UserId = userId,
+            FirstName = request.FirstName.Trim(),
+            LastName = request.LastName.Trim(),
+            DisplayName = request.DisplayName.Trim(),
+            CreatedUtc = utcNow,
+            UpdatedUtc = utcNow
+        };
+        dbContext.UserProfiles.Add(profile);
+    }
+    else
+    {
+        profile.FirstName = request.FirstName.Trim();
+        profile.LastName = request.LastName.Trim();
+        profile.DisplayName = request.DisplayName.Trim();
+        profile.UpdatedUtc = utcNow;
+    }
+
+    await dbContext.SaveChangesAsync();
+
+    return Results.Ok(new UserProfileDto(
+        profile.UserId,
+        profile.FirstName,
+        profile.LastName,
+        profile.DisplayName,
+        profile.ProfilePictureUrl));
+})
+.WithName("UpdateUserProfile");
+
+app.MapPost("/api/v1/users/{userId}/profile/picture", async (
+    string userId,
+    IFormFile file,
+    CookbookDbContext dbContext,
+    BlobContainerClient? containerClient) =>
+{
+    if (containerClient is null)
+        return Results.Problem("Blob storage is not configured.");
+
+    if (file.Length == 0)
+        return Results.BadRequest("No file uploaded.");
+
+    var allowedTypes = new[] { "image/jpeg", "image/png", "image/gif", "image/webp" };
+    if (!allowedTypes.Contains(file.ContentType.ToLowerInvariant()))
+        return Results.BadRequest("Only JPEG, PNG, GIF, and WebP images are allowed.");
+
+    if (file.Length > 5 * 1024 * 1024)
+        return Results.BadRequest("File size must be under 5 MB.");
+
+    var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+    var blobName = $"{userId}/profile{extension}";
+    var blobClient = containerClient.GetBlobClient(blobName);
+
+    await using var stream = file.OpenReadStream();
+    await blobClient.UploadAsync(stream, new BlobUploadOptions
+    {
+        HttpHeaders = new BlobHttpHeaders { ContentType = file.ContentType }
+    });
+
+    var pictureUrl = blobClient.Uri.ToString();
+    var utcNow = DateTime.UtcNow;
+
+    var profile = await dbContext.UserProfiles.FindAsync(userId);
+    if (profile is null)
+    {
+        profile = new UserProfile
+        {
+            UserId = userId,
+            FirstName = string.Empty,
+            LastName = string.Empty,
+            DisplayName = string.Empty,
+            ProfilePictureUrl = pictureUrl,
+            CreatedUtc = utcNow,
+            UpdatedUtc = utcNow
+        };
+        dbContext.UserProfiles.Add(profile);
+    }
+    else
+    {
+        profile.ProfilePictureUrl = pictureUrl;
+        profile.UpdatedUtc = utcNow;
+    }
+
+    await dbContext.SaveChangesAsync();
+
+    return Results.Ok(new { url = pictureUrl });
+})
+.WithName("UploadProfilePicture")
+.DisableAntiforgery();
+
 app.MapDefaultEndpoints();
 
 app.Run();
@@ -227,3 +350,7 @@ static async Task ApplyDatabaseMigrationsAsync(WebApplication app)
 record CreateBoardRequest(string Name, string? Description, string OwnerUserId);
 
 record BoardDto(Guid Id, string Name, string? Description, string OwnerUserId, DateTime CreatedUtc, DateTime UpdatedUtc);
+
+record UserProfileDto(string UserId, string FirstName, string LastName, string DisplayName, string? ProfilePictureUrl);
+
+record UpdateProfileRequest(string FirstName, string LastName, string DisplayName);

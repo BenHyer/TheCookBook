@@ -13,6 +13,7 @@ public class CookbookDbContext(DbContextOptions<CookbookDbContext> options) : Db
     public DbSet<Recipe> Recipes => Set<Recipe>();
     public DbSet<Board> Boards => Set<Board>();
     public DbSet<BoardPermission> BoardPermissions => Set<BoardPermission>();
+    public DbSet<UserProfile> UserProfiles => Set<UserProfile>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -114,6 +115,30 @@ public class CookbookDbContext(DbContextOptions<CookbookDbContext> options) : Db
 
             entity.HasIndex(x => new { x.BoardId, x.UserId })
                 .IsUnique();
+        });
+
+        modelBuilder.Entity<UserProfile>(entity =>
+        {
+            entity.ToTable("UserProfiles");
+            entity.HasKey(x => x.UserId);
+            entity.Property(x => x.UserId)
+                .IsRequired()
+                .HasMaxLength(200);
+            entity.Property(x => x.FirstName)
+                .IsRequired()
+                .HasMaxLength(100);
+            entity.Property(x => x.LastName)
+                .IsRequired()
+                .HasMaxLength(100);
+            entity.Property(x => x.DisplayName)
+                .IsRequired()
+                .HasMaxLength(200);
+            entity.Property(x => x.ProfilePictureUrl)
+                .HasMaxLength(2048);
+            entity.Property(x => x.CreatedUtc)
+                .IsRequired();
+            entity.Property(x => x.UpdatedUtc)
+                .IsRequired();
         });
 
         base.OnModelCreating(modelBuilder);
