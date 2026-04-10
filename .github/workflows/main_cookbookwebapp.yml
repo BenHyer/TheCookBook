@@ -121,3 +121,4 @@ jobs:
           app-name: "cookbookAPI"
           slot-name: "Production"
           package: .
+          
