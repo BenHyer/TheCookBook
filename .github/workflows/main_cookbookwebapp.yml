@@ -3,6 +3,9 @@
 
 name: Build and deploy ASP.Net Core app to Azure Web App - cookbookwebapp
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   push:
     branches:
@@ -14,23 +17,39 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read #This is required for actions/checkout
+    env:
+      NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
 
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up .NET Core
-        uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v5
         with:
-          dotnet-version: "10.x"
+          fetch-depth: 0
+
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            **/Directory.Packages.props
+            **/NuGet.config
+            **/global.json
+
+      - name: Restore ApiService
+        run: dotnet restore Cookbook.ApiService/Cookbook.ApiService.csproj
+
+      - name: Restore Web App
+        run: dotnet restore CookbookMauiBlazor/CookbookMauiBlazor.Web/CookbookMauiBlazor.Web.csproj
 
       - name: Build ApiService
-        run: dotnet build Cookbook.ApiService/Cookbook.ApiService.csproj --configuration Release
+        run: dotnet build Cookbook.ApiService/Cookbook.ApiService.csproj --configuration Release --no-restore
 
       - name: Build Web App
-        run: dotnet build CookbookMauiBlazor/CookbookMauiBlazor.Web/CookbookMauiBlazor.Web.csproj --configuration Release
+        run: dotnet build CookbookMauiBlazor/CookbookMauiBlazor.Web/CookbookMauiBlazor.Web.csproj --configuration Release --no-restore
 
       - name: dotnet publish
-        run: dotnet publish CookbookMauiBlazor/CookbookMauiBlazor.Web/CookbookMauiBlazor.Web.csproj -c Release -o ${{env.DOTNET_ROOT}}/myapp
+        run: dotnet publish CookbookMauiBlazor/CookbookMauiBlazor.Web/CookbookMauiBlazor.Web.csproj -c Release -o ${{env.DOTNET_ROOT}}/myapp --no-restore
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
