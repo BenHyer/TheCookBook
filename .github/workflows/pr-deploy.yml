@@ -77,9 +77,9 @@ jobs:
           URI_A="http://pr-${PR_NUM}.benhhome.duckdns.org/signin-oidc"
           URI_B="http://pr-${PR_NUM}.bencampus.duckdns.org/signin-oidc"
           mapfile -t CURRENT_URIS < <(az ad app show --id "${{ secrets.AZURE_AD_CLIENT_ID }}" \
-            --query "web.redirectUris[]" -o tsv)
+            --query "web.redirectUris[]" -o tsv 2>/dev/null | grep -v '^$' | grep -vi '^none$')
           ALL_URIS=("${CURRENT_URIS[@]}" "$URI_A" "$URI_B")
-          UNIQUE_URIS=($(printf '%s\n' "${ALL_URIS[@]}" | sort -u))
+          UNIQUE_URIS=($(printf '%s\n' "${ALL_URIS[@]}" | grep -v '^$' | sort -u))
           az ad app update --id "${{ secrets.AZURE_AD_CLIENT_ID }}" \
             --web-redirect-uris "${UNIQUE_URIS[@]}"
 
