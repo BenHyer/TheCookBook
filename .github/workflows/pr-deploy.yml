@@ -80,6 +80,7 @@ jobs:
           CURRENT_JSON=$(az ad app show --id "${{ secrets.AZURE_AD_CLIENT_ID }}" \
             --query "web.redirectUris" -o json)
           BODY=$(python3 .github/scripts/merge_uris.py "$CURRENT_JSON" "$URI_A" "$URI_B")
+          echo "Sending body: $BODY"
           az rest --method PATCH \
             --uri "https://graph.microsoft.com/v1.0/applications/${APP_OID}" \
             --headers "Content-Type=application/json" \
