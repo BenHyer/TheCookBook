@@ -76,15 +76,14 @@ jobs:
           PR_NUM="${{ github.event.number }}"
           URI_A="http://pr-${PR_NUM}.benhhome.duckdns.org/signin-oidc"
           URI_B="http://pr-${PR_NUM}.bencampus.duckdns.org/signin-oidc"
-          mapfile -t CURRENT_URIS < <(az ad app show --id "${{ secrets.AZURE_AD_CLIENT_ID }}" \
-            --query "web.redirectUris[]" -o tsv 2>/dev/null | grep -v '^$' | grep -vi '^none$')
-          ALL_URIS=("${CURRENT_URIS[@]}" "$URI_A" "$URI_B")
-          UNIQUE_URIS=($(printf '%s\n' "${ALL_URIS[@]}" | grep -v '^$' | sort -u))
-          echo "--- URIs to be set ---"
-          printf '"%s"\n' "${UNIQUE_URIS[@]}"
-          echo "--- end ---"
-          az ad app update --id "${{ secrets.AZURE_AD_CLIENT_ID }}" \
-            --web-redirect-uris "${UNIQUE_URIS[@]}"
+          APP_OID=$(az ad app show --id "${{ secrets.AZURE_AD_CLIENT_ID }}" --query id -o tsv)
+          CURRENT_JSON=$(az ad app show --id "${{ secrets.AZURE_AD_CLIENT_ID }}" \
+            --query "web.redirectUris" -o json)
+          BODY=$(dotnet run --project .github/scripts/UriHelper -- merge "$CURRENT_JSON" "$URI_A" "$URI_B")
+          az rest --method PATCH \
+            --uri "https://graph.microsoft.com/v1.0/applications/${APP_OID}" \
+            --headers "Content-Type=application/json" \
+            --body "$BODY"
 
       - name: Create namespace
         run: kubectl create namespace "$NS" --dry-run=client -o yaml | kubectl apply -f -
@@ -254,6 +253,9 @@ jobs:
     runs-on: self-hosted
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
       - name: Azure CLI login
         run: |
           az logout || true
@@ -266,14 +268,14 @@ jobs:
       - name: Remove PR redirect URIs from Azure AD
         run: |
           PR_NUM="${{ github.event.number }}"
-          mapfile -t CURRENT_URIS < <(az ad app show --id "${{ secrets.AZURE_AD_CLIENT_ID }}" \
-            --query "web.redirectUris[]" -o tsv)
-          FILTERED_URIS=()
-          for uri in "${CURRENT_URIS[@]}"; do
-            [[ "$uri" =~ pr-${PR_NUM}\. ]] || FILTERED_URIS+=("$uri")
-          done
-          az ad app update --id "${{ secrets.AZURE_AD_CLIENT_ID }}" \
-            --web-redirect-uris "${FILTERED_URIS[@]}"
+          APP_OID=$(az ad app show --id "${{ secrets.AZURE_AD_CLIENT_ID }}" --query id -o tsv)
+          CURRENT_JSON=$(az ad app show --id "${{ secrets.AZURE_AD_CLIENT_ID }}" \
+            --query "web.redirectUris" -o json)
+          BODY=$(dotnet run --project .github/scripts/UriHelper -- filter "$CURRENT_JSON" "$PR_NUM")
+          az rest --method PATCH \
+            --uri "https://graph.microsoft.com/v1.0/applications/${APP_OID}" \
+            --headers "Content-Type=application/json" \
+            --body "$BODY"
 
       - name: Delete PR namespace
         run: |
