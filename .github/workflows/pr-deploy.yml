@@ -79,7 +79,7 @@ jobs:
           APP_OID=$(az ad app show --id "${{ secrets.AZURE_AD_CLIENT_ID }}" --query id -o tsv)
           CURRENT_JSON=$(az ad app show --id "${{ secrets.AZURE_AD_CLIENT_ID }}" \
             --query "web.redirectUris" -o json)
-          BODY=$(cd .github/scripts/UriHelper && dotnet run -- merge "$CURRENT_JSON" "$URI_A" "$URI_B")
+          BODY=$(python3 .github/scripts/merge_uris.py "$CURRENT_JSON" "$URI_A" "$URI_B")
           az rest --method PATCH \
             --uri "https://graph.microsoft.com/v1.0/applications/${APP_OID}" \
             --headers "Content-Type=application/json" \
@@ -271,7 +271,7 @@ jobs:
           APP_OID=$(az ad app show --id "${{ secrets.AZURE_AD_CLIENT_ID }}" --query id -o tsv)
           CURRENT_JSON=$(az ad app show --id "${{ secrets.AZURE_AD_CLIENT_ID }}" \
             --query "web.redirectUris" -o json)
-          BODY=$(cd .github/scripts/UriHelper && dotnet run -- filter "$CURRENT_JSON" "$PR_NUM")
+          BODY=$(python3 .github/scripts/filter_uris.py "$CURRENT_JSON" "$PR_NUM")
           az rest --method PATCH \
             --uri "https://graph.microsoft.com/v1.0/applications/${APP_OID}" \
             --headers "Content-Type=application/json" \
