@@ -64,6 +64,7 @@ jobs:
 
       - name: Azure CLI login
         run: |
+          az logout || true
           az login --service-principal \
             --username "${{ secrets.AZURE_PR_CLIENT_ID }}" \
             --password "${{ secrets.AZURE_PR_CLIENT_SECRET }}" \
@@ -72,6 +73,7 @@ jobs:
 
       - name: Register PR redirect URIs in Azure AD
         run: |
+          az account show
           PR_NUM="${{ github.event.number }}"
           CURRENT_URIS=$(az ad app show --id "${{ secrets.AZURE_AD_CLIENT_ID }}" \
             --query "web.redirectUris" -o json)
@@ -252,6 +254,7 @@ jobs:
     steps:
       - name: Azure CLI login
         run: |
+          az logout || true
           az login --service-principal \
             --username "${{ secrets.AZURE_PR_CLIENT_ID }}" \
             --password "${{ secrets.AZURE_PR_CLIENT_SECRET }}" \
