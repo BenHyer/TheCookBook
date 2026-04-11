@@ -111,6 +111,8 @@ jobs:
               nginx.ingress.kubernetes.io/session-cookie-max-age: "172800"
               nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
               nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+              nginx.ingress.kubernetes.io/ssl-redirect: "true"
+              nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
           spec:
             ingressClassName: nginx
             rules:
@@ -150,6 +152,18 @@ jobs:
                         number: 80
           EOF
 
+      - name: Register redirect URIs with Azure
+        run: |
+          APP_ID="133e5a35-ce6c-4e8f-a764-7008bad72271"
+          EXISTING=$(az ad app show --id "$APP_ID" --query "web.redirectUris" -o json)
+          UPDATED=$(echo "$EXISTING" | jq -r \
+            --arg s1 "https://${BENCAMPUS_HOST}/signin-oidc" \
+            --arg s2 "https://${BENCAMPUS_HOST}/signout-oidc" \
+            --arg s3 "https://${BENHHOME_HOST}/signin-oidc" \
+            --arg s4 "https://${BENHHOME_HOST}/signout-oidc" \
+            '. + [$s1,$s2,$s3,$s4] | unique | .[]')
+          az ad app update --id "$APP_ID" --web-redirect-uris $UPDATED
+
       - name: Wait for rollouts
         run: |
           kubectl rollout status deployment/cookbook-api -n "$NS" --timeout=120s
@@ -183,8 +197,8 @@ jobs:
             const marker = '<!-- pr-preview-env -->';
             const prNumber = context.issue.number;
             const sha = '${{ github.sha }}'.slice(0, 7);
-            const bencampus = `http://pr-${prNumber}.bencampus.duckdns.org`;
-            const benhhome  = `http://pr-${prNumber}.benhhome.duckdns.org`;
+            const bencampus = `https://pr-${prNumber}.bencampus.duckdns.org`;
+            const benhhome  = `https://pr-${prNumber}.benhhome.duckdns.org`;
 
             const body = [
               marker,
@@ -225,11 +239,24 @@ jobs:
   teardown-pr:
     if: github.event.action == 'closed'
     runs-on: self-hosted
+    env:
+      BENCAMPUS_HOST: pr-${{ github.event.number }}.bencampus.duckdns.org
+      BENHHOME_HOST: pr-${{ github.event.number }}.benhhome.duckdns.org
 
     steps:
       - name: Delete PR namespace
         run: |
           kubectl delete namespace "cookbook-pr-${{ github.event.number }}" --ignore-not-found=true
+
+      - name: Remove redirect URIs from Azure
+        run: |
+          APP_ID="133e5a35-ce6c-4e8f-a764-7008bad72271"
+          EXISTING=$(az ad app show --id "$APP_ID" --query "web.redirectUris" -o json)
+          UPDATED=$(echo "$EXISTING" | jq -r \
+            --arg bencampus "$BENCAMPUS_HOST" \
+            --arg benhhome "$BENHHOME_HOST" \
+            '[.[] | select(test($bencampus + "|" + $benhhome) | not)] | .[]')
+          az ad app update --id "$APP_ID" --web-redirect-uris $UPDATED
 
   # ── Update the comment to show the environment is gone ────────────────────
   comment-teardown:
