@@ -155,14 +155,13 @@ jobs:
       - name: Register redirect URIs with Azure
         run: |
           APP_ID="133e5a35-ce6c-4e8f-a764-7008bad72271"
-          EXISTING=$(az ad app show --id "$APP_ID" --query "web.redirectUris" -o json)
-          UPDATED=$(echo "$EXISTING" | jq -r \
-            --arg s1 "https://${BENCAMPUS_HOST}/signin-oidc" \
-            --arg s2 "https://${BENCAMPUS_HOST}/signout-oidc" \
-            --arg s3 "https://${BENHHOME_HOST}/signin-oidc" \
-            --arg s4 "https://${BENHHOME_HOST}/signout-oidc" \
-            '. + [$s1,$s2,$s3,$s4] | unique | .[]')
-          az ad app update --id "$APP_ID" --web-redirect-uris $UPDATED
+          EXISTING=$(az ad app show --id "$APP_ID" --query "web.redirectUris" -o tsv | grep -v '^$')
+          az ad app update --id "$APP_ID" --web-redirect-uris \
+            $EXISTING \
+            "https://${BENCAMPUS_HOST}/signin-oidc" \
+            "https://${BENCAMPUS_HOST}/signout-oidc" \
+            "https://${BENHHOME_HOST}/signin-oidc" \
+            "https://${BENHHOME_HOST}/signout-oidc"
 
       - name: Wait for rollouts
         run: |
@@ -251,12 +250,10 @@ jobs:
       - name: Remove redirect URIs from Azure
         run: |
           APP_ID="133e5a35-ce6c-4e8f-a764-7008bad72271"
-          EXISTING=$(az ad app show --id "$APP_ID" --query "web.redirectUris" -o json)
-          UPDATED=$(echo "$EXISTING" | jq -r \
-            --arg bencampus "$BENCAMPUS_HOST" \
-            --arg benhhome "$BENHHOME_HOST" \
-            '[.[] | select(test($bencampus + "|" + $benhhome) | not)] | .[]')
-          az ad app update --id "$APP_ID" --web-redirect-uris $UPDATED
+          REMAINING=$(az ad app show --id "$APP_ID" --query "web.redirectUris" -o tsv \
+            | grep -v '^$' \
+            | grep -v "$BENCAMPUS_HOST\|$BENHHOME_HOST")
+          az ad app update --id "$APP_ID" --web-redirect-uris $REMAINING
 
   # ── Update the comment to show the environment is gone ────────────────────
   comment-teardown:
