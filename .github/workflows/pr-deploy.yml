@@ -62,30 +62,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Azure CLI login
-        run: |
-          az logout || true
-          az login --service-principal \
-            --username "${{ secrets.AZURE_PR_CLIENT_ID }}" \
-            --password "${{ secrets.AZURE_PR_CLIENT_SECRET }}" \
-            --tenant "${{ secrets.AZURE_AD_TENANT_ID }}" \
-            --allow-no-subscriptions
-
-      - name: Register PR redirect URIs in Azure AD
-        run: |
-          PR_NUM="${{ github.event.number }}"
-          URI_A="http://pr-${PR_NUM}.benhhome.duckdns.org/signin-oidc"
-          URI_B="http://pr-${PR_NUM}.bencampus.duckdns.org/signin-oidc"
-          APP_OID=$(az ad app show --id "${{ secrets.AZURE_AD_CLIENT_ID }}" --query id -o tsv)
-          CURRENT_JSON=$(az ad app show --id "${{ secrets.AZURE_AD_CLIENT_ID }}" \
-            --query "web.redirectUris" -o json)
-          BODY=$(python3 .github/scripts/merge_uris.py "$CURRENT_JSON" "$URI_A" "$URI_B")
-          echo "Sending body: $BODY"
-          az rest --method PATCH \
-            --uri "https://graph.microsoft.com/v1.0/applications/${APP_OID}" \
-            --headers "Content-Type=application/json" \
-            --body "$BODY"
-
       - name: Create namespace
         run: kubectl create namespace "$NS" --dry-run=client -o yaml | kubectl apply -f -
 
@@ -94,9 +70,6 @@ jobs:
           kubectl create secret generic cookbook-secrets \
             --namespace "$NS" \
             --from-literal=ConnectionStrings__sqldb="${{ secrets.DB_CONNECTION_STRING }}" \
-            --from-literal=AZURE_AD_TENANT_ID="${{ secrets.AZURE_AD_TENANT_ID }}" \
-            --from-literal=AZURE_AD_CLIENT_ID="${{ secrets.AZURE_AD_CLIENT_ID }}" \
-            --from-literal=AZURE_AD_CLIENT_SECRET="${{ secrets.AZURE_AD_CLIENT_SECRET }}" \
             --from-literal=AZURE_STORAGE_CONNECTION_STRING="${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
             --from-literal=AZURE_STORAGE_CONTAINER_NAME="${{ secrets.AZURE_STORAGE_CONTAINER_NAME }}" \
             --dry-run=client -o yaml | kubectl apply -f -
@@ -254,30 +227,6 @@ jobs:
     runs-on: self-hosted
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Azure CLI login
-        run: |
-          az logout || true
-          az login --service-principal \
-            --username "${{ secrets.AZURE_PR_CLIENT_ID }}" \
-            --password "${{ secrets.AZURE_PR_CLIENT_SECRET }}" \
-            --tenant "${{ secrets.AZURE_AD_TENANT_ID }}" \
-            --allow-no-subscriptions
-
-      - name: Remove PR redirect URIs from Azure AD
-        run: |
-          PR_NUM="${{ github.event.number }}"
-          APP_OID=$(az ad app show --id "${{ secrets.AZURE_AD_CLIENT_ID }}" --query id -o tsv)
-          CURRENT_JSON=$(az ad app show --id "${{ secrets.AZURE_AD_CLIENT_ID }}" \
-            --query "web.redirectUris" -o json)
-          BODY=$(python3 .github/scripts/filter_uris.py "$CURRENT_JSON" "$PR_NUM")
-          az rest --method PATCH \
-            --uri "https://graph.microsoft.com/v1.0/applications/${APP_OID}" \
-            --headers "Content-Type=application/json" \
-            --body "$BODY"
-
       - name: Delete PR namespace
         run: |
           kubectl delete namespace "cookbook-pr-${{ github.event.number }}" --ignore-not-found=true
