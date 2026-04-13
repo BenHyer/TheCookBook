@@ -25,6 +25,10 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Prepare NuGet cache directory
+        shell: bash
+        run: mkdir -p "${NUGET_PACKAGES}"
+
       - name: Setup .NET 10 SDK
         uses: actions/setup-dotnet@v5
         with:
@@ -121,4 +125,3 @@ jobs:
           app-name: "cookbookAPI"
           slot-name: "Production"
           package: .
-          

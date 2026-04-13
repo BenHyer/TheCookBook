@@ -1,14 +1,10 @@
 ﻿@page "/"
-@using CookbookMauiBlazor.Shared.Services
-@inject IFormFactor FormFactor
+<PageTitle>Cookbook</PageTitle>
 
-<PageTitle>Home</PageTitle>
+<h1>Cookbook</h1>
+<p>Manage boards and recipes from one place.</p>
 
-<h1>Hello, world!</h1>
-
-Welcome to your new app running on <em>@factor</em> using <em>@platform</em>.
-
-@code {
-    private string factor => FormFactor.GetFormFactor();
-    private string platform => FormFactor.GetPlatform();
-}
+<div class="d-flex flex-column gap-2 mt-3">
+    <NavLink class="btn btn-primary" href="boards">Open Boards</NavLink>
+    <NavLink class="btn btn-outline-primary" href="cookbook">Open Cookbook</NavLink>
+</div>
