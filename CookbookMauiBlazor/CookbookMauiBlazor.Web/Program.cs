@@ -48,7 +48,6 @@ builder.Services.AddControllersWithViews();
 
 // Add device-specific services used by the CookbookMauiBlazor.Shared project
 builder.Services.AddSingleton<IFormFactor, FormFactor>();
-builder.Services.AddScoped<IAuthService, WebAuthService>();
 builder.Services.AddScoped<BoardViewModel>();
 builder.Services.AddScoped<CookbookViewModel>();
 builder.Services.AddCascadingAuthenticationState();
