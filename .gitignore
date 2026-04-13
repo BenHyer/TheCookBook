@@ -1,5 +1,7 @@
 .vs/
 .claude/worktrees/
+*.slnLaunch.user
+*.Backup.tmp
 # .NET Aspire
 .aspire/
 
