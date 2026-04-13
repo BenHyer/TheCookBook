@@ -104,15 +104,6 @@ builder.Services
     });
 builder.Services.AddAuthorization();
 
-//builder.Services.AddHttpClient<WeatherApiClient>(client =>
-//{
-//    // This URL uses "https+http://" to indicate HTTPS is preferred over HTTP.
-//    // Learn more about service discovery scheme resolution at https://aka.ms/dotnet/sdschemes.
-//    client.BaseAddress = string.IsNullOrWhiteSpace(apiBaseUrl)
-//        ? new("https+http://apiservice")
-//        : new(apiBaseUrl);
-//});
-
 var azureAdClientId = builder.Configuration["AzureAd:ClientId"];
 var hasAzureAdAuth = !string.IsNullOrWhiteSpace(azureAdClientId);
 
@@ -127,8 +118,6 @@ if (!hasAzureAdAuth && !builder.Environment.IsDevelopment())
 {
     builder.Logging.AddFilter("CookbookMauiBlazor.Web.Startup", LogLevel.Warning);
 }
-
-builder.Services.AddScoped<CookbookViewModel>();
 
 var app = builder.Build();
 
