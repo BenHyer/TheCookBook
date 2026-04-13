@@ -278,7 +278,7 @@ jobs:
               });
             }
 
-notify-discord:
+  notify-discord:
     needs: [build-push-pr, deploy-pr, comment-pr, teardown-pr, comment-teardown]
     if: failure()
     runs-on: ubuntu-latest
