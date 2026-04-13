@@ -2,6 +2,10 @@
 using CookbookMauiBlazor.Shared.Services;
 using Microsoft.Extensions.Logging;
 using CookbookMauiBlazor.Shared.Viewmodels;
+using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Identity.Client;
+using Microsoft.Maui.ApplicationModel;
 
 namespace CookbookMauiBlazor
 {
@@ -17,10 +21,54 @@ namespace CookbookMauiBlazor
                     fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
                 });
 
+            AddAppSettings(builder);
+
             // Add device-specific services used by the CookbookMauiBlazor.Shared project
             builder.Services.AddSingleton<IFormFactor, FormFactor>();
+            builder.Services.AddSingleton(sp =>
+            {
+                var options = new AzureAdOptions();
+                builder.Configuration.Bind("AzureAd", options);
+
+                if (string.IsNullOrWhiteSpace(options.ClientId))
+                {
+                    throw new InvalidOperationException(
+                        "AzureAd:ClientId is missing. Set it in appsettings.json or appsettings.Development.json.");
+                }
+
+                return options;
+            });
+            builder.Services.AddSingleton<IPublicClientApplication>(sp =>
+            {
+                var options = sp.GetRequiredService<AzureAdOptions>();
+                var authority = BuildAuthority(options);
+                var redirectUri = BuildRedirectUri(options);
+                var pcaBuilder = PublicClientApplicationBuilder
+                    .Create(options.ClientId)
+                    .WithRedirectUri(redirectUri);
+
+                if (authority is not null)
+                {
+                    pcaBuilder = pcaBuilder.WithAuthority(authority);
+                }
+
+#if ANDROID
+                if (DeviceInfo.Platform == DevicePlatform.Android)
+                {
+                    pcaBuilder = pcaBuilder.WithParentActivityOrWindow(
+                        activityFunc: () => Microsoft.Maui.ApplicationModel.Platform.CurrentActivity);
+                }
+#endif
+
+                return pcaBuilder.Build();
+            });
+            builder.Services.AddScoped<IAuthService, MauiAuthService>();
+            builder.Services.AddScoped<MauiAuthenticationStateProvider>();
+            builder.Services.AddScoped<AuthenticationStateProvider>(sp =>
+                sp.GetRequiredService<MauiAuthenticationStateProvider>());
             builder.Services.AddScoped<BoardViewModel>();
             builder.Services.AddScoped<CookbookViewModel>();
+            builder.Services.AddAuthorizationCore();
 
             var apiBaseUrl = builder.Configuration["ApiService:BaseUrl"] ?? "http://localhost:5346";
             builder.Services.AddHttpClient<IBoardService, BoardService>(client =>
@@ -36,6 +84,58 @@ namespace CookbookMauiBlazor
 #endif
 
             return builder.Build();
+        }
+
+        private static string BuildRedirectUri(AzureAdOptions options)
+        {
+            if (DeviceInfo.Platform == DevicePlatform.WinUI)
+            {
+                // MSAL on Windows requires a loopback redirect URI.
+                return "http://localhost";
+            }
+
+            return $"msal{options.ClientId}://auth";
+        }
+
+        private static void AddAppSettings(MauiAppBuilder builder)
+        {
+            try
+            {
+                using var stream = FileSystem.OpenAppPackageFileAsync("appsettings.json")
+                    .GetAwaiter()
+                    .GetResult();
+                builder.Configuration.AddJsonStream(stream);
+            }
+            catch (FileNotFoundException)
+            {
+                // Optional config for local/dev without packaged appsettings.json.
+            }
+
+#if DEBUG
+            try
+            {
+                using var stream = FileSystem.OpenAppPackageFileAsync("appsettings.Development.json")
+                    .GetAwaiter()
+                    .GetResult();
+                builder.Configuration.AddJsonStream(stream);
+            }
+            catch (FileNotFoundException)
+            {
+                // Optional dev config override.
+            }
+#endif
+        }
+
+        private static Uri? BuildAuthority(AzureAdOptions options)
+        {
+            if (string.IsNullOrWhiteSpace(options.Instance) || string.IsNullOrWhiteSpace(options.TenantId))
+            {
+                return null;
+            }
+
+            var instance = options.Instance.TrimEnd('/');
+            var tenantId = options.TenantId.Trim();
+            return new Uri($"{instance}/{tenantId}");
         }
     }
 }

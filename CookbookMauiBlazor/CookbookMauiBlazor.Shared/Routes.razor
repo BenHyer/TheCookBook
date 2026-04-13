@@ -1,6 +1,7 @@
 ﻿@using Microsoft.AspNetCore.Components.Authorization
 @using System
 @inject NavigationManager Navigation
+@inject CookbookMauiBlazor.Shared.Services.IAuthService AuthService
 
 <CascadingAuthenticationState>
     <Router AppAssembly="typeof(Layout.MainLayout).Assembly" NotFoundPage="typeof(Pages.NotFound)">
@@ -8,7 +9,13 @@
             <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
                 <NotAuthorized>
                     <h1>Sign in required</h1>
-                    <p><a href="@SignInUrl">Sign in</a> to continue.</p>
+                    <p>
+                        <button class="btn btn-link p-0" @onclick="HandleSignIn">Sign in</button> to continue.
+                    </p>
+                    @if (!string.IsNullOrWhiteSpace(_signInError))
+                    {
+                        <p class="text-danger">@_signInError</p>
+                    }
                 </NotAuthorized>
             </AuthorizeRouteView>
             <FocusOnNavigate RouteData="routeData" Selector="h1" />
@@ -17,17 +24,31 @@
 </CascadingAuthenticationState>
 
 @code {
-    private string SignInUrl
-    {
-        get
-        {
-            var relativePath = Navigation.ToBaseRelativePath(Navigation.Uri);
-            if (string.IsNullOrWhiteSpace(relativePath))
-            {
-                return "/signin";
-            }
+    private string? _signInError;
 
-            return $"/signin?redirectUri=/{Uri.EscapeDataString(relativePath)}";
+    private string BuildRedirectUri()
+    {
+        var relativePath = Navigation.ToBaseRelativePath(Navigation.Uri);
+        if (string.IsNullOrWhiteSpace(relativePath))
+        {
+            return "/";
+        }
+
+        return $"/{Uri.EscapeDataString(relativePath)}";
+    }
+
+    private async Task HandleSignIn()
+    {
+        _signInError = null;
+
+        try
+        {
+            var redirectUri = BuildRedirectUri();
+            await AuthService.SignInAsync(redirectUri);
+        }
+        catch
+        {
+            _signInError = "Sign-in failed. Please try again.";
         }
     }
 }
