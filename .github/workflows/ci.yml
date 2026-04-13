@@ -23,6 +23,10 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Prepare NuGet cache directory
+        shell: bash
+        run: mkdir -p "${NUGET_PACKAGES}"
+
       - name: Detect changed projects
         id: detect_projects
         shell: bash
@@ -268,7 +272,6 @@ jobs:
       needs.push-api.result == 'success' &&
       needs.push-web.result == 'success'
     runs-on: self-hosted
-
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -320,9 +323,17 @@ jobs:
           echo "Rolling back deployments..."
           kubectl rollout undo deployment/cookbook-api -n cookbook || true
           kubectl rollout undo deployment/cookbook-web -n cookbook || true
-  
+
   notify-discord:
-    needs: [build-lint-test, test-testproject, container-validate, push-api, push-web, deploy]
+    needs:
+      [
+        build-lint-test,
+        test-testproject,
+        container-validate,
+        push-api,
+        push-web,
+        deploy,
+      ]
     if: failure()
     runs-on: ubuntu-latest
 
