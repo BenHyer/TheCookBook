@@ -11,9 +11,13 @@ namespace CookbookMauiBlazor.Services
             _authProvider = authProvider;
         }
 
-        public Task SignInAsync(string? redirectUri = null)
+        public async Task SignInAsync(string? redirectUri = null)
         {
-            return _authProvider.SignInAsync();
+            var success = await _authProvider.SignInAsync();
+            if (!success)
+            {
+                throw new InvalidOperationException("Sign-in failed.");
+            }
         }
     }
 }

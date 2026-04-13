@@ -5,6 +5,7 @@ using CookbookMauiBlazor.Shared.Viewmodels;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Identity.Client;
+using Microsoft.Maui.ApplicationModel;
 
 namespace CookbookMauiBlazor
 {
@@ -50,6 +51,14 @@ namespace CookbookMauiBlazor
                 {
                     pcaBuilder = pcaBuilder.WithAuthority(authority);
                 }
+
+#if ANDROID
+                if (DeviceInfo.Platform == DevicePlatform.Android)
+                {
+                    pcaBuilder = pcaBuilder.WithParentActivityOrWindow(
+                        activityFunc: () => Microsoft.Maui.ApplicationModel.Platform.CurrentActivity);
+                }
+#endif
 
                 return pcaBuilder.Build();
             });
