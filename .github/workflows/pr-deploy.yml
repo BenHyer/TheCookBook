@@ -91,8 +91,7 @@ jobs:
         # namespace and envsubst fills in IMAGE_TAG.
         run: |
           for f in k8s/api-deployment.yaml k8s/api-service.yaml \
-                    k8s/web-deployment.yaml k8s/web-service.yaml \
-                    k8s/web-dp-keys-pvc.yaml; do
+                    k8s/web-deployment.yaml k8s/web-service.yaml; do
             sed "s/namespace: cookbook$/namespace: $NS/" "$f" \
               | envsubst '${IMAGE_TAG}' \
               | kubectl apply -f -
