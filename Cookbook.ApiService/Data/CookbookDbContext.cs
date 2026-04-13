@@ -2,18 +2,20 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using Cookbook.ApiService.Models;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace Cookbook.ApiService.Data;
 
-public class CookbookDbContext(DbContextOptions<CookbookDbContext> options) : DbContext(options)
+public class CookbookDbContext(DbContextOptions<CookbookDbContext> options) : DbContext(options), IDataProtectionKeyContext
 {
     public DbSet<Recipe> Recipes => Set<Recipe>();
     public DbSet<Board> Boards => Set<Board>();
     public DbSet<BoardPermission> BoardPermissions => Set<BoardPermission>();
     public DbSet<UserProfile> UserProfiles => Set<UserProfile>();
+    public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

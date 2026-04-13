@@ -1,3 +1,4 @@
+using CookbookMauiBlazor.Web.Data;
 using CookbookMauiBlazor.Web.Telemetry;
 using CookbookMauiBlazor.Shared.Services;
 using CookbookMauiBlazor.Web.Components;
@@ -5,7 +6,9 @@ using CookbookMauiBlazor.Web.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Web;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.Identity.Web.UI;
@@ -16,6 +19,17 @@ using OpenTelemetry.Exporter;
 using OpenTelemetry.Resources;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var dpConnectionString = builder.Configuration.GetConnectionString("sqldb");
+if (!string.IsNullOrWhiteSpace(dpConnectionString))
+{
+    builder.Services.AddDbContext<DataProtectionDbContext>(options =>
+        options.UseSqlServer(dpConnectionString, sql => sql.EnableRetryOnFailure()));
+
+    builder.Services.AddDataProtection()
+        .PersistKeysToDbContext<DataProtectionDbContext>()
+        .SetApplicationName("cookbook-web");
+}
 
 var otlpEndpoint = builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"] ?? "http://localhost:4317";
 
