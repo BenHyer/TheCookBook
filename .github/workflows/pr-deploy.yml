@@ -72,6 +72,9 @@ jobs:
             --from-literal=ConnectionStrings__sqldb="${{ secrets.DB_CONNECTION_STRING }}" \
             --from-literal=AZURE_STORAGE_CONNECTION_STRING="${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
             --from-literal=AZURE_STORAGE_CONTAINER_NAME="${{ secrets.AZURE_STORAGE_CONTAINER_NAME }}" \
+            --from-literal=AZURE_AD_TENANT_ID="${{ secrets.AZURE_AD_TENANT_ID }}" \
+            --from-literal=AZURE_AD_CLIENT_ID="${{ secrets.AZURE_AD_CLIENT_ID }}" \
+            --from-literal=AZURE_AD_CLIENT_SECRET="${{ secrets.AZURE_AD_CLIENT_SECRET }}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Apply ConfigMap
