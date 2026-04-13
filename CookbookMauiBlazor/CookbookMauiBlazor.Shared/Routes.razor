@@ -12,6 +12,10 @@
                     <p>
                         <button class="btn btn-link p-0" @onclick="HandleSignIn">Sign in</button> to continue.
                     </p>
+                    @if (!string.IsNullOrWhiteSpace(_signInError))
+                    {
+                        <p class="text-danger">@_signInError</p>
+                    }
                 </NotAuthorized>
             </AuthorizeRouteView>
             <FocusOnNavigate RouteData="routeData" Selector="h1" />
@@ -20,6 +24,8 @@
 </CascadingAuthenticationState>
 
 @code {
+    private string? _signInError;
+
     private string BuildRedirectUri()
     {
         var relativePath = Navigation.ToBaseRelativePath(Navigation.Uri);
@@ -31,9 +37,18 @@
         return $"/{Uri.EscapeDataString(relativePath)}";
     }
 
-    private Task HandleSignIn()
+    private async Task HandleSignIn()
     {
-        var redirectUri = BuildRedirectUri();
-        return AuthService.SignInAsync(redirectUri);
+        _signInError = null;
+
+        try
+        {
+            var redirectUri = BuildRedirectUri();
+            await AuthService.SignInAsync(redirectUri);
+        }
+        catch
+        {
+            _signInError = "Sign-in failed. Please try again.";
+        }
     }
 }

@@ -38,18 +38,21 @@ namespace CookbookMauiBlazor.Services
             }
             catch (MsalUiRequiredException)
             {
-                var result = await _publicClient
-                    .AcquireTokenInteractive(scopes)
-                    .WithPrompt(Prompt.SelectAccount)
-                    .ExecuteAsync();
+                try
+                {
+                    var result = await _publicClient
+                        .AcquireTokenInteractive(scopes)
+                        .WithPrompt(Prompt.SelectAccount)
+                        .ExecuteAsync();
 
-                SetAuthenticated(result);
-                return true;
-            }
-            catch (Exception)
-            {
-                SetAnonymous();
-                return false;
+                    SetAuthenticated(result);
+                    return true;
+                }
+                catch
+                {
+                    SetAnonymous();
+                    return false;
+                }
             }
         }
 
