@@ -70,6 +70,8 @@ jobs:
           kubectl create secret generic cookbook-secrets \
             --namespace "$NS" \
             --from-literal=ConnectionStrings__sqldb="${{ secrets.DB_CONNECTION_STRING }}" \
+            --from-literal=AZURE_STORAGE_CONNECTION_STRING="${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
+            --from-literal=AZURE_STORAGE_CONTAINER_NAME="${{ secrets.AZURE_STORAGE_CONTAINER_NAME }}" \
             --from-literal=AZURE_AD_TENANT_ID="${{ secrets.AZURE_AD_TENANT_ID }}" \
             --from-literal=AZURE_AD_CLIENT_ID="${{ secrets.AZURE_AD_CLIENT_ID }}" \
             --from-literal=AZURE_AD_CLIENT_SECRET="${{ secrets.AZURE_AD_CLIENT_SECRET }}" \
@@ -112,6 +114,8 @@ jobs:
               nginx.ingress.kubernetes.io/session-cookie-max-age: "172800"
               nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
               nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+              nginx.ingress.kubernetes.io/ssl-redirect: "true"
+              nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
           spec:
             ingressClassName: nginx
             rules:
@@ -151,6 +155,17 @@ jobs:
                         number: 80
           EOF
 
+      - name: Register redirect URIs with Azure
+        run: |
+          APP_ID="133e5a35-ce6c-4e8f-a764-7008bad72271"
+          EXISTING=$(az ad app show --id "$APP_ID" --query "web.redirectUris" -o tsv | grep -v '^$')
+          az ad app update --id "$APP_ID" --web-redirect-uris \
+            $EXISTING \
+            "https://${BENCAMPUS_HOST}/signin-oidc" \
+            "https://${BENCAMPUS_HOST}/signout-oidc" \
+            "https://${BENHHOME_HOST}/signin-oidc" \
+            "https://${BENHHOME_HOST}/signout-oidc"
+
       - name: Wait for rollouts
         run: |
           kubectl rollout status deployment/cookbook-api -n "$NS" --timeout=120s
@@ -184,8 +199,8 @@ jobs:
             const marker = '<!-- pr-preview-env -->';
             const prNumber = context.issue.number;
             const sha = '${{ github.sha }}'.slice(0, 7);
-            const bencampus = `http://pr-${prNumber}.bencampus.duckdns.org`;
-            const benhhome  = `http://pr-${prNumber}.benhhome.duckdns.org`;
+            const bencampus = `https://pr-${prNumber}.bencampus.duckdns.org`;
+            const benhhome  = `https://pr-${prNumber}.benhhome.duckdns.org`;
 
             const body = [
               marker,
@@ -226,11 +241,22 @@ jobs:
   teardown-pr:
     if: github.event.action == 'closed'
     runs-on: self-hosted
+    env:
+      BENCAMPUS_HOST: pr-${{ github.event.number }}.bencampus.duckdns.org
+      BENHHOME_HOST: pr-${{ github.event.number }}.benhhome.duckdns.org
 
     steps:
       - name: Delete PR namespace
         run: |
           kubectl delete namespace "cookbook-pr-${{ github.event.number }}" --ignore-not-found=true
+
+      - name: Remove redirect URIs from Azure
+        run: |
+          APP_ID="133e5a35-ce6c-4e8f-a764-7008bad72271"
+          REMAINING=$(az ad app show --id "$APP_ID" --query "web.redirectUris" -o tsv \
+            | grep -v '^$' \
+            | grep -v "$BENCAMPUS_HOST\|$BENHHOME_HOST")
+          az ad app update --id "$APP_ID" --web-redirect-uris $REMAINING
 
   # ── Update the comment to show the environment is gone ────────────────────
   comment-teardown:
@@ -278,7 +304,7 @@ jobs:
               });
             }
 
-notify-discord:
+  notify-discord:
     needs: [build-push-pr, deploy-pr, comment-pr, teardown-pr, comment-teardown]
     if: failure()
     runs-on: ubuntu-latest

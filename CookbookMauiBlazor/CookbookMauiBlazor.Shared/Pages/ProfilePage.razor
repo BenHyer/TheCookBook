@@ -1,0 +1,175 @@
+@page "/profile"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using CookbookMauiBlazor.Shared.Services
+
+@attribute [Authorize]
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IUserProfileService ProfileService
+
+<PageTitle>Profile</PageTitle>
+
+<div class="profile-page">
+    <h1>My Profile</h1>
+
+    @if (_loading)
+    {
+        <p>Loading...</p>
+    }
+    else
+    {
+        <div class="profile-avatar-section mb-4">
+            @if (!string.IsNullOrEmpty(_pictureUrl))
+            {
+                <img src="@_pictureUrl" alt="Profile picture" class="profile-avatar-large" />
+            }
+            else
+            {
+                <div class="profile-avatar-placeholder-large">
+                    <span class="bi bi-person-fill"></span>
+                </div>
+            }
+
+            <div class="mt-2">
+                <InputFile OnChange="HandlePictureSelected" accept="image/jpeg,image/png,image/gif,image/webp" class="form-control" style="max-width:320px;" />
+                @if (_pictureUploading)
+                {
+                    <small class="text-muted">Uploading...</small>
+                }
+                @if (!string.IsNullOrEmpty(_pictureError))
+                {
+                    <small class="text-danger d-block">@_pictureError</small>
+                }
+            </div>
+        </div>
+
+        <EditForm Model="_model" OnValidSubmit="SaveProfile" class="profile-form">
+            <DataAnnotationsValidator />
+
+            <div class="mb-3" style="max-width:400px;">
+                <label class="form-label">First Name</label>
+                <InputText @bind-Value="_model.FirstName" class="form-control" />
+                <ValidationMessage For="@(() => _model.FirstName)" />
+            </div>
+
+            <div class="mb-3" style="max-width:400px;">
+                <label class="form-label">Last Name</label>
+                <InputText @bind-Value="_model.LastName" class="form-control" />
+                <ValidationMessage For="@(() => _model.LastName)" />
+            </div>
+
+            <div class="mb-3" style="max-width:400px;">
+                <label class="form-label">Display Name</label>
+                <InputText @bind-Value="_model.DisplayName" class="form-control" />
+                <ValidationMessage For="@(() => _model.DisplayName)" />
+            </div>
+
+            <button type="submit" class="btn btn-primary" disabled="@_saving">
+                @(_saving ? "Saving..." : "Save Changes")
+            </button>
+
+            @if (_saveSuccess)
+            {
+                <span class="ms-3 text-success">Saved!</span>
+            }
+            @if (!string.IsNullOrEmpty(_saveError))
+            {
+                <span class="ms-3 text-danger">@_saveError</span>
+            }
+        </EditForm>
+    }
+</div>
+
+@code {
+    private string _userId = string.Empty;
+    private string? _pictureUrl;
+    private bool _loading = true;
+    private bool _saving;
+    private bool _saveSuccess;
+    private string? _saveError;
+    private bool _pictureUploading;
+    private string? _pictureError;
+
+    private readonly ProfileFormModel _model = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        _userId =
+            user.FindFirst("oid")?.Value
+            ?? user.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value
+            ?? user.FindFirst("sub")?.Value
+            ?? user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? string.Empty;
+
+        if (!string.IsNullOrEmpty(_userId))
+        {
+            var profile = await ProfileService.GetProfileAsync(_userId);
+            if (profile is not null)
+            {
+                _model.FirstName = profile.FirstName;
+                _model.LastName = profile.LastName;
+                _model.DisplayName = profile.DisplayName;
+                _pictureUrl = profile.ProfilePictureUrl;
+            }
+        }
+
+        _loading = false;
+    }
+
+    private async Task SaveProfile()
+    {
+        _saving = true;
+        _saveSuccess = false;
+        _saveError = null;
+
+        var result = await ProfileService.UpdateProfileAsync(_userId, _model.FirstName, _model.LastName, _model.DisplayName);
+
+        _saving = false;
+        if (result is not null)
+            _saveSuccess = true;
+        else
+            _saveError = "Failed to save. Please try again.";
+    }
+
+    private async Task HandlePictureSelected(InputFileChangeEventArgs e)
+    {
+        _pictureError = null;
+        _pictureUploading = true;
+
+        var file = e.File;
+        if (file.Size > 5 * 1024 * 1024)
+        {
+            _pictureError = "File must be under 5 MB.";
+            _pictureUploading = false;
+            return;
+        }
+
+        await using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+        var url = await ProfileService.UploadProfilePictureAsync(_userId, stream, file.Name, file.ContentType);
+
+        _pictureUploading = false;
+        if (url is not null)
+            _pictureUrl = url;
+        else
+            _pictureError = "Upload failed. Please try again.";
+    }
+
+    private sealed class ProfileFormModel
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.MaxLength(100)]
+        public string FirstName { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.MaxLength(100)]
+        public string LastName { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.MaxLength(200)]
+        public string DisplayName { get; set; } = string.Empty;
+    }
+}
