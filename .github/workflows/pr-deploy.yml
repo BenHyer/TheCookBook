@@ -86,7 +86,7 @@ jobs:
             -e "s|http://otel-collector:|http://otel-collector.cookbook:|" \
             k8s/configmap.yaml | kubectl apply -f -
 
-      - name: Apply deployments, services, and PVC
+      - name: Apply deployments and services
         # Reuse the production manifests as-is; sed patches the hardcoded
         # namespace and envsubst fills in IMAGE_TAG.
         run: |
