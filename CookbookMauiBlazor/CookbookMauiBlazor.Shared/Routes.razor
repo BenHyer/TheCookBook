@@ -1,6 +1,7 @@
 ﻿@using Microsoft.AspNetCore.Components.Authorization
 @using System
 @inject NavigationManager Navigation
+@inject CookbookMauiBlazor.Shared.Services.IAuthService AuthService
 
 <CascadingAuthenticationState>
     <Router AppAssembly="typeof(Layout.MainLayout).Assembly" NotFoundPage="typeof(Pages.NotFound)">
@@ -8,7 +9,9 @@
             <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
                 <NotAuthorized>
                     <h1>Sign in required</h1>
-                    <p><a href="@SignInUrl">Sign in</a> to continue.</p>
+                    <p>
+                        <button class="btn btn-link p-0" @onclick="HandleSignIn">Sign in</button> to continue.
+                    </p>
                 </NotAuthorized>
             </AuthorizeRouteView>
             <FocusOnNavigate RouteData="routeData" Selector="h1" />
@@ -17,17 +20,20 @@
 </CascadingAuthenticationState>
 
 @code {
-    private string SignInUrl
+    private string BuildRedirectUri()
     {
-        get
+        var relativePath = Navigation.ToBaseRelativePath(Navigation.Uri);
+        if (string.IsNullOrWhiteSpace(relativePath))
         {
-            var relativePath = Navigation.ToBaseRelativePath(Navigation.Uri);
-            if (string.IsNullOrWhiteSpace(relativePath))
-            {
-                return "/signin";
-            }
-
-            return $"/signin?redirectUri=/{Uri.EscapeDataString(relativePath)}";
+            return "/";
         }
+
+        return $"/{Uri.EscapeDataString(relativePath)}";
+    }
+
+    private Task HandleSignIn()
+    {
+        var redirectUri = BuildRedirectUri();
+        return AuthService.SignInAsync(redirectUri);
     }
 }
