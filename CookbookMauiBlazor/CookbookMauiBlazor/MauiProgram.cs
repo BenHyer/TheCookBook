@@ -37,6 +37,7 @@ namespace CookbookMauiBlazor
                 {
                     pcaBuilder = pcaBuilder.WithAuthority(authority);
                 }
+                
 
                 return pcaBuilder.Build();
             });
