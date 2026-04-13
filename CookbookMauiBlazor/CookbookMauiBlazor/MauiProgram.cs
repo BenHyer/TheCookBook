@@ -3,7 +3,6 @@ using CookbookMauiBlazor.Shared.Services;
 using Microsoft.Extensions.Logging;
 using CookbookMauiBlazor.Shared.Viewmodels;
 using Microsoft.AspNetCore.Components.Authorization;
-using CookbookMauiBlazor.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Identity.Client;
 
@@ -25,27 +24,34 @@ namespace CookbookMauiBlazor
 
             // Add device-specific services used by the CookbookMauiBlazor.Shared project
             builder.Services.AddSingleton<IFormFactor, FormFactor>();
+            builder.Services.AddSingleton(sp =>
+            {
+                var options = new AzureAdOptions();
+                builder.Configuration.Bind("AzureAd", options);
+
+                if (string.IsNullOrWhiteSpace(options.ClientId))
+                {
+                    throw new InvalidOperationException(
+                        "AzureAd:ClientId is missing. Set it in appsettings.json or appsettings.Development.json.");
+                }
+
+                return options;
+            });
             builder.Services.AddSingleton<IPublicClientApplication>(sp =>
             {
                 var options = sp.GetRequiredService<AzureAdOptions>();
                 var authority = BuildAuthority(options);
+                var redirectUri = BuildRedirectUri(options);
                 var pcaBuilder = PublicClientApplicationBuilder
                     .Create(options.ClientId)
-                    .WithRedirectUri($"msal{options.ClientId}://auth");
+                    .WithRedirectUri(redirectUri);
 
                 if (authority is not null)
                 {
                     pcaBuilder = pcaBuilder.WithAuthority(authority);
                 }
-                
 
                 return pcaBuilder.Build();
-            });
-            builder.Services.AddSingleton(sp =>
-            {
-                var options = new AzureAdOptions();
-                builder.Configuration.Bind("AzureAd", options);
-                return options;
             });
             builder.Services.AddScoped<IAuthService, MauiAuthService>();
             builder.Services.AddScoped<MauiAuthenticationStateProvider>();
@@ -69,6 +75,17 @@ namespace CookbookMauiBlazor
 #endif
 
             return builder.Build();
+        }
+
+        private static string BuildRedirectUri(AzureAdOptions options)
+        {
+            if (DeviceInfo.Platform == DevicePlatform.WinUI)
+            {
+                // MSAL on Windows requires a loopback redirect URI.
+                return "http://localhost";
+            }
+
+            return $"msal{options.ClientId}://auth";
         }
 
         private static void AddAppSettings(MauiAppBuilder builder)

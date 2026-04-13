@@ -80,6 +80,7 @@
 
   <ItemGroup>
     <MauiAsset Include="appsettings.json" />
+    <MauiAsset Include="appsettings.Development.json" />
   </ItemGroup>
 
 </Project>
