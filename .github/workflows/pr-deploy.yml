@@ -158,12 +158,13 @@ jobs:
         run: |
           APP_ID="133e5a35-ce6c-4e8f-a764-7008bad72271"
           EXISTING=$(az ad app show --id "$APP_ID" --query "web.redirectUris" -o tsv | grep -v '^$')
-          az ad app update --id "$APP_ID" --web-redirect-uris \
-            $EXISTING \
+          ALL_URIS=$(printf "%s\n" $EXISTING \
             "https://${BENCAMPUS_HOST}/signin-oidc" \
             "https://${BENCAMPUS_HOST}/signout-oidc" \
             "https://${BENHHOME_HOST}/signin-oidc" \
-            "https://${BENHHOME_HOST}/signout-oidc"
+            "https://${BENHHOME_HOST}/signout-oidc" \
+            | sort -u | tr '\n' ' ')
+          az ad app update --id "$APP_ID" --web-redirect-uris $ALL_URIS
 
       - name: Wait for rollouts
         run: |
