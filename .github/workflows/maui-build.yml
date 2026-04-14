@@ -10,8 +10,47 @@ on:
       - main
 
 jobs:
-  build-maui:
+  prepare:
     runs-on: windows-latest
+    env:
+      NUGET_PACKAGES: ${{ github.workspace }}\.nuget\packages
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            **/Directory.Packages.props
+            **/NuGet.config
+            **/global.json
+
+      - name: Cache MAUI workloads
+        uses: actions/cache@v4
+        id: cache-maui-workloads
+        with:
+          path: |
+            ~/.dotnet/sdk-manifests
+            ~/.dotnet/packs
+          key: maui-workloads-windows-dotnet10
+          restore-keys: |
+            maui-workloads-windows-dotnet10
+
+      - name: Install MAUI workload
+        if: steps.cache-maui-workloads.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: dotnet workload install maui --ignore-failed-sources
+
+      - name: Restore NuGet packages
+        run: dotnet restore CookbookMauiBlazor/CookbookMauiBlazor/CookbookMauiBlazor.csproj
+
+  build-windows:
+    runs-on: windows-latest
+    needs: prepare
     env:
       NUGET_PACKAGES: ${{ github.workspace }}\.nuget\packages
       MAUI_AZUREAD_INSTANCE: ${{ secrets.MAUI_AZUREAD_INSTANCE }}
@@ -42,15 +81,14 @@ jobs:
           path: |
             ~/.dotnet/sdk-manifests
             ~/.dotnet/packs
-          key: maui-workloads-${{ runner.os }}-dotnet10-${{ hashFiles('**/global.json') }}
+          key: maui-workloads-windows-dotnet10
           restore-keys: |
-            maui-workloads-${{ runner.os }}-dotnet10-
+            maui-workloads-windows-dotnet10
 
       - name: Install MAUI workload
         if: steps.cache-maui-workloads.outputs.cache-hit != 'true'
         shell: pwsh
-        run: |
-          dotnet workload install maui --ignore-failed-sources
+        run: dotnet workload install maui --ignore-failed-sources
 
       - name: Write MAUI appsettings.json
         shell: pwsh
@@ -80,7 +118,76 @@ jobs:
           $config | ConvertTo-Json -Depth 5 | Set-Content $projectPath -Encoding UTF8
 
       - name: Build MAUI app (Windows)
-        run: dotnet build CookbookMauiBlazor/CookbookMauiBlazor/CookbookMauiBlazor.csproj --configuration Release -f net10.0-windows10.0.19041.0
+        run: dotnet build CookbookMauiBlazor/CookbookMauiBlazor/CookbookMauiBlazor.csproj --configuration Release -f net10.0-windows10.0.19041.0 --no-restore
+
+  build-android:
+    runs-on: windows-latest
+    needs: prepare
+    env:
+      NUGET_PACKAGES: ${{ github.workspace }}\.nuget\packages
+      MAUI_AZUREAD_INSTANCE: ${{ secrets.MAUI_AZUREAD_INSTANCE }}
+      MAUI_AZUREAD_TENANT_ID: ${{ secrets.MAUI_AZUREAD_TENANT_ID }}
+      MAUI_AZUREAD_CLIENT_ID: ${{ secrets.MAUI_AZUREAD_CLIENT_ID }}
+      MAUI_AZUREAD_SCOPES: ${{ secrets.MAUI_AZUREAD_SCOPES }}
+      MAUI_API_BASE_URL: ${{ secrets.MAUI_API_BASE_URL }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            **/Directory.Packages.props
+            **/NuGet.config
+            **/global.json
+
+      - name: Cache MAUI workloads
+        uses: actions/cache@v4
+        id: cache-maui-workloads
+        with:
+          path: |
+            ~/.dotnet/sdk-manifests
+            ~/.dotnet/packs
+          key: maui-workloads-windows-dotnet10
+          restore-keys: |
+            maui-workloads-windows-dotnet10
+
+      - name: Install MAUI workload
+        if: steps.cache-maui-workloads.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: dotnet workload install maui --ignore-failed-sources
+
+      - name: Write MAUI appsettings.json
+        shell: pwsh
+        run: |
+          $projectPath = Join-Path $env:GITHUB_WORKSPACE "CookbookMauiBlazor\CookbookMauiBlazor\appsettings.json"
+          $instance = if ([string]::IsNullOrWhiteSpace($env:MAUI_AZUREAD_INSTANCE)) { "https://ultimatecookbook.ciamlogin.com/" } else { $env:MAUI_AZUREAD_INSTANCE }
+          $tenantId = $env:MAUI_AZUREAD_TENANT_ID
+          $clientId = $env:MAUI_AZUREAD_CLIENT_ID
+          $scopesRaw = $env:MAUI_AZUREAD_SCOPES
+          $apiBaseUrl = if ([string]::IsNullOrWhiteSpace($env:MAUI_API_BASE_URL)) { "http://localhost:5346" } else { $env:MAUI_API_BASE_URL }
+
+          $scopes = @()
+          if (-not [string]::IsNullOrWhiteSpace($scopesRaw)) {
+            $scopes = $scopesRaw -split "," | ForEach-Object { $_.Trim() } | Where-Object { $_ }
+          }
+
+          $config = [ordered]@{
+            ApiService = @{ BaseUrl = $apiBaseUrl }
+            AzureAd = @{
+              Instance = $instance
+              TenantId = $tenantId
+              ClientId = $clientId
+              Scopes = $scopes
+            }
+          }
+
+          $config | ConvertTo-Json -Depth 5 | Set-Content $projectPath -Encoding UTF8
 
       - name: Build MAUI app (Android)
-        run: dotnet build CookbookMauiBlazor/CookbookMauiBlazor/CookbookMauiBlazor.csproj --configuration Release -f net10.0-android -p:RunAOTCompilation=false
+        run: dotnet build CookbookMauiBlazor/CookbookMauiBlazor/CookbookMauiBlazor.csproj --configuration Release -f net10.0-android -p:RunAOTCompilation=false --no-restore
