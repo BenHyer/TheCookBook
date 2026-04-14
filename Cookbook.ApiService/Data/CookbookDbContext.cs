@@ -42,6 +42,8 @@ public class CookbookDbContext(DbContextOptions<CookbookDbContext> options) : Db
                 .HasMaxLength(2000);
             entity.Property(x => x.StorageInfo)
                 .HasMaxLength(2000);
+            entity.Property(x => x.ImageUrl)
+                .HasMaxLength(2048);
 
             var listConverter = new ValueConverter<List<string>, string>(
                 value => JsonSerializer.Serialize(value, (JsonSerializerOptions?)null),

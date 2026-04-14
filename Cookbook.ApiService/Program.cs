@@ -312,6 +312,99 @@ app.MapPost("/api/v1/users/{userId}/profile/picture", async (
 .WithName("UploadProfilePicture")
 .DisableAntiforgery();
 
+app.MapGet("/api/v1/recipes", async (CookbookDbContext dbContext) =>
+{
+    var recipes = await dbContext.Recipes
+        .OrderByDescending(r => r.Id)
+        .Select(r => new RecipeDto(
+            r.Id, r.Title, r.Description, r.YieldServings, r.PrepTime, r.CookTime,
+            r.TotalTime, r.Ingredients, r.Quantities, r.Equipment, r.Instructions,
+            r.CookingTemperature, r.NutritionFacts, r.StorageInfo, r.ImageUrl))
+        .ToListAsync();
+
+    return Results.Ok(recipes);
+})
+.WithName("GetRecipes");
+
+app.MapPost("/api/v1/recipes", async (CreateRecipeRequest request, CookbookDbContext dbContext) =>
+{
+    if (string.IsNullOrWhiteSpace(request.Title))
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["title"] = ["Title is required."]
+        });
+    }
+
+    var recipe = new Recipe
+    {
+        Title = request.Title.Trim(),
+        Description = TrimToNull(request.Description),
+        YieldServings = TrimToNull(request.YieldServings),
+        PrepTime = TrimToNull(request.PrepTime),
+        CookTime = TrimToNull(request.CookTime),
+        TotalTime = TrimToNull(request.TotalTime),
+        CookingTemperature = TrimToNull(request.CookingTemperature),
+        NutritionFacts = TrimToNull(request.NutritionFacts),
+        StorageInfo = TrimToNull(request.StorageInfo),
+        Ingredients = request.Ingredients ?? new List<string>(),
+        Quantities = request.Quantities ?? new List<string>(),
+        Equipment = request.Equipment ?? new List<string>(),
+        Instructions = request.Instructions ?? new List<string>(),
+    };
+
+    dbContext.Recipes.Add(recipe);
+    await dbContext.SaveChangesAsync();
+
+    return Results.Created($"/api/v1/recipes/{recipe.Id}", new RecipeDto(
+        recipe.Id, recipe.Title, recipe.Description, recipe.YieldServings, recipe.PrepTime,
+        recipe.CookTime, recipe.TotalTime, recipe.Ingredients, recipe.Quantities,
+        recipe.Equipment, recipe.Instructions, recipe.CookingTemperature,
+        recipe.NutritionFacts, recipe.StorageInfo, recipe.ImageUrl));
+})
+.WithName("CreateRecipe");
+
+app.MapPost("/api/v1/recipes/{recipeId}/image", async (
+    int recipeId,
+    IFormFile file,
+    CookbookDbContext dbContext,
+    BlobContainerClient? containerClient) =>
+{
+    if (containerClient is null)
+        return Results.Problem("Blob storage is not configured.");
+
+    var recipe = await dbContext.Recipes.FindAsync(recipeId);
+    if (recipe is null)
+        return Results.NotFound();
+
+    if (file.Length == 0)
+        return Results.BadRequest("No file uploaded.");
+
+    var allowedTypes = new[] { "image/jpeg", "image/png", "image/gif", "image/webp" };
+    if (!allowedTypes.Contains(file.ContentType.ToLowerInvariant()))
+        return Results.BadRequest("Only JPEG, PNG, GIF, and WebP images are allowed.");
+
+    if (file.Length > 5 * 1024 * 1024)
+        return Results.BadRequest("File size must be under 5 MB.");
+
+    var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+    var blobName = $"recipes/{recipeId}/image{extension}";
+    var blobClient = containerClient.GetBlobClient(blobName);
+
+    await using var stream = file.OpenReadStream();
+    await blobClient.UploadAsync(stream, new BlobUploadOptions
+    {
+        HttpHeaders = new BlobHttpHeaders { ContentType = file.ContentType }
+    });
+
+    recipe.ImageUrl = blobClient.Uri.ToString();
+    await dbContext.SaveChangesAsync();
+
+    return Results.Ok(new { url = recipe.ImageUrl });
+})
+.WithName("UploadRecipeImage")
+.DisableAntiforgery();
+
 app.MapDefaultEndpoints();
 
 app.Run();
@@ -347,6 +440,9 @@ static async Task ApplyDatabaseMigrationsAsync(WebApplication app)
     await dbContext.Database.MigrateAsync();
 }
 
+static string? TrimToNull(string? value) =>
+    string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
 record CreateBoardRequest(string Name, string? Description, string OwnerUserId);
 
 record BoardDto(Guid Id, string Name, string? Description, string OwnerUserId, DateTime CreatedUtc, DateTime UpdatedUtc);
@@ -354,3 +450,35 @@ record BoardDto(Guid Id, string Name, string? Description, string OwnerUserId, D
 record UserProfileDto(string UserId, string FirstName, string LastName, string DisplayName, string? ProfilePictureUrl);
 
 record UpdateProfileRequest(string FirstName, string LastName, string DisplayName);
+
+record CreateRecipeRequest(
+    string Title,
+    string? Description,
+    string? YieldServings,
+    string? PrepTime,
+    string? CookTime,
+    string? TotalTime,
+    string? CookingTemperature,
+    string? NutritionFacts,
+    string? StorageInfo,
+    List<string>? Ingredients,
+    List<string>? Quantities,
+    List<string>? Equipment,
+    List<string>? Instructions);
+
+record RecipeDto(
+    int Id,
+    string Title,
+    string? Description,
+    string? YieldServings,
+    string? PrepTime,
+    string? CookTime,
+    string? TotalTime,
+    List<string> Ingredients,
+    List<string> Quantities,
+    List<string> Equipment,
+    List<string> Instructions,
+    string? CookingTemperature,
+    string? NutritionFacts,
+    string? StorageInfo,
+    string? ImageUrl);

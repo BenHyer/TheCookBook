@@ -6,6 +6,7 @@ namespace CookbookMauiBlazor.Shared.Models
 {
     public partial class Recipe
     {
+        public int Id { get; set; }
         public string Title { get; set; } = string.Empty;
         public string? Description { get; set; }
         public string? YieldServings { get; set; }
@@ -19,5 +20,6 @@ namespace CookbookMauiBlazor.Shared.Models
         public string? CookingTemperature { get; set; }
         public string? NutritionFacts { get; set; }
         public string? StorageInfo { get; set; }
+        public string? ImageUrl { get; set; }
     }
 }

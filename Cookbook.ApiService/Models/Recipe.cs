@@ -18,4 +18,5 @@ public class Recipe
     public string? CookingTemperature { get; set; }
     public string? NutritionFacts { get; set; }
     public string? StorageInfo { get; set; }
+    public string? ImageUrl { get; set; }
 }

@@ -1,8 +1,90 @@
-﻿@page "/cookbook"
+@page "/cookbook"
 @using CookbookMauiBlazor.Shared.Models
+@using CookbookMauiBlazor.Shared.Services
+@inject IRecipeService RecipeService
 
 <PageTitle>Cookbook</PageTitle>
 
 <h3>Cookbook</h3>
 
-<NewRecipeForm />
+<div class="mb-4">
+    <button class="btn btn-primary" @onclick="ToggleForm">
+        @(_showForm ? "Cancel" : "+ New Recipe")
+    </button>
+</div>
+
+@if (_showForm)
+{
+    <div class="card mb-4">
+        <div class="card-body">
+            <NewRecipeForm OnCreated="OnRecipeCreated" />
+        </div>
+    </div>
+}
+
+@if (_loading)
+{
+    <p>Loading recipes...</p>
+}
+else if (_recipes.Count == 0)
+{
+    <p class="text-muted">No recipes yet. Add one above!</p>
+}
+else
+{
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+        @foreach (var recipe in _recipes)
+        {
+            <div class="col">
+                <div class="card h-100">
+                    @if (!string.IsNullOrWhiteSpace(recipe.ImageUrl))
+                    {
+                        <img src="@recipe.ImageUrl" class="card-img-top" alt="@recipe.Title"
+                             style="height:200px;object-fit:cover;" />
+                    }
+                    <div class="card-body">
+                        <h5 class="card-title">@recipe.Title</h5>
+                        @if (!string.IsNullOrWhiteSpace(recipe.Description))
+                        {
+                            <p class="card-text text-muted small">@recipe.Description</p>
+                        }
+                        <div class="d-flex gap-3 small text-muted">
+                            @if (!string.IsNullOrWhiteSpace(recipe.PrepTime))
+                            {
+                                <span>Prep: @recipe.PrepTime</span>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(recipe.CookTime))
+                            {
+                                <span>Cook: @recipe.CookTime</span>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(recipe.YieldServings))
+                            {
+                                <span>Serves: @recipe.YieldServings</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<Recipe> _recipes = new();
+    private bool _loading = true;
+    private bool _showForm;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _recipes = await RecipeService.GetRecipesAsync();
+        _loading = false;
+    }
+
+    private void ToggleForm() => _showForm = !_showForm;
+
+    private async Task OnRecipeCreated(Recipe recipe)
+    {
+        _recipes.Insert(0, recipe);
+        _showForm = false;
+    }
+}

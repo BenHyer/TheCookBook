@@ -1,5 +1,7 @@
 ﻿@using System.ComponentModel.DataAnnotations
 @using CookbookMauiBlazor.Shared.Models
+@using CookbookMauiBlazor.Shared.Services
+@inject IRecipeService RecipeService
 
 <EditForm Model="_model" OnValidSubmit="CreateRecipeAsync">
     <DataAnnotationsValidator />
@@ -84,9 +86,29 @@
         <InputTextArea class="form-control" rows="3" @bind-Value="_model.StorageInfo" />
     </div>
 
+    <div class="mb-3">
+        <label class="form-label">Recipe Image (optional)</label>
+        <InputFile class="form-control" accept="image/jpeg,image/png,image/gif,image/webp" OnChange="OnImageSelected" />
+        @if (_imagePreviewUrl is not null)
+        {
+            <img src="@_imagePreviewUrl" alt="Preview" class="mt-2 rounded" style="max-height:200px;max-width:100%;object-fit:cover;" />
+        }
+        @if (_imageError is not null)
+        {
+            <div class="text-danger small mt-1">@_imageError</div>
+        }
+    </div>
+
+    @if (_submitError is not null)
+    {
+        <div class="alert alert-danger">@_submitError</div>
+    }
+
     <div class="d-flex gap-2">
         <button class="btn btn-outline-secondary" type="button" @onclick="PopulateSample">Populate fields</button>
-        <button class="btn btn-primary" type="submit">Create recipe</button>
+        <button class="btn btn-primary" type="submit" disabled="@_submitting">
+            @if (_submitting) { <span>Saving...</span> } else { <span>Create recipe</span> }
+        </button>
     </div>
 </EditForm>
 
@@ -95,36 +117,98 @@
     public EventCallback<Recipe> OnCreated { get; set; }
 
     private CreateRecipeModel _model = new();
+    private IBrowserFile? _imageFile;
+    private string? _imagePreviewUrl;
+    private string? _imageError;
+    private string? _submitError;
+    private bool _submitting;
 
     protected override void OnInitialized()
     {
         EnsureIngredientRow();
     }
 
+    private async Task OnImageSelected(InputFileChangeEventArgs e)
+    {
+        _imageError = null;
+        _imagePreviewUrl = null;
+        _imageFile = null;
+
+        var file = e.File;
+        var allowedTypes = new[] { "image/jpeg", "image/png", "image/gif", "image/webp" };
+        if (!allowedTypes.Contains(file.ContentType.ToLowerInvariant()))
+        {
+            _imageError = "Only JPEG, PNG, GIF, and WebP images are allowed.";
+            return;
+        }
+
+        if (file.Size > 5 * 1024 * 1024)
+        {
+            _imageError = "Image must be under 5 MB.";
+            return;
+        }
+
+        _imageFile = file;
+
+        using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+        var bytes = ms.ToArray();
+        _imagePreviewUrl = $"data:{file.ContentType};base64,{Convert.ToBase64String(bytes)}";
+    }
+
     private async Task CreateRecipeAsync()
     {
-        var ingredientLists = BuildIngredientLists(_model.Ingredients);
+        _submitError = null;
+        _submitting = true;
 
-        var recipe = new Recipe
+        try
         {
-            Title = _model.Title.Trim(),
-            Description = TrimToNull(_model.Description),
-            YieldServings = TrimToNull(_model.YieldServings),
-            PrepTime = TrimToNull(_model.PrepTime),
-            CookTime = TrimToNull(_model.CookTime),
-            TotalTime = TrimToNull(_model.TotalTime),
-            CookingTemperature = TrimToNull(_model.CookingTemperature),
-            NutritionFacts = TrimToNull(_model.NutritionFacts),
-            StorageInfo = TrimToNull(_model.StorageInfo),
-            Ingredients = ingredientLists.Ingredients,
-            Quantities = ingredientLists.Quantities,
-            Equipment = SplitLines(_model.EquipmentText),
-            Instructions = SplitLines(_model.InstructionsText),
-        };
+            var ingredientLists = BuildIngredientLists(_model.Ingredients);
 
-        await OnCreated.InvokeAsync(recipe);
-        _model = new CreateRecipeModel();
-        EnsureIngredientRow();
+            var recipe = new Recipe
+            {
+                Title = _model.Title.Trim(),
+                Description = TrimToNull(_model.Description),
+                YieldServings = TrimToNull(_model.YieldServings),
+                PrepTime = TrimToNull(_model.PrepTime),
+                CookTime = TrimToNull(_model.CookTime),
+                TotalTime = TrimToNull(_model.TotalTime),
+                CookingTemperature = TrimToNull(_model.CookingTemperature),
+                NutritionFacts = TrimToNull(_model.NutritionFacts),
+                StorageInfo = TrimToNull(_model.StorageInfo),
+                Ingredients = ingredientLists.Ingredients,
+                Quantities = ingredientLists.Quantities,
+                Equipment = SplitLines(_model.EquipmentText),
+                Instructions = SplitLines(_model.InstructionsText),
+            };
+
+            var created = await RecipeService.CreateRecipeAsync(recipe);
+            if (created is null)
+            {
+                _submitError = "Failed to save the recipe. Please try again.";
+                return;
+            }
+
+            if (_imageFile is not null)
+            {
+                await using var stream = _imageFile.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+                var imageUrl = await RecipeService.UploadRecipeImageAsync(
+                    created.Id, stream, _imageFile.Name, _imageFile.ContentType);
+                if (imageUrl is not null)
+                    created.ImageUrl = imageUrl;
+            }
+
+            await OnCreated.InvokeAsync(created);
+            _model = new CreateRecipeModel();
+            _imageFile = null;
+            _imagePreviewUrl = null;
+            EnsureIngredientRow();
+        }
+        finally
+        {
+            _submitting = false;
+        }
     }
 
     private void PopulateSample()

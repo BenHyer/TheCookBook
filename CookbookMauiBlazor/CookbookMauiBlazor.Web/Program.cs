@@ -76,6 +76,10 @@ builder.Services.AddHttpClient<IUserProfileService, UserProfileService>(client =
 {
     client.BaseAddress = new Uri(apiBaseUrl);
 });
+builder.Services.AddHttpClient<IRecipeService, RecipeService>(client =>
+{
+    client.BaseAddress = new Uri(apiBaseUrl);
+});
 
 builder.Services
     .AddAuthentication(options =>
