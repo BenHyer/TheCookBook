@@ -80,10 +80,10 @@ jobs:
           $config | ConvertTo-Json -Depth 5 | Set-Content $projectPath -Encoding UTF8
 
       - name: Restore MAUI app (Windows)
-        run: dotnet restore CookbookMauiBlazor/CookbookMauiBlazor/CookbookMauiBlazor.csproj -p:TargetFramework=net10.0-windows10.0.19041.0 -p:RuntimeIdentifier=win-x64
+        run: dotnet restore CookbookMauiBlazor/CookbookMauiBlazor/CookbookMauiBlazor.csproj -p:TargetFramework=net10.0-windows10.0.19041.0 -p:SelfContained=false
 
       - name: Build MAUI app (Windows)
-        run: dotnet build CookbookMauiBlazor/CookbookMauiBlazor/CookbookMauiBlazor.csproj --configuration Release -f net10.0-windows10.0.19041.0 -p:RuntimeIdentifier=win-x64 --no-restore
+        run: dotnet build CookbookMauiBlazor/CookbookMauiBlazor/CookbookMauiBlazor.csproj --configuration Release -f net10.0-windows10.0.19041.0 -p:SelfContained=false --no-restore
 
       - name: Restore MAUI app (Android)
         run: dotnet restore CookbookMauiBlazor/CookbookMauiBlazor/CookbookMauiBlazor.csproj -p:TargetFramework=net10.0-android
