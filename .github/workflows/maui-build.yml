@@ -45,8 +45,6 @@ jobs:
         shell: pwsh
         run: dotnet workload install maui --ignore-failed-sources
 
-      - name: Restore NuGet packages
-        run: dotnet restore CookbookMauiBlazor/CookbookMauiBlazor/CookbookMauiBlazor.csproj
 
   build-windows:
     runs-on: windows-latest
@@ -118,7 +116,7 @@ jobs:
           $config | ConvertTo-Json -Depth 5 | Set-Content $projectPath -Encoding UTF8
 
       - name: Build MAUI app (Windows)
-        run: dotnet build CookbookMauiBlazor/CookbookMauiBlazor/CookbookMauiBlazor.csproj --configuration Release -f net10.0-windows10.0.19041.0 --no-restore
+        run: dotnet build CookbookMauiBlazor/CookbookMauiBlazor/CookbookMauiBlazor.csproj --configuration Release -f net10.0-windows10.0.19041.0
 
   build-android:
     runs-on: windows-latest
@@ -190,4 +188,4 @@ jobs:
           $config | ConvertTo-Json -Depth 5 | Set-Content $projectPath -Encoding UTF8
 
       - name: Build MAUI app (Android)
-        run: dotnet build CookbookMauiBlazor/CookbookMauiBlazor/CookbookMauiBlazor.csproj --configuration Release -f net10.0-android -p:RunAOTCompilation=false --no-restore
+        run: dotnet build CookbookMauiBlazor/CookbookMauiBlazor/CookbookMauiBlazor.csproj --configuration Release -f net10.0-android -p:RunAOTCompilation=false
