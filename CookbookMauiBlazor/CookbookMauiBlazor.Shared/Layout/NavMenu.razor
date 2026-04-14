@@ -1,8 +1,24 @@
-﻿<div class="nav-root">
+@using Microsoft.AspNetCore.Components.Authorization
+@using CookbookMauiBlazor.Shared.Services
+
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IUserProfileService ProfileService
+
+<div class="nav-root">
     <div class="top-row ps-3 navbar navbar-dark">
         <div class="container-fluid">
             <a class="navbar-brand" href="">Cookbook</a>
             <label class="navbar-toggle" for="nav-toggle">Menu</label>
+        </div>
+    </div>
+
+    <input id="nav-toggle" type="checkbox" title="Navigation menu" class="navbar-toggler" />
+    <label class="nav-backdrop" for="nav-toggle" aria-hidden="true"></label>
+
+    <div class="nav-drawer" onclick="document.querySelector('#nav-toggle').click()">
+        <div class="nav-header">
+            <div class="nav-title">Cookbook</div>
+            <div class="nav-subtitle">Pick a page to continue</div>
         </div>
     </div>
 
@@ -33,7 +49,60 @@
                     <span class="bi bi-journal-bookmark-fill-nav-menu" aria-hidden="true"></span> Cookbook
                 </NavLink>
             </div>
+
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="profile">
+                    <span class="bi bi-person-fill-nav-menu" aria-hidden="true"></span> Account
+                </NavLink>
+            </div>
+
+            <div class="nav-bottom mt-auto px-3 pb-3">
+                <a href="/profile" class="nav-avatar-link">
+                    @if (!string.IsNullOrEmpty(_pictureUrl))
+                    {
+                        <img src="@_pictureUrl" alt="Profile" class="nav-avatar-img" />
+                    }
+                    else
+                    {
+                        <div class="nav-avatar-placeholder">
+                            <span class="bi bi-person-fill"></span>
+                        </div>
+                    }
+                    @if (!string.IsNullOrEmpty(_displayName))
+                    {
+                        <span class="nav-avatar-name">@_displayName</span>
+                    }
+                </a>
+            </div>
         </nav>
     </div>
 </div>
 
+@code {
+    private string? _pictureUrl;
+    private string? _displayName;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        if (!user.Identity?.IsAuthenticated ?? true)
+            return;
+
+        var userId =
+            user.FindFirst("oid")?.Value
+            ?? user.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value
+            ?? user.FindFirst("sub")?.Value
+            ?? user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        if (string.IsNullOrEmpty(userId))
+            return;
+
+        var profile = await ProfileService.GetProfileAsync(userId);
+        if (profile is not null)
+        {
+            _pictureUrl = profile.ProfilePictureUrl;
+            _displayName = string.IsNullOrEmpty(profile.DisplayName) ? null : profile.DisplayName;
+        }
+    }
+}

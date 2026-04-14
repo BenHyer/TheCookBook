@@ -35,7 +35,19 @@ jobs:
             **/NuGet.config
             **/global.json
 
+      - name: Cache MAUI workloads
+        uses: actions/cache@v4
+        id: cache-maui-workloads
+        with:
+          path: |
+            ~/.dotnet/sdk-manifests
+            ~/.dotnet/packs
+          key: maui-workloads-${{ runner.os }}-dotnet10-${{ hashFiles('**/global.json') }}
+          restore-keys: |
+            maui-workloads-${{ runner.os }}-dotnet10-
+
       - name: Install MAUI workload
+        if: steps.cache-maui-workloads.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
           dotnet workload install maui --ignore-failed-sources
@@ -67,11 +79,8 @@ jobs:
 
           $config | ConvertTo-Json -Depth 5 | Set-Content $projectPath -Encoding UTF8
 
-      - name: Restore MAUI app
-        run: dotnet restore CookbookMauiBlazor/CookbookMauiBlazor/CookbookMauiBlazor.csproj
-
       - name: Build MAUI app (Windows)
-        run: dotnet build CookbookMauiBlazor/CookbookMauiBlazor/CookbookMauiBlazor.csproj --configuration Release -f net10.0-windows10.0.19041.0 --no-restore
+        run: dotnet build CookbookMauiBlazor/CookbookMauiBlazor/CookbookMauiBlazor.csproj --configuration Release -f net10.0-windows10.0.19041.0
 
       - name: Build MAUI app (Android)
-        run: dotnet build CookbookMauiBlazor/CookbookMauiBlazor/CookbookMauiBlazor.csproj --configuration Release -f net10.0-android --no-restore
+        run: dotnet build CookbookMauiBlazor/CookbookMauiBlazor/CookbookMauiBlazor.csproj --configuration Release -f net10.0-android -p:RunAOTCompilation=false

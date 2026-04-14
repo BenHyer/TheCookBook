@@ -5,6 +5,8 @@ metadata:
   namespace: cookbook
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: cookbook-web
@@ -67,9 +69,11 @@ spec:
                 secretKeyRef:
                   name: cookbook-secrets
                   key: AZURE_AD_CLIENT_SECRET
-          volumeMounts:
-            - name: dp-keys
-              mountPath: /root/.aspnet/DataProtection-Keys
+            - name: ConnectionStrings__sqldb
+              valueFrom:
+                secretKeyRef:
+                  name: cookbook-secrets
+                  key: ConnectionStrings__sqldb
           readinessProbe:
             httpGet:
               path: /
@@ -90,7 +94,3 @@ spec:
             limits:
               cpu: 500m
               memory: 512Mi
-      volumes:
-        - name: dp-keys
-          persistentVolumeClaim:
-            claimName: web-dp-keys

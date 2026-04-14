@@ -42,7 +42,7 @@ jobs:
               build_api=true
             fi
 
-            if echo "$changed_files" | grep -Eq '^(Cookbook.Web/|Cookbook.Shared/|Cookbook.ServiceDefaults/)'; then
+            if echo "$changed_files" | grep -Eq '^(CookbookMauiBlazor/|Cookbook.Shared/|Cookbook.ServiceDefaults/)'; then
               build_web=true
             fi
 
@@ -50,7 +50,7 @@ jobs:
             echo "build_web=$build_web" >> "$GITHUB_OUTPUT"
           else
             [ -f "Cookbook.ApiService/Cookbook.ApiService.csproj" ] && echo "build_api=true" >> "$GITHUB_OUTPUT" || echo "build_api=false" >> "$GITHUB_OUTPUT"
-            [ -f "Cookbook.Web/Cookbook.Web.csproj" ] && echo "build_web=true" >> "$GITHUB_OUTPUT" || echo "build_web=false" >> "$GITHUB_OUTPUT"
+            [ -f "CookbookMauiBlazor/CookbookMauiBlazor.Web/CookbookMauiBlazor.Web.csproj" ] && echo "build_web=true" >> "$GITHUB_OUTPUT" || echo "build_web=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Setup .NET 10 SDK
@@ -72,12 +72,12 @@ jobs:
 
           if [ "$build_api" = "true" ] && [ "$build_web" = "true" ]; then
             dotnet restore Cookbook.ApiService/Cookbook.ApiService.csproj &
-            dotnet restore Cookbook.Web/Cookbook.Web.csproj &
+            dotnet restore CookbookMauiBlazor/CookbookMauiBlazor.Web/CookbookMauiBlazor.Web.csproj &
             wait
           elif [ "$build_api" = "true" ]; then
             dotnet restore Cookbook.ApiService/Cookbook.ApiService.csproj
           elif [ "$build_web" = "true" ]; then
-            dotnet restore Cookbook.Web/Cookbook.Web.csproj
+            dotnet restore CookbookMauiBlazor/CookbookMauiBlazor.Web/CookbookMauiBlazor.Web.csproj
           else
             echo "No API/Web-related changes detected; skipping restore."
           fi
@@ -90,12 +90,12 @@ jobs:
 
           if [ "$build_api" = "true" ] && [ "$build_web" = "true" ]; then
             dotnet build Cookbook.ApiService/Cookbook.ApiService.csproj --configuration Release --no-restore &
-            dotnet build Cookbook.Web/Cookbook.Web.csproj --configuration Release --no-restore &
+            dotnet build CookbookMauiBlazor/CookbookMauiBlazor.Web/CookbookMauiBlazor.Web.csproj --configuration Release --no-restore &
             wait
           elif [ "$build_api" = "true" ]; then
             dotnet build Cookbook.ApiService/Cookbook.ApiService.csproj --configuration Release --no-restore
           elif [ "$build_web" = "true" ]; then
-            dotnet build Cookbook.Web/Cookbook.Web.csproj --configuration Release --no-restore
+            dotnet build CookbookMauiBlazor/CookbookMauiBlazor.Web/CookbookMauiBlazor.Web.csproj --configuration Release --no-restore
           else
             echo "No API/Web-related changes detected; skipping build."
           fi
@@ -109,7 +109,7 @@ jobs:
           if [ "$build_api" = "true" ] && [ "$build_web" = "true" ]; then
             dotnet format Cookbook.ApiService/Cookbook.ApiService.csproj --verify-no-changes --no-restore &
             api_pid=$!
-            dotnet format Cookbook.Web/Cookbook.Web.csproj --verify-no-changes --no-restore &
+            dotnet format CookbookMauiBlazor/CookbookMauiBlazor.Web/CookbookMauiBlazor.Web.csproj --verify-no-changes --no-restore &
             web_pid=$!
             failed=0
             wait "$api_pid" || failed=1
@@ -118,7 +118,7 @@ jobs:
           elif [ "$build_api" = "true" ]; then
             dotnet format Cookbook.ApiService/Cookbook.ApiService.csproj --verify-no-changes --no-restore
           elif [ "$build_web" = "true" ]; then
-            dotnet format Cookbook.Web/Cookbook.Web.csproj --verify-no-changes --no-restore
+            dotnet format CookbookMauiBlazor/CookbookMauiBlazor.Web/CookbookMauiBlazor.Web.csproj --verify-no-changes --no-restore
           else
             echo "No API/Web-related changes detected; skipping format check."
           fi
@@ -284,6 +284,8 @@ jobs:
             --from-literal=AZURE_AD_TENANT_ID="${{ secrets.AZURE_AD_TENANT_ID }}" \
             --from-literal=AZURE_AD_CLIENT_ID="${{ secrets.AZURE_AD_CLIENT_ID }}" \
             --from-literal=AZURE_AD_CLIENT_SECRET="${{ secrets.AZURE_AD_CLIENT_SECRET }}" \
+            --from-literal=AZURE_STORAGE_CONNECTION_STRING="${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
+            --from-literal=AZURE_STORAGE_CONTAINER_NAME="${{ secrets.AZURE_STORAGE_CONTAINER_NAME }}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Apply Kubernetes manifests

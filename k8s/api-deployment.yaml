@@ -32,24 +32,33 @@ spec:
                 secretKeyRef:
                   name: cookbook-secrets
                   key: ConnectionStrings__sqldb
+            - name: AZURE_STORAGE_CONNECTION_STRING
+              valueFrom:
+                secretKeyRef:
+                  name: cookbook-secrets
+                  key: AZURE_STORAGE_CONNECTION_STRING
+            - name: AZURE_STORAGE_CONTAINER_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: cookbook-secrets
+                  key: AZURE_STORAGE_CONTAINER_NAME
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               valueFrom:
                 configMapKeyRef:
                   name: cookbook-config
                   key: OTEL_EXPORTER_OTLP_ENDPOINT
-          # Probes disabled temporarily to see startup logs
-          # readinessProbe:
-          #   httpGet:
-          #     path: /
-          #     port: 8080
-          #   initialDelaySeconds: 10
-          #   periodSeconds: 10
-          # livenessProbe:
-          #   httpGet:
-          #     path: /
-          #     port: 8080
-          #   initialDelaySeconds: 20
-          #   periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /alive
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 20
           resources:
             requests:
               cpu: 100m

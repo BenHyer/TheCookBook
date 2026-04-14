@@ -1,5 +1,7 @@
 .vs/
 .claude/worktrees/
+*.slnLaunch.user
+*.Backup.tmp
 # .NET Aspire
 .aspire/
 
@@ -16,3 +18,4 @@
 /secrets.json
 .env
 k8s/secret.yaml
+.fake

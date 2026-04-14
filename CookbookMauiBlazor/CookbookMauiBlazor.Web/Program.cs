@@ -1,3 +1,4 @@
+using CookbookMauiBlazor.Web.Data;
 using CookbookMauiBlazor.Web.Telemetry;
 using CookbookMauiBlazor.Shared.Services;
 using CookbookMauiBlazor.Web.Components;
@@ -5,7 +6,9 @@ using CookbookMauiBlazor.Web.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Web;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.Identity.Web.UI;
@@ -16,6 +19,17 @@ using OpenTelemetry.Exporter;
 using OpenTelemetry.Resources;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var dpConnectionString = builder.Configuration.GetConnectionString("sqldb");
+if (!string.IsNullOrWhiteSpace(dpConnectionString))
+{
+    builder.Services.AddDbContext<DataProtectionDbContext>(options =>
+        options.UseSqlServer(dpConnectionString, sql => sql.EnableRetryOnFailure()));
+
+    builder.Services.AddDataProtection()
+        .PersistKeysToDbContext<DataProtectionDbContext>()
+        .SetApplicationName("cookbook-web");
+}
 
 var otlpEndpoint = builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"] ?? "http://localhost:4317";
 
@@ -48,12 +62,17 @@ builder.Services.AddControllersWithViews();
 
 // Add device-specific services used by the CookbookMauiBlazor.Shared project
 builder.Services.AddSingleton<IFormFactor, FormFactor>();
+builder.Services.AddScoped<IAuthService, WebAuthService>();
 builder.Services.AddScoped<BoardViewModel>();
 builder.Services.AddScoped<CookbookViewModel>();
 builder.Services.AddCascadingAuthenticationState();
 
 var apiBaseUrl = builder.Configuration["ApiService:BaseUrl"] ?? "http://localhost:5346";
 builder.Services.AddHttpClient<IBoardService, BoardService>(client =>
+{
+    client.BaseAddress = new Uri(apiBaseUrl);
+});
+builder.Services.AddHttpClient<IUserProfileService, UserProfileService>(client =>
 {
     client.BaseAddress = new Uri(apiBaseUrl);
 });
@@ -86,15 +105,6 @@ builder.Services
     });
 builder.Services.AddAuthorization();
 
-//builder.Services.AddHttpClient<WeatherApiClient>(client =>
-//{
-//    // This URL uses "https+http://" to indicate HTTPS is preferred over HTTP.
-//    // Learn more about service discovery scheme resolution at https://aka.ms/dotnet/sdschemes.
-//    client.BaseAddress = string.IsNullOrWhiteSpace(apiBaseUrl)
-//        ? new("https+http://apiservice")
-//        : new(apiBaseUrl);
-//});
-
 var azureAdClientId = builder.Configuration["AzureAd:ClientId"];
 var hasAzureAdAuth = !string.IsNullOrWhiteSpace(azureAdClientId);
 
@@ -109,8 +119,6 @@ if (!hasAzureAdAuth && !builder.Environment.IsDevelopment())
 {
     builder.Logging.AddFilter("CookbookMauiBlazor.Web.Startup", LogLevel.Warning);
 }
-
-builder.Services.AddScoped<CookbookViewModel>();
 
 var app = builder.Build();
 
