@@ -83,4 +83,4 @@ jobs:
         run: dotnet build CookbookMauiBlazor/CookbookMauiBlazor/CookbookMauiBlazor.csproj --configuration Release -f net10.0-windows10.0.19041.0
 
       - name: Build MAUI app (Android)
-        run: dotnet build CookbookMauiBlazor/CookbookMauiBlazor/CookbookMauiBlazor.csproj --configuration Release -f net10.0-android
+        run: dotnet build CookbookMauiBlazor/CookbookMauiBlazor/CookbookMauiBlazor.csproj --configuration Release -f net10.0-android -p:RunAOTCompilation=false
