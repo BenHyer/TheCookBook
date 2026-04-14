@@ -50,7 +50,7 @@ jobs:
         if: steps.cache-maui-workloads.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
-          dotnet workload install maui-windows android --ignore-failed-sources
+          dotnet workload install maui --ignore-failed-sources
 
       - name: Write MAUI appsettings.json
         shell: pwsh
