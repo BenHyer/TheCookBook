@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: blackbox
+  namespace: cookbook
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: blackbox
+  template:
+    metadata:
+      labels:
+        app: blackbox
+    spec:
+      containers:
+        - name: blackbox
+          image: prom/blackbox-exporter:latest
+          args:
+            - "--config.file=/etc/blackbox/blackbox.yml"
+          ports:
+            - containerPort: 9115
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 9115
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 9115
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          volumeMounts:
+            - name: blackbox-config
+              mountPath: /etc/blackbox
+      volumes:
+        - name: blackbox-config
+          configMap:
+            name: blackbox-config
