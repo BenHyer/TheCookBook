@@ -1,0 +1,21 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: cookbook-api-pdb
+  namespace: cookbook
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: cookbook-api
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: cookbook-web-pdb
+  namespace: cookbook
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: cookbook-web
