@@ -297,6 +297,11 @@ jobs:
             envsubst '${IMAGE_TAG}' < "$f" | kubectl apply -f -
           done
 
+      - name: Reload observability config
+        run: |
+          kubectl rollout restart deployment/prometheus -n cookbook
+          kubectl rollout restart deployment/blackbox -n cookbook
+
       - name: Wait for rollouts
         run: |
           kubectl rollout status deployment/cookbook-api -n cookbook --timeout=120s
