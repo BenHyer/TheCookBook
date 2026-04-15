@@ -278,14 +278,16 @@ jobs:
 
       - name: Install k6
         run: |
-          if ! command -v k6 &> /dev/null; then
-            curl -sL https://github.com/grafana/k6/releases/latest/download/k6-v0.56.0-linux-amd64.tar.gz \
-              | tar -xz --strip-components=1 -C /tmp k6-v0.56.0-linux-amd64/k6
-            mkdir -p "$HOME/.local/bin"
-            mv /tmp/k6 "$HOME/.local/bin/k6"
-            export PATH="$HOME/.local/bin:$PATH"
+          mkdir -p "$HOME/.local/bin"
+          if ! command -v "$HOME/.local/bin/k6" &> /dev/null; then
+            K6_URL=$(curl -s https://api.github.com/repos/grafana/k6/releases/latest \
+              | grep -o '"browser_download_url":"[^"]*linux-amd64\.tar\.gz"' \
+              | grep -o 'https://[^"]*')
+            mkdir -p /tmp/k6-extract
+            curl -sL "$K6_URL" | tar -xz -C /tmp/k6-extract
+            mv /tmp/k6-extract/*/k6 "$HOME/.local/bin/k6"
+            chmod +x "$HOME/.local/bin/k6"
           fi
-          export PATH="$HOME/.local/bin:$PATH"
 
       - name: Start k6 load test
         run: |
