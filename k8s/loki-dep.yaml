@@ -18,6 +18,20 @@ spec:
           args: ["-config.file=/etc/loki/loki.yaml"]
           ports:
             - containerPort: 3100
+          # Probes (readiness/liveness)
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 3100
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: 3100
+            initialDelaySeconds: 30
+            periodSeconds: 20
           volumeMounts:
             - name: loki-storage
               mountPath: /loki

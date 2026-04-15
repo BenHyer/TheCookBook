@@ -27,7 +27,13 @@ data:
       prometheus:
         endpoint: "0.0.0.0:8889"
 
+    extensions:
+      health_check:
+        endpoint: "0.0.0.0:13133"   # default port as requested
+
     service:
+      extensions: [health_check]     # added here
+
       pipelines:
         logs:
           receivers: [otlp]
@@ -38,3 +44,4 @@ data:
           receivers: [otlp]
           processors: []
           exporters: [debug, prometheus]
+          
