@@ -299,7 +299,9 @@ jobs:
 
       - name: Reload observability config
         run: |
-          kubectl rollout restart deployment/prometheus -n cookbook
+          kubectl scale deployment/prometheus -n cookbook --replicas=0
+          kubectl wait --for=delete pod -l app=prometheus -n cookbook --timeout=60s
+          kubectl scale deployment/prometheus -n cookbook --replicas=1
           kubectl rollout restart deployment/blackbox -n cookbook
 
       - name: Wait for rollouts
