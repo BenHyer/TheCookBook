@@ -4,6 +4,7 @@ using Cookbook.ApiService.Data;
 using Cookbook.ApiService.Models;
 using Cookbook.ApiService.Telemetry;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Web;
 using CookbookMauiBlazor.Shared.Boards;
@@ -256,7 +257,7 @@ app.MapPost("/api/v1/users/{userId}/profile/picture", async (
     string userId,
     IFormFile file,
     CookbookDbContext dbContext,
-    BlobContainerClient? containerClient) =>
+    [FromServices] BlobContainerClient? containerClient) =>
 {
     if (containerClient is null)
         return Results.Problem("Blob storage is not configured.");
@@ -368,7 +369,7 @@ app.MapPost("/api/v1/recipes/{recipeId}/image", async (
     int recipeId,
     IFormFile file,
     CookbookDbContext dbContext,
-    BlobContainerClient? containerClient) =>
+    [FromServices] BlobContainerClient? containerClient) =>
 {
     if (containerClient is null)
         return Results.Problem("Blob storage is not configured.");
