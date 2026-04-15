@@ -278,25 +278,22 @@ jobs:
 
       - name: Install k6
         run: |
-          mkdir -p "$HOME/.local/bin"
-          if ! command -v "$HOME/.local/bin/k6" &> /dev/null; then
+          if [ ! -f /tmp/k6 ]; then
             K6_URL=$(curl -s https://api.github.com/repos/grafana/k6/releases/latest \
               | grep -o '"browser_download_url":"[^"]*linux-amd64\.tar\.gz"' \
               | grep -o 'https://[^"]*')
-            mkdir -p /tmp/k6-extract
-            curl -sL "$K6_URL" | tar -xz -C /tmp/k6-extract
-            mv /tmp/k6-extract/*/k6 "$HOME/.local/bin/k6"
-            chmod +x "$HOME/.local/bin/k6"
+            curl -sL "$K6_URL" | tar -xz -C /tmp
+            find /tmp -maxdepth 2 -name 'k6' -type f ! -path '/tmp/k6' -exec mv {} /tmp/k6 \;
+            chmod +x /tmp/k6
           fi
 
       - name: Start k6 load test
         run: |
-          export PATH="$HOME/.local/bin:$PATH"
           kubectl port-forward -n cookbook svc/prometheus 9090:9090 &
           echo $! > /tmp/pf.pid
           sleep 3
           K6_PROMETHEUS_RW_SERVER_URL=http://localhost:9090/api/v1/write \
-            k6 run --out experimental-prometheus-rw k6/downtime-test.js &
+            /tmp/k6 run --out experimental-prometheus-rw k6/downtime-test.js &
           echo $! > /tmp/k6.pid
           echo "k6 started (PID $(cat /tmp/k6.pid))"
 
