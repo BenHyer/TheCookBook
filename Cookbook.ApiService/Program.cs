@@ -318,7 +318,7 @@ app.MapGet("/api/v1/recipes", async (CookbookDbContext dbContext) =>
     var recipes = await dbContext.Recipes
         .OrderByDescending(r => r.Id)
         .Select(r => new RecipeDto(
-            r.Id, r.Title, r.Description, r.YieldServings, r.PrepTime, r.CookTime,
+            r.Id, r.OwnerUserId, r.Title, r.Description, r.YieldServings, r.PrepTime, r.CookTime,
             r.TotalTime, r.Ingredients, r.Quantities, r.Equipment, r.Instructions,
             r.CookingTemperature, r.NutritionFacts, r.StorageInfo, r.ImageUrl))
         .ToListAsync();
@@ -326,6 +326,31 @@ app.MapGet("/api/v1/recipes", async (CookbookDbContext dbContext) =>
     return Results.Ok(recipes);
 })
 .WithName("GetRecipes");
+
+app.MapGet("/api/v1/recipes/owner/{ownerUserId}", async (string ownerUserId, CookbookDbContext dbContext) =>
+{
+    if (string.IsNullOrWhiteSpace(ownerUserId))
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["ownerUserId"] = ["Owner user id is required."]
+        });
+    }
+
+    var recipes = await dbContext.Recipes
+        .Where(r => r.OwnerUserId == ownerUserId)
+        .OrderByDescending(r => r.Id)
+        .Select(r => new RecipeDto(
+            r.Id, r.OwnerUserId, r.Title, r.Description, r.YieldServings, r.PrepTime, r.CookTime,
+            r.TotalTime, r.Ingredients, r.Quantities, r.Equipment, r.Instructions,
+            r.CookingTemperature, r.NutritionFacts, r.StorageInfo, r.ImageUrl))
+        .ToListAsync();
+
+
+
+    return Results.Ok(recipes);
+})
+.WithName("GetRecipesByOwner");
 
 app.MapPost("/api/v1/recipes", async (CreateRecipeRequest request, CookbookDbContext dbContext) =>
 {
@@ -337,8 +362,17 @@ app.MapPost("/api/v1/recipes", async (CreateRecipeRequest request, CookbookDbCon
         });
     }
 
+    if (string.IsNullOrWhiteSpace(request.OwnerUserId))
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["ownerUserId"] = ["Owner user id is required."]
+        });
+    }
+
     var recipe = new Recipe
     {
+        OwnerUserId = request.OwnerUserId.Trim(),
         Title = request.Title.Trim(),
         Description = TrimToNull(request.Description),
         YieldServings = TrimToNull(request.YieldServings),
@@ -358,7 +392,7 @@ app.MapPost("/api/v1/recipes", async (CreateRecipeRequest request, CookbookDbCon
     await dbContext.SaveChangesAsync();
 
     return Results.Created($"/api/v1/recipes/{recipe.Id}", new RecipeDto(
-        recipe.Id, recipe.Title, recipe.Description, recipe.YieldServings, recipe.PrepTime,
+        recipe.Id, recipe.OwnerUserId, recipe.Title, recipe.Description, recipe.YieldServings, recipe.PrepTime,
         recipe.CookTime, recipe.TotalTime, recipe.Ingredients, recipe.Quantities,
         recipe.Equipment, recipe.Instructions, recipe.CookingTemperature,
         recipe.NutritionFacts, recipe.StorageInfo, recipe.ImageUrl));
@@ -453,6 +487,7 @@ record UserProfileDto(string UserId, string FirstName, string LastName, string D
 record UpdateProfileRequest(string FirstName, string LastName, string DisplayName);
 
 record CreateRecipeRequest(
+    string OwnerUserId,
     string Title,
     string? Description,
     string? YieldServings,
@@ -469,6 +504,7 @@ record CreateRecipeRequest(
 
 record RecipeDto(
     int Id,
+    string OwnerUserId,
     string Title,
     string? Description,
     string? YieldServings,

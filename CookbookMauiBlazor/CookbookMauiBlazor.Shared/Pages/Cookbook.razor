@@ -1,83 +1,97 @@
 @page "/cookbook"
 @using CookbookMauiBlazor.Shared.Models
 @using CookbookMauiBlazor.Shared.Services
+@using Microsoft.AspNetCore.Components.Authorization
 @inject IRecipeService RecipeService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IAuthService AuthService
 
 <PageTitle>Cookbook</PageTitle>
 
 <h3>Cookbook</h3>
 
-<div class="mb-4">
-    <button class="btn btn-primary" @onclick="ToggleForm">
-        @(_showForm ? "Cancel" : "+ New Recipe")
-    </button>
-</div>
-
-@if (_showForm)
+@if (_requiresSignIn)
 {
-    <div class="card mb-4">
-        <div class="card-body">
-            <NewRecipeForm OnCreated="OnRecipeCreated" />
-        </div>
+    <div class="alert alert-info">
+        <div>Sign in to create and view your recipes.</div>
+        <button class="btn btn-primary mt-2" @onclick="SignInAsync">Sign in</button>
     </div>
-}
-
-@if (_loading)
-{
-    <p>Loading recipes...</p>
-}
-else if (_recipes.Count == 0)
-{
-    <p class="text-muted">No recipes yet. Add one above!</p>
 }
 else
 {
-    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-        @foreach (var recipe in _recipes)
-        {
-            <div class="col">
-                <div class="card h-100">
-                    @if (!string.IsNullOrWhiteSpace(recipe.ImageUrl))
-                    {
-                        <img src="@recipe.ImageUrl" class="card-img-top" alt="@recipe.Title"
-                             style="height:200px;object-fit:cover;" />
-                    }
-                    <div class="card-body">
-                        <h5 class="card-title">@recipe.Title</h5>
-                        @if (!string.IsNullOrWhiteSpace(recipe.Description))
+    <div class="mb-4">
+        <button class="btn btn-primary" @onclick="ToggleForm">
+            @(_showForm ? "Cancel" : "+ New Recipe")
+        </button>
+    </div>
+
+    @if (_showForm)
+    {
+        <div class="card mb-4">
+            <div class="card-body">
+                <NewRecipeForm OwnerUserId="@_ownerUserId" OnCreated="OnRecipeCreated" />
+            </div>
+        </div>
+    }
+
+    @if (_loading)
+    {
+        <p>Loading recipes...</p>
+    }
+    else if (_recipes.Count == 0)
+    {
+        <p class="text-muted">No recipes yet. Add one above!</p>
+    }
+    else
+    {
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+            @foreach (var recipe in _recipes)
+            {
+                <div class="col">
+                    <div class="card h-100">
+                        @if (!string.IsNullOrWhiteSpace(recipe.ImageUrl))
                         {
-                            <p class="card-text text-muted small">@recipe.Description</p>
+                            <img src="@recipe.ImageUrl" class="card-img-top" alt="@recipe.Title"
+                                 style="height:200px;object-fit:cover;" />
                         }
-                        <div class="d-flex gap-3 small text-muted">
-                            @if (!string.IsNullOrWhiteSpace(recipe.PrepTime))
+                        <div class="card-body">
+                            <h5 class="card-title">@recipe.Title</h5>
+                            @if (!string.IsNullOrWhiteSpace(recipe.Description))
                             {
-                                <span>Prep: @recipe.PrepTime</span>
+                                <p class="card-text text-muted small">@recipe.Description</p>
                             }
-                            @if (!string.IsNullOrWhiteSpace(recipe.CookTime))
-                            {
-                                <span>Cook: @recipe.CookTime</span>
-                            }
-                            @if (!string.IsNullOrWhiteSpace(recipe.YieldServings))
-                            {
-                                <span>Serves: @recipe.YieldServings</span>
-                            }
+                            <div class="d-flex gap-3 small text-muted">
+                                @if (!string.IsNullOrWhiteSpace(recipe.PrepTime))
+                                {
+                                    <span>Prep: @recipe.PrepTime</span>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(recipe.CookTime))
+                                {
+                                    <span>Cook: @recipe.CookTime</span>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(recipe.YieldServings))
+                                {
+                                    <span>Serves: @recipe.YieldServings</span>
+                                }
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        }
-    </div>
+            }
+        </div>
+    }
 }
 
 @code {
     private List<Recipe> _recipes = new();
     private bool _loading = true;
     private bool _showForm;
+    private bool _requiresSignIn;
+    private string _ownerUserId = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
-        _recipes = await RecipeService.GetRecipesAsync();
-        _loading = false;
+        await LoadRecipesAsync();
     }
 
     private void ToggleForm() => _showForm = !_showForm;
@@ -86,5 +100,38 @@ else
     {
         _recipes.Insert(0, recipe);
         _showForm = false;
+    }
+
+    private async Task SignInAsync()
+    {
+        await AuthService.SignInAsync("/cookbook");
+        await LoadRecipesAsync();
+    }
+
+    private async Task LoadRecipesAsync()
+    {
+        _loading = true;
+        _recipes = new List<Recipe>();
+
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        _ownerUserId =
+            user.FindFirst("oid")?.Value
+            ?? user.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value
+            ?? user.FindFirst("sub")?.Value
+            ?? user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(_ownerUserId))
+        {
+            _requiresSignIn = true;
+            _loading = false;
+            return;
+        }
+
+        _requiresSignIn = false;
+        _recipes = await RecipeService.GetRecipesByOwnerAsync(_ownerUserId);
+        _loading = false;
     }
 }

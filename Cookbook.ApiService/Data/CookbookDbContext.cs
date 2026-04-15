@@ -26,6 +26,9 @@ public class CookbookDbContext(DbContextOptions<CookbookDbContext> options) : Db
             entity.Property(x => x.Title)
                 .IsRequired()
                 .HasMaxLength(200);
+            entity.Property(x => x.OwnerUserId)
+                .IsRequired()
+                .HasMaxLength(200);
             entity.Property(x => x.Description)
                 .HasMaxLength(2000);
             entity.Property(x => x.YieldServings)
@@ -44,6 +47,8 @@ public class CookbookDbContext(DbContextOptions<CookbookDbContext> options) : Db
                 .HasMaxLength(2000);
             entity.Property(x => x.ImageUrl)
                 .HasMaxLength(2048);
+
+            entity.HasIndex(x => x.OwnerUserId);
 
             var listConverter = new ValueConverter<List<string>, string>(
                 value => JsonSerializer.Serialize(value, (JsonSerializerOptions?)null),
