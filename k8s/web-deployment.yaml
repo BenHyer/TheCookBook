@@ -4,7 +4,7 @@ metadata:
   name: cookbook-web
   namespace: cookbook
 spec:
-  replicas: 1
+  replicas: 2
   strategy:
     type: Recreate
   selector:
