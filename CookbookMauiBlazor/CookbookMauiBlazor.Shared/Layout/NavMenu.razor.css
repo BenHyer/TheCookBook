@@ -68,7 +68,8 @@
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-    height: 100vh;
+    min-height: 100vh;
+    height: 100dvh;
     left: 0;
     max-width: 320px;
     padding: 1.25rem 0 1.5rem;
@@ -165,7 +166,8 @@
     .nav-drawer {
         position: static;
         transform: translateX(0);
-        height: calc(100vh - 3.5rem);
+        min-height: calc(100vh - 3.5rem);
+        height: calc(100dvh - 3.5rem);
         width: 100%;
         max-width: none;
         box-shadow: none;

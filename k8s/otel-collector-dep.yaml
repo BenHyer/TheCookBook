@@ -20,6 +20,21 @@ spec:
             - containerPort: 4317
             - containerPort: 4318
             - containerPort: 8889
+            - containerPort: 13133
+          # Probes (readiness/liveness)
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 13133
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 13133
+            initialDelaySeconds: 30
+            periodSeconds: 20
           volumeMounts:
             - name: otel-config
               mountPath: /etc/otel
