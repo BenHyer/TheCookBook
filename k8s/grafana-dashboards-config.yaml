@@ -780,7 +780,7 @@ data:
             {
               "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
               "editorMode": "code",
-              "expr": "k6_http_req_failed_rate",
+              "expr": "avg(k6_http_req_failed_rate)",
               "legendFormat": "Failure Rate",
               "range": false,
               "instant": true,
@@ -834,7 +834,7 @@ data:
             {
               "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
               "editorMode": "code",
-              "expr": "k6_http_req_failed_rate",
+              "expr": "avg(k6_http_req_failed_rate)",
               "legendFormat": "Failure Rate",
               "range": true,
               "refId": "A"
@@ -885,7 +885,7 @@ data:
             {
               "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
               "editorMode": "code",
-              "expr": "k6_http_req_duration_p99",
+              "expr": "avg(k6_http_req_duration_p99)",
               "legendFormat": "p99",
               "range": true,
               "refId": "A"
@@ -896,6 +896,7 @@ data:
         }
       ],
       "preload": false,
+      "refresh": "5s",
       "schemaVersion": 42,
       "tags": [],
       "templating": { "list": [] },
