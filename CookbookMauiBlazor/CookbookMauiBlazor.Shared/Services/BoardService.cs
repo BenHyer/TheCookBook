@@ -27,6 +27,61 @@ public sealed class BoardService : IBoardService
         }
     }
 
+    public async Task<BoardDetails?> GetDetailsAsync(Guid boardId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await _httpClient.GetFromJsonAsync<BoardDetails>($"/api/v1/boards/{boardId}", cancellationToken);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public async Task<IReadOnlyList<BoardRecipeSummary>> GetRecipesAsync(Guid boardId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var recipes = await _httpClient.GetFromJsonAsync<List<BoardRecipeSummary>>(
+                $"/api/v1/boards/{boardId}/recipes",
+                cancellationToken);
+            return recipes ?? [];
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    public async Task<IReadOnlyList<BoardRecipeSummary>> AddRecipesAsync(
+        Guid boardId,
+        string ownerUserId,
+        IReadOnlyCollection<int> recipeIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(ownerUserId) || recipeIds.Count == 0)
+        {
+            return [];
+        }
+
+        try
+        {
+            var request = new { ownerUserId = ownerUserId.Trim(), recipeIds = recipeIds.ToArray() };
+            var response = await _httpClient.PostAsJsonAsync(
+                $"/api/v1/boards/{boardId}/recipes/bulk-add",
+                request,
+                cancellationToken);
+            response.EnsureSuccessStatusCode();
+            var recipes = await response.Content.ReadFromJsonAsync<List<BoardRecipeSummary>>(cancellationToken: cancellationToken);
+            return recipes ?? [];
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
     public async Task CreateAsync(string ownerUserId, string name, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(ownerUserId) || string.IsNullOrWhiteSpace(name))

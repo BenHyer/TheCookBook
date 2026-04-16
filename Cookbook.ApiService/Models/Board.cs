@@ -10,4 +10,5 @@ public class Board
     public DateTime UpdatedUtc { get; set; }
 
     public ICollection<BoardPermission> Permissions { get; set; } = new List<BoardPermission>();
+    public ICollection<BoardRecipe> BoardRecipes { get; set; } = new List<BoardRecipe>();
 }

@@ -1,10 +1,13 @@
 @page "/cookbook"
+@using global::Cookbook.Shared.Boards
 @using CookbookMauiBlazor.Shared.Models
 @using CookbookMauiBlazor.Shared.Services
+@using CookbookMauiBlazor.Shared.Viewmodels
 @using Microsoft.AspNetCore.Components.Authorization
 @inject IRecipeService RecipeService
 @inject AuthenticationStateProvider AuthStateProvider
 @inject IAuthService AuthService
+@inject BoardViewModel BoardViewModel
 
 <PageTitle>Cookbook</PageTitle>
 
@@ -23,11 +26,69 @@ else
         <button class="btn btn-primary" @onclick="ToggleForm" disabled="@(_editingRecipe is not null)">
             @(_showForm ? "Cancel" : "+ New Recipe")
         </button>
+        <button class="btn btn-outline-primary" @onclick="ToggleBoardAddPanelAsync"
+                disabled="@(_editingRecipe is not null)">
+            Add recipes to board
+        </button>
         @if (_editingRecipe is not null)
         {
             <span class="text-muted align-self-center">Editing: @_editingRecipe.Title</span>
         }
     </div>
+
+    @if (_showBoardAddPanel)
+    {
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Add recipes to a board</h5>
+                @if (!string.IsNullOrWhiteSpace(_boardAddError))
+                {
+                    <div class="alert alert-danger">@_boardAddError</div>
+                }
+                <div class="mb-3">
+                    <label class="form-label">Select board</label>
+                    <InputSelect class="form-select" @bind-Value="_selectedBoardId">
+                        <option value="">Choose a board</option>
+                        @foreach (var board in _boards)
+                        {
+                            <option value="@board.Id">@board.Name</option>
+                        }
+                    </InputSelect>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Search recipes</label>
+                    <input class="form-control" @bind="_boardSearchText" @bind:event="oninput" placeholder="Search by name" />
+                </div>
+                @if (_recipes.Count == 0)
+                {
+                    <p class="text-muted">No recipes available.</p>
+                }
+                else
+                {
+                    <div class="border rounded p-2" style="max-height: 320px; overflow-y: auto;">
+                        @foreach (var recipe in FilteredBoardAddRecipes())
+                        {
+                            var checkboxId = $"board-add-recipe-{recipe.Id}";
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="@checkboxId"
+                                       checked="@_selectedBoardRecipeIds.Contains(recipe.Id)"
+                                       @onchange="(args) => ToggleBoardSelection(recipe.Id, args)" />
+                                <label class="form-check-label" for="@checkboxId">@recipe.Title</label>
+                            </div>
+                        }
+                    </div>
+                }
+                <div class="mt-3 d-flex gap-2 flex-wrap">
+                    <button class="btn btn-primary" @onclick="AddRecipesToBoardAsync"
+                            disabled="@(_addingToBoard || _selectedBoardRecipeIds.Count == 0 || _selectedBoardId is null)">
+                        @(_addingToBoard ? "Adding..." : "Add selected")
+                    </button>
+                    <button class="btn btn-outline-secondary" @onclick="CloseBoardAddPanel"
+                            disabled="@_addingToBoard">Cancel</button>
+                </div>
+            </div>
+        </div>
+    }
 
     @if (_editingRecipe is not null)
     {
@@ -105,6 +166,13 @@ else
     private bool _requiresSignIn;
     private string _ownerUserId = string.Empty;
     private Recipe? _editingRecipe;
+    private bool _showBoardAddPanel;
+    private bool _addingToBoard;
+    private string _boardSearchText = string.Empty;
+    private string? _boardAddError;
+    private Guid? _selectedBoardId;
+    private IReadOnlyList<BoardSummary> _boards = [];
+    private HashSet<int> _selectedBoardRecipeIds = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -145,6 +213,75 @@ else
     {
         await AuthService.SignInAsync("/cookbook");
         await LoadRecipesAsync();
+    }
+
+    private async Task ToggleBoardAddPanelAsync()
+    {
+        _showBoardAddPanel = !_showBoardAddPanel;
+        _boardAddError = null;
+        _boardSearchText = string.Empty;
+        _selectedBoardRecipeIds.Clear();
+
+        if (_showBoardAddPanel && !string.IsNullOrWhiteSpace(_ownerUserId))
+        {
+            _boards = await BoardViewModel.LoadBoardsAsync(_ownerUserId);
+        }
+    }
+
+    private void CloseBoardAddPanel()
+    {
+        _showBoardAddPanel = false;
+        _selectedBoardRecipeIds.Clear();
+        _boardAddError = null;
+    }
+
+    private IEnumerable<Recipe> FilteredBoardAddRecipes()
+    {
+        var search = _boardSearchText.Trim();
+        return _recipes.Where(r => string.IsNullOrWhiteSpace(search)
+            || r.Title.Contains(search, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private void ToggleBoardSelection(int recipeId, ChangeEventArgs args)
+    {
+        if (args.Value is bool isChecked && isChecked)
+        {
+            _selectedBoardRecipeIds.Add(recipeId);
+        }
+        else
+        {
+            _selectedBoardRecipeIds.Remove(recipeId);
+        }
+    }
+
+    private async Task AddRecipesToBoardAsync()
+    {
+        _boardAddError = null;
+
+        if (string.IsNullOrWhiteSpace(_ownerUserId))
+        {
+            _boardAddError = "Sign in to add recipes.";
+            return;
+        }
+
+        if (_selectedBoardId is null)
+        {
+            _boardAddError = "Select a board.";
+            return;
+        }
+
+        if (_selectedBoardRecipeIds.Count == 0)
+        {
+            _boardAddError = "Select at least one recipe.";
+            return;
+        }
+
+        _addingToBoard = true;
+        await BoardViewModel.AddRecipesAsync(_selectedBoardId.Value, _ownerUserId, _selectedBoardRecipeIds);
+        _addingToBoard = false;
+
+        _selectedBoardRecipeIds.Clear();
+        _showBoardAddPanel = false;
     }
 
     private async Task LoadRecipesAsync()
