@@ -26,6 +26,20 @@ public sealed class RecipeService : IRecipeService
         }
     }
 
+    public async Task<List<Recipe>> GetRecipesByOwnerAsync(string ownerUserId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var safeOwnerUserId = Uri.EscapeDataString(ownerUserId);
+            var recipes = await _httpClient.GetFromJsonAsync<List<Recipe>>($"/api/v1/recipes/owner/{safeOwnerUserId}", cancellationToken);
+            return recipes ?? new List<Recipe>();
+        }
+        catch
+        {
+            return new List<Recipe>();
+        }
+    }
+
     public async Task<Recipe?> CreateRecipeAsync(Recipe recipe, CancellationToken cancellationToken = default)
     {
         try

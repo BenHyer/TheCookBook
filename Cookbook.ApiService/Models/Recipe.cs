@@ -5,6 +5,7 @@ namespace Cookbook.ApiService.Models;
 public class Recipe
 {
     public int Id { get; set; }
+    public string OwnerUserId { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
     public string? YieldServings { get; set; }
