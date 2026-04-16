@@ -122,6 +122,6 @@ jobs:
         id: deploy-to-api
         uses: azure/webapps-deploy@v3
         with:
-          app-name: "cookbookapi-g9d3dmhtaudqh3fj"
+          app-name: "cookbookAPI"
           slot-name: "Production"
           package: .
