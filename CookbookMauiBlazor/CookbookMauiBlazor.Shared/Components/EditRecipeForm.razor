@@ -1,0 +1,384 @@
+@using System.ComponentModel.DataAnnotations
+@using CookbookMauiBlazor.Shared.Models
+@using CookbookMauiBlazor.Shared.Services
+@inject IRecipeService RecipeService
+
+<EditForm Model="_model" OnValidSubmit="SaveRecipeAsync">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="mb-3">
+        <label class="form-label">Title</label>
+        <InputText class="form-control" @bind-Value="_model.Title" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Description</label>
+        <InputTextArea class="form-control" rows="3" @bind-Value="_model.Description" />
+    </div>
+
+    <div class="row">
+        <div class="col-md-4 mb-3">
+            <label class="form-label">Yield/Servings</label>
+            <InputText class="form-control" @bind-Value="_model.YieldServings" />
+        </div>
+        <div class="col-md-4 mb-3">
+            <label class="form-label">Prep Time</label>
+            <InputText class="form-control" @bind-Value="_model.PrepTime" />
+        </div>
+        <div class="col-md-4 mb-3">
+            <label class="form-label">Cook Time</label>
+            <InputText class="form-control" @bind-Value="_model.CookTime" />
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-4 mb-3">
+            <label class="form-label">Total Time</label>
+            <InputText class="form-control" @bind-Value="_model.TotalTime" />
+        </div>
+        <div class="col-md-4 mb-3">
+            <label class="form-label">Cooking Temperature</label>
+            <InputText class="form-control" @bind-Value="_model.CookingTemperature" />
+        </div>
+    </div>
+
+    <div class="ingredients-section mb-3">
+        <div class="ingredients-header d-flex align-items-center gap-3">
+            <div class="ingredients-title">Ingredients</div>
+            <button class="btn btn-danger" type="button" @onclick="AddIngredientRow">Add Ingredient</button>
+        </div>
+
+        <div class="ingredients-grid">
+            @for (var i = 0; i < _model.Ingredients.Count; i++)
+            {
+                var line = _model.Ingredients[i];
+
+                <div class="ingredients-row" @key="line.Id">
+                    <InputText class="form-control ingredient-input" placeholder="Ingredient" @bind-Value="line.Name" />
+                    <InputText class="form-control ingredient-input" placeholder="Qty" type="number" step="any"
+                               inputmode="decimal" @bind-Value="line.Quantity" />
+                    <InputText class="form-control ingredient-input" placeholder="Measurement"
+                               @bind-Value="line.Measurement" />
+                    <InputText class="form-control ingredient-input" placeholder="Custom" @bind-Value="line.Custom" />
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Equipment (one per line)</label>
+        <InputTextArea class="form-control" rows="4" @bind-Value="_model.EquipmentText" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Instructions (one per line)</label>
+        <InputTextArea class="form-control" rows="6" @bind-Value="_model.InstructionsText" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Nutrition Facts</label>
+        <InputTextArea class="form-control" rows="3" @bind-Value="_model.NutritionFacts" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Storage Info</label>
+        <InputTextArea class="form-control" rows="3" @bind-Value="_model.StorageInfo" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Recipe Image (optional)</label>
+        <InputFile class="form-control" accept="image/jpeg,image/png,image/gif,image/webp" OnChange="OnImageSelected" />
+        <div class="text-muted small mt-1">Image upload is not saved yet.</div>
+        @if (_imagePreviewUrl is not null)
+        {
+            <img src="@_imagePreviewUrl" alt="Preview" class="mt-2 rounded"
+                 style="max-height:200px;max-width:100%;object-fit:cover;" />
+        }
+        @if (_imageError is not null)
+        {
+            <div class="text-danger small mt-1">@_imageError</div>
+        }
+    </div>
+
+    @if (_submitError is not null)
+    {
+        <div class="alert alert-danger">@_submitError</div>
+    }
+
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-secondary" type="button" @onclick="CancelAsync"
+                disabled="@_submitting">Cancel</button>
+        <button class="btn btn-primary" type="submit" disabled="@_submitting">
+            @if (_submitting)
+            {
+                <span>Saving...</span>
+            }
+            else
+            {
+
+                <span>Save changes</span>
+            }
+        </button>
+    </div>
+</EditForm>
+
+@code {
+    [Parameter]
+    public Recipe? Recipe { get; set; }
+
+    [Parameter]
+    public EventCallback<Recipe> OnSaved { get; set; }
+
+    [Parameter]
+    public EventCallback OnCanceled { get; set; }
+
+    private CreateRecipeModel _model = new();
+    private IBrowserFile? _imageFile;
+    private string? _imagePreviewUrl;
+    private string? _imageError;
+    private string? _submitError;
+    private bool _submitting;
+
+    protected override void OnParametersSet()
+    {
+        if (Recipe is null)
+        {
+            EnsureIngredientRow();
+            return;
+        }
+
+        _model = CreateModelFromRecipe(Recipe);
+        EnsureIngredientRow();
+        _imagePreviewUrl = string.IsNullOrWhiteSpace(Recipe.ImageUrl) ? null : Recipe.ImageUrl;
+    }
+
+    private async Task OnImageSelected(InputFileChangeEventArgs e)
+    {
+        _imageError = null;
+        _imagePreviewUrl = null;
+        _imageFile = null;
+
+        var file = e.File;
+        var allowedTypes = new[] { "image/jpeg", "image/png", "image/gif", "image/webp" };
+        if (!allowedTypes.Contains(file.ContentType.ToLowerInvariant()))
+        {
+            _imageError = "Only JPEG, PNG, GIF, and WebP images are allowed.";
+            return;
+        }
+
+        if (file.Size > 5 * 1024 * 1024)
+        {
+            _imageError = "Image must be under 5 MB.";
+            return;
+        }
+
+        _imageFile = file;
+
+        using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+        var bytes = ms.ToArray();
+        _imagePreviewUrl = $"data:{file.ContentType};base64,{Convert.ToBase64String(bytes)}";
+    }
+
+    private async Task SaveRecipeAsync()
+    {
+        _submitError = null;
+        _submitting = true;
+
+        try
+        {
+            if (Recipe is null)
+            {
+                _submitError = "No recipe selected for editing.";
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(Recipe.OwnerUserId))
+            {
+                _submitError = "You must be signed in to update recipes.";
+                return;
+            }
+
+            var ingredientLists = BuildIngredientLists(_model.Ingredients);
+
+            var updated = new Recipe
+            {
+                Id = Recipe.Id,
+                OwnerUserId = Recipe.OwnerUserId,
+                Title = _model.Title.Trim(),
+                Description = TrimToNull(_model.Description),
+                YieldServings = TrimToNull(_model.YieldServings),
+                PrepTime = TrimToNull(_model.PrepTime),
+                CookTime = TrimToNull(_model.CookTime),
+                TotalTime = TrimToNull(_model.TotalTime),
+                CookingTemperature = TrimToNull(_model.CookingTemperature),
+                NutritionFacts = TrimToNull(_model.NutritionFacts),
+                StorageInfo = TrimToNull(_model.StorageInfo),
+                Ingredients = ingredientLists.Ingredients,
+                Quantities = ingredientLists.Quantities,
+                Equipment = SplitLines(_model.EquipmentText),
+                Instructions = SplitLines(_model.InstructionsText),
+                ImageUrl = Recipe.ImageUrl
+            };
+
+            var saved = await RecipeService.UpdateRecipeAsync(updated);
+            if (saved is null)
+            {
+                _submitError = "Failed to update the recipe. Please try again.";
+                return;
+            }
+
+            await OnSaved.InvokeAsync(saved);
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+
+    private Task CancelAsync() => OnCanceled.InvokeAsync();
+
+    private static CreateRecipeModel CreateModelFromRecipe(Recipe recipe)
+    {
+        var ingredientLines = new List<IngredientLine>();
+        var count = Math.Max(recipe.Ingredients?.Count ?? 0, recipe.Quantities?.Count ?? 0);
+
+        for (var i = 0; i < count; i++)
+        {
+            var name = i < (recipe.Ingredients?.Count ?? 0) ? recipe.Ingredients[i] : null;
+            var quantity = i < (recipe.Quantities?.Count ?? 0) ? recipe.Quantities[i] : null;
+            ingredientLines.Add(new IngredientLine { Name = name, Custom = quantity });
+        }
+
+        return new CreateRecipeModel
+        {
+            Title = recipe.Title,
+            Description = recipe.Description,
+            YieldServings = recipe.YieldServings,
+            PrepTime = recipe.PrepTime,
+            CookTime = recipe.CookTime,
+            TotalTime = recipe.TotalTime,
+            CookingTemperature = recipe.CookingTemperature,
+            NutritionFacts = recipe.NutritionFacts,
+            StorageInfo = recipe.StorageInfo,
+            Ingredients = ingredientLines.Count == 0 ? new List<IngredientLine> { new IngredientLine() } : ingredientLines,
+            EquipmentText = JoinLines(recipe.Equipment),
+            InstructionsText = JoinLines(recipe.Instructions)
+        };
+    }
+
+    private static string? TrimToNull(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        return value.Trim();
+    }
+
+    private static List<string> SplitLines(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return new List<string>();
+        }
+
+        return value
+            .Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(line => line.Trim())
+            .Where(line => !string.IsNullOrWhiteSpace(line))
+            .ToList();
+    }
+
+    private static string JoinLines(IReadOnlyList<string>? values)
+    {
+        if (values is null || values.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        return string.Join("\n", values);
+    }
+
+    private static (List<string> Ingredients, List<string> Quantities) BuildIngredientLists(
+        IEnumerable<IngredientLine> lines)
+    {
+        var ingredients = new List<string>();
+        var quantities = new List<string>();
+
+        foreach (var line in lines)
+        {
+            var name = TrimToNull(line.Name);
+            if (name is null)
+            {
+                continue;
+            }
+
+            ingredients.Add(name);
+            quantities.Add(FormatQuantity(line));
+        }
+
+        return (ingredients, quantities);
+    }
+
+    private static string FormatQuantity(IngredientLine line)
+    {
+        var quantity = TrimToNull(line.Quantity);
+        var measurement = TrimToNull(line.Measurement);
+        var custom = TrimToNull(line.Custom);
+
+        if (!string.IsNullOrEmpty(custom))
+        {
+            return string.IsNullOrEmpty(quantity) ? custom : $"{quantity} {custom}";
+        }
+
+        if (!string.IsNullOrEmpty(quantity) && !string.IsNullOrEmpty(measurement))
+        {
+            return $"{quantity} {measurement}";
+        }
+
+        return quantity ?? measurement ?? string.Empty;
+    }
+
+    private void AddIngredientRow()
+    {
+        _model.Ingredients.Add(new IngredientLine());
+    }
+
+    private void EnsureIngredientRow()
+    {
+        if (_model.Ingredients is null || _model.Ingredients.Count == 0)
+        {
+            _model.Ingredients = new List<IngredientLine> { new IngredientLine() };
+        }
+    }
+
+    private sealed class CreateRecipeModel
+    {
+        [Required]
+        public string Title { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public string? YieldServings { get; set; }
+        public string? PrepTime { get; set; }
+        public string? CookTime { get; set; }
+        public string? TotalTime { get; set; }
+        public string? CookingTemperature { get; set; }
+        public string? NutritionFacts { get; set; }
+        public string? StorageInfo { get; set; }
+        public List<IngredientLine> Ingredients { get; set; } = new() { new IngredientLine() };
+        public string? EquipmentText { get; set; }
+        public string? InstructionsText { get; set; }
+    }
+
+    private sealed class IngredientLine
+    {
+        public Guid Id { get; } = Guid.NewGuid();
+        public string? Name { get; set; }
+        public string? Quantity { get; set; }
+        public string? Measurement { get; set; }
+        public string? Custom { get; set; }
+    }
+}

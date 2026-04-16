@@ -19,13 +19,25 @@
 }
 else
 {
-    <div class="mb-4">
-        <button class="btn btn-primary" @onclick="ToggleForm">
+    <div class="mb-4 d-flex gap-2 flex-wrap">
+        <button class="btn btn-primary" @onclick="ToggleForm" disabled="@(_editingRecipe is not null)">
             @(_showForm ? "Cancel" : "+ New Recipe")
         </button>
+        @if (_editingRecipe is not null)
+        {
+            <span class="text-muted align-self-center">Editing: @_editingRecipe.Title</span>
+        }
     </div>
 
-    @if (_showForm)
+    @if (_editingRecipe is not null)
+    {
+        <div class="card mb-4">
+            <div class="card-body">
+                <EditRecipeForm Recipe="@_editingRecipe" OnSaved="OnRecipeUpdated" OnCanceled="CancelEdit" />
+            </div>
+        </div>
+    }
+    else if (_showForm)
     {
         <div class="card mb-4">
             <div class="card-body">
@@ -55,7 +67,11 @@ else
                                  style="height:200px;object-fit:cover;" />
                         }
                         <div class="card-body">
-                            <h5 class="card-title">@recipe.Title</h5>
+                            <div class="d-flex justify-content-between align-items-start">
+                                <h5 class="card-title">@recipe.Title</h5>
+                                <button class="btn btn-sm btn-outline-secondary" type="button"
+                                        @onclick="() => StartEdit(recipe)">Edit</button>
+                            </div>
                             @if (!string.IsNullOrWhiteSpace(recipe.Description))
                             {
                                 <p class="card-text text-muted small">@recipe.Description</p>
@@ -88,6 +104,7 @@ else
     private bool _showForm;
     private bool _requiresSignIn;
     private string _ownerUserId = string.Empty;
+    private Recipe? _editingRecipe;
 
     protected override async Task OnInitializedAsync()
     {
@@ -100,6 +117,28 @@ else
     {
         _recipes.Insert(0, recipe);
         _showForm = false;
+    }
+
+    private async Task OnRecipeUpdated(Recipe recipe)
+    {
+        var index = _recipes.FindIndex(r => r.Id == recipe.Id);
+        if (index >= 0)
+        {
+            _recipes[index] = recipe;
+        }
+
+        _editingRecipe = null;
+    }
+
+    private void StartEdit(Recipe recipe)
+    {
+        _editingRecipe = recipe;
+        _showForm = false;
+    }
+
+    private void CancelEdit()
+    {
+        _editingRecipe = null;
     }
 
     private async Task SignInAsync()
