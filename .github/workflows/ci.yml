@@ -294,16 +294,6 @@ jobs:
           echo "=== Verifying k6 binary ==="
           /tmp/k6 version
 
-      - name: Start k6 load test
-        run: |
-          kubectl port-forward -n cookbook svc/prometheus 9090:9090 &
-          echo $! > /tmp/pf.pid
-          sleep 3
-          K6_PROMETHEUS_RW_SERVER_URL=http://localhost:9090/api/v1/write \
-            /tmp/k6 run --out experimental-prometheus-rw k6/downtime-test.js &
-          echo $! > /tmp/k6.pid
-          echo "k6 started (PID $(cat /tmp/k6.pid))"
-
       - name: Apply Kubernetes secrets
         run: |
           kubectl create secret generic cookbook-secrets \
@@ -330,8 +320,19 @@ jobs:
           kubectl scale deployment/prometheus -n cookbook --replicas=0
           kubectl wait --for=delete pod -l app=prometheus -n cookbook --timeout=60s
           kubectl scale deployment/prometheus -n cookbook --replicas=1
+          kubectl rollout status deployment/prometheus -n cookbook --timeout=60s
           kubectl rollout restart deployment/blackbox -n cookbook
           kubectl rollout restart deployment/grafana -n cookbook
+
+      - name: Start k6 load test
+        run: |
+          kubectl port-forward -n cookbook svc/prometheus 9090:9090 &
+          echo $! > /tmp/pf.pid
+          sleep 3
+          K6_PROMETHEUS_RW_SERVER_URL=http://localhost:9090/api/v1/write \
+            /tmp/k6 run --out experimental-prometheus-rw k6/downtime-test.js &
+          echo $! > /tmp/k6.pid
+          echo "k6 started (PID $(cat /tmp/k6.pid))"
 
       - name: Wait for rollouts
         run: |
