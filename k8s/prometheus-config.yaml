@@ -20,7 +20,7 @@ data:
           module: [http_2xx]
         static_configs:
           - targets:
-              - http://cookbook-web/
+              - https://cookbook.benhhome.duckdns.org
         relabel_configs:
           - source_labels: [__address__]
             target_label: __param_target
