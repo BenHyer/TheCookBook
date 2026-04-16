@@ -54,6 +54,20 @@ public sealed class RecipeService : IRecipeService
         }
     }
 
+    public async Task<Recipe?> UpdateRecipeAsync(Recipe recipe, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var response = await _httpClient.PutAsJsonAsync($"/api/v1/recipes/{recipe.Id}", recipe, cancellationToken);
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadFromJsonAsync<Recipe>(cancellationToken: cancellationToken);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     public async Task<string?> UploadRecipeImageAsync(int recipeId, Stream imageStream, string fileName, string contentType, CancellationToken cancellationToken = default)
     {
         try
