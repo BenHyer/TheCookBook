@@ -14,6 +14,7 @@ public class CookbookDbContext(DbContextOptions<CookbookDbContext> options) : Db
     public DbSet<Recipe> Recipes => Set<Recipe>();
     public DbSet<Board> Boards => Set<Board>();
     public DbSet<BoardPermission> BoardPermissions => Set<BoardPermission>();
+    public DbSet<BoardRecipe> BoardRecipes => Set<BoardRecipe>();
     public DbSet<UserProfile> UserProfiles => Set<UserProfile>();
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
@@ -124,6 +125,26 @@ public class CookbookDbContext(DbContextOptions<CookbookDbContext> options) : Db
 
             entity.HasIndex(x => new { x.BoardId, x.UserId })
                 .IsUnique();
+        });
+
+        modelBuilder.Entity<BoardRecipe>(entity =>
+        {
+            entity.ToTable("BoardRecipes");
+            entity.HasKey(x => new { x.BoardId, x.RecipeId });
+            entity.Property(x => x.CreatedUtc)
+                .IsRequired();
+
+            entity.HasOne(x => x.Board)
+                .WithMany(x => x.BoardRecipes)
+                .HasForeignKey(x => x.BoardId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(x => x.Recipe)
+                .WithMany(x => x.BoardRecipes)
+                .HasForeignKey(x => x.RecipeId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(x => x.RecipeId);
         });
 
         modelBuilder.Entity<UserProfile>(entity =>

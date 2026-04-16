@@ -15,6 +15,19 @@ public sealed class BoardViewModel
     public Task<IReadOnlyList<BoardSummary>> LoadBoardsAsync(string ownerUserId, CancellationToken cancellationToken = default) =>
         _boardService.GetByOwnerAsync(ownerUserId, cancellationToken);
 
+    public Task<BoardDetails?> LoadBoardDetailsAsync(Guid boardId, CancellationToken cancellationToken = default) =>
+        _boardService.GetDetailsAsync(boardId, cancellationToken);
+
+    public Task<IReadOnlyList<BoardRecipeSummary>> LoadBoardRecipesAsync(Guid boardId, CancellationToken cancellationToken = default) =>
+        _boardService.GetRecipesAsync(boardId, cancellationToken);
+
+    public Task<IReadOnlyList<BoardRecipeSummary>> AddRecipesAsync(
+        Guid boardId,
+        string ownerUserId,
+        IReadOnlyCollection<int> recipeIds,
+        CancellationToken cancellationToken = default) =>
+        _boardService.AddRecipesAsync(boardId, ownerUserId, recipeIds, cancellationToken);
+
     public Task CreateBoardAsync(string ownerUserId, string name, CancellationToken cancellationToken = default) =>
         _boardService.CreateAsync(ownerUserId, name, cancellationToken);
 }

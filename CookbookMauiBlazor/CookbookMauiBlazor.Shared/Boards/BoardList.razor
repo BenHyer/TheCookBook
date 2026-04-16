@@ -1,4 +1,4 @@
-@using Cookbook.Shared.Boards
+@using global::Cookbook.Shared.Boards
 @using CookbookMauiBlazor.Shared.Viewmodels
 @if (_boards.Count == 0)
 {
@@ -9,7 +9,12 @@ else
     <ul class="list-group">
         @foreach (var board in _boards)
         {
-            <li class="list-group-item">@board.Name</li>
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <span>@board.Name</span>
+                <NavLink class="btn btn-sm btn-outline-secondary" href="@($"/boards/{board.Id}")">
+                    Open
+                </NavLink>
+            </li>
         }
     </ul>
 }

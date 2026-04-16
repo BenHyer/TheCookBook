@@ -20,4 +20,6 @@ public class Recipe
     public string? NutritionFacts { get; set; }
     public string? StorageInfo { get; set; }
     public string? ImageUrl { get; set; }
+
+    public ICollection<BoardRecipe> BoardRecipes { get; set; } = new List<BoardRecipe>();
 }
