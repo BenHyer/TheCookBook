@@ -8,6 +8,7 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject IAuthService AuthService
 @inject BoardViewModel BoardViewModel
+@inject NavigationManager Navigation
 
 <PageTitle>Cookbook</PageTitle>
 
@@ -121,7 +122,8 @@ else
             @foreach (var recipe in _recipes)
             {
                 <div class="col">
-                    <NavLink class="card h-100 text-decoration-none" href="@($"/recipes/{recipe.Id}")">
+                    <div class="card h-100 text-decoration-none" style="cursor:pointer;"
+                         @onclick="() => NavigateToRecipe(recipe.Id)">
                         @if (!string.IsNullOrWhiteSpace(recipe.ImageUrl))
                         {
                             <img src="@recipe.ImageUrl" class="card-img-top" alt="@recipe.Title"
@@ -154,7 +156,7 @@ else
                                 }
                             </div>
                         </div>
-                    </NavLink>
+                    </div>
                 </div>
             }
         </div>
@@ -204,6 +206,11 @@ else
     {
         _editingRecipe = recipe;
         _showForm = false;
+    }
+
+    private void NavigateToRecipe(int recipeId)
+    {
+        Navigation.NavigateTo($"/recipes/{recipeId}");
     }
 
     private void CancelEdit()
