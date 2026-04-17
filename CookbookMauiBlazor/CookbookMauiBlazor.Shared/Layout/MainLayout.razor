@@ -1,4 +1,13 @@
 ﻿@inherits LayoutComponentBase
+@using Microsoft.AspNetCore.Authorization
+@using CookbookMauiBlazor.Shared.Services
+@inject UserProfileInitService UserProfileInitService
+
+<AuthorizeView>
+    <Authorized>
+        <!-- Profile is ensured in OnInitializedAsync -->
+    </Authorized>
+</AuthorizeView>
 
 <div class="page">
     <div class="sidebar">
@@ -21,3 +30,13 @@
     <a href="." class="reload">Reload</a>
     <span class="dismiss">🗙</span>
 </div>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        // Ensure the authenticated user's profile exists in the database
+        // This creates a profile from Azure AD claims if one doesn't exist
+        await UserProfileInitService.EnsureProfileAsync();
+    }
+}
+

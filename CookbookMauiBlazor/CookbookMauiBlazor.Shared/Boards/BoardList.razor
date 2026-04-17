@@ -11,9 +11,17 @@ else
         {
             <li class="list-group-item d-flex justify-content-between align-items-center">
                 <span>@board.Name</span>
-                <NavLink class="btn btn-sm btn-outline-secondary" href="@($"/boards/{board.Id}")">
-                    Open
-                </NavLink>
+                <div class="d-flex gap-2">
+                    @if (OnShare.HasDelegate)
+                    {
+                        <button class="btn btn-sm btn-outline-primary" @onclick="() => OnShare.InvokeAsync(board)">
+                            Share
+                        </button>
+                    }
+                    <NavLink class="btn btn-sm btn-outline-secondary" href="@($"/boards/{board.Id}")">
+                        Open
+                    </NavLink>
+                </div>
             </li>
         }
     </ul>
@@ -28,6 +36,9 @@ else
 
     [Parameter]
     public int ReloadToken { get; set; }
+
+    [Parameter]
+    public EventCallback<BoardSummary> OnShare { get; set; }
 
     private IReadOnlyList<BoardSummary> _boards = [];
 

@@ -1,12 +1,16 @@
 @page "/boards/{BoardId:guid}"
 @using System.ComponentModel
+@using Microsoft.AspNetCore.Components.Authorization
 @using global::Cookbook.Shared.Boards
 @using BoardDetailsDto = global::Cookbook.Shared.Boards.BoardDetails
 @using CookbookMauiBlazor.Shared.Models
+@using CookbookMauiBlazor.Shared.Services
 @using CookbookMauiBlazor.Shared.Viewmodels
 @using Microsoft.AspNetCore.Authorization
+@using System.Security.Claims
 @attribute [Authorize]
 @inject BoardDetailsViewModel ViewModel
+@inject AuthenticationStateProvider AuthenticationStateProvider
 @implements IDisposable
 
 <PageTitle>@(ViewModel.BoardDetails?.Name ?? "Board")</PageTitle>
@@ -30,8 +34,17 @@ else
             }
             <div class="text-muted small">@ViewModel.BoardDetails.RecipeCount recipe(s)</div>
         </div>
-        <button class="btn btn-primary" @onclick="ViewModel.ToggleAddPanelAsync">Add recipes</button>
+        <div class="d-flex gap-2 flex-wrap">
+            <button class="btn btn-primary" @onclick="ViewModel.ToggleAddPanelAsync">Add recipes</button>
+            @if (_isOwner)
+            {
+                <button class="btn btn-outline-primary" @onclick="OpenShareDialog">Share</button>
+            }
+        </div>
     </div>
+
+    <ShareBoardDialog BoardId="BoardId" BoardOwnerId="ViewModel.BoardDetails.OwnerUserId" IsOpen="@_shareDialogOpen"
+                      OnClose="CloseShareDialog" OnShared="OnBoardShared" />
 
     @if (ViewModel.ShowAddPanel)
     {
@@ -115,14 +128,45 @@ else
     [Parameter]
     public Guid BoardId { get; set; }
 
+    private bool _shareDialogOpen;
+    private bool _isOwner;
+    private string _currentUserId = string.Empty;
+
     protected override async Task OnInitializedAsync()
     {
         ViewModel.PropertyChanged += OnViewModelChanged;
+        await InitializeUserAsync();
     }
 
     protected override async Task OnParametersSetAsync()
     {
         await ViewModel.LoadBoardAsync(BoardId);
+        _isOwner = _currentUserId == ViewModel.BoardDetails?.OwnerUserId;
+    }
+
+    private async Task InitializeUserAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        _currentUserId = user.FindFirst("oid")?.Value ??
+            user.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value ??
+            user.FindFirst("sub")?.Value ?? string.Empty;
+    }
+
+    private void OpenShareDialog()
+    {
+        _shareDialogOpen = true;
+    }
+
+    private async Task CloseShareDialog()
+    {
+        _shareDialogOpen = false;
+    }
+
+    private async Task OnBoardShared()
+    {
+        // Optionally refresh board data if needed
+        _shareDialogOpen = false;
     }
 
     private void OnViewModelChanged(object? sender, PropertyChangedEventArgs e)

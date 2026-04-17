@@ -10,6 +10,7 @@ using Microsoft.Identity.Web;
 using CookbookMauiBlazor.Shared.Boards;
 using Cookbook.Shared.Boards;
 using System.Diagnostics;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -396,6 +397,57 @@ if (enableUserProfiles)
             profile.ProfilePictureUrl));
     })
     .WithName("UpdateUserProfile");
+
+    app.MapPost("/api/v1/users/ensure-profile", async (ClaimsPrincipal user, CookbookDbContext dbContext) =>
+    {
+        var userId = user.FindFirst("oid")?.Value ??
+            user.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value ??
+            user.FindFirst("sub")?.Value;
+
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return Results.Unauthorized();
+        }
+
+        var profile = await dbContext.UserProfiles.FindAsync(userId);
+        if (profile is not null)
+        {
+            return Results.Ok(new UserProfileDto(
+                profile.UserId,
+                profile.FirstName,
+                profile.LastName,
+                profile.DisplayName,
+                profile.ProfilePictureUrl));
+        }
+
+        // Extract basic info from Azure AD claims
+        var givenName = user.FindFirst("given_name")?.Value ?? string.Empty;
+        var surname = user.FindFirst("family_name")?.Value ?? string.Empty;
+        var name = user.FindFirst("name")?.Value ?? string.Empty;
+        var displayName = !string.IsNullOrWhiteSpace(name) ? name : $"{givenName} {surname}".Trim();
+
+        var utcNow = DateTime.UtcNow;
+        profile = new UserProfile
+        {
+            UserId = userId,
+            FirstName = givenName,
+            LastName = surname,
+            DisplayName = displayName,
+            CreatedUtc = utcNow,
+            UpdatedUtc = utcNow
+        };
+
+        dbContext.UserProfiles.Add(profile);
+        await dbContext.SaveChangesAsync();
+
+        return Results.Ok(new UserProfileDto(
+            profile.UserId,
+            profile.FirstName,
+            profile.LastName,
+            profile.DisplayName,
+            profile.ProfilePictureUrl));
+    })
+    .WithName("EnsureUserProfile");
 }
 else
 {
@@ -669,6 +721,204 @@ else
     app.Logger.LogInformation("Feature flag disabled: recipe image uploads.");
 }
 
+// Board Sharing Endpoints
+
+app.MapGet("/api/v1/users", async (string? search, CookbookDbContext dbContext) =>
+{
+    var query = dbContext.UserProfiles.AsQueryable();
+
+    if (!string.IsNullOrWhiteSpace(search))
+    {
+        var searchLower = search.Trim().ToLower();
+        query = query.Where(u =>
+            u.DisplayName.ToLower().Contains(searchLower) ||
+            u.FirstName.ToLower().Contains(searchLower) ||
+            u.LastName.ToLower().Contains(searchLower));
+    }
+
+    var users = await query
+        .OrderBy(u => u.DisplayName)
+        .Select(u => new UserSummaryDto(u.UserId, u.DisplayName, u.FirstName, u.LastName, u.ProfilePictureUrl))
+        .Take(50)
+        .ToListAsync();
+
+    return Results.Ok(users);
+})
+.WithName("SearchUsers");
+
+app.MapGet("/api/v1/boards/{boardId:guid}/collaborators", async (Guid boardId, CookbookDbContext dbContext) =>
+{
+    var board = await dbContext.Boards
+        .Include(b => b.Permissions)
+        .FirstOrDefaultAsync(b => b.Id == boardId);
+
+    if (board is null)
+    {
+        return Results.NotFound();
+    }
+
+    var permissions = await dbContext.BoardPermissions
+        .Where(bp => bp.BoardId == boardId)
+        .Join(dbContext.UserProfiles,
+            bp => bp.UserId,
+            up => up.UserId,
+            (bp, up) => new BoardCollaborator(up.UserId, up.DisplayName, up.FirstName, up.LastName, up.ProfilePictureUrl, bp.Role))
+        .ToListAsync();
+
+    return Results.Ok(permissions);
+})
+.WithName("GetBoardCollaborators");
+
+app.MapPost("/api/v1/boards/{boardId:guid}/share", async (
+    Guid boardId,
+    ShareBoardRequest request,
+    ClaimsPrincipal user,
+    CookbookDbContext dbContext) =>
+{
+    var board = await dbContext.Boards
+        .Include(b => b.Permissions)
+        .FirstOrDefaultAsync(b => b.Id == boardId);
+
+    if (board is null)
+    {
+        return Results.NotFound();
+    }
+
+    var currentUserId = user.FindFirst("oid")?.Value ??
+        user.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value ??
+        user.FindFirst("sub")?.Value;
+
+    if (currentUserId is null)
+    {
+        return Results.Forbid();
+    }
+
+    // Check if current user is Admin
+    var userPermission = board.Permissions.FirstOrDefault(p => p.UserId == currentUserId);
+    if (userPermission?.Role != BoardRoles.Admin)
+    {
+        return Results.Forbid();
+    }
+
+    var utcNow = DateTime.UtcNow;
+    var existingPermissionUserIds = board.Permissions.Select(p => p.UserId).ToHashSet();
+
+    foreach (var userId in request.UserIds)
+    {
+        // Skip if user already has permission or if it's the current user
+        if (existingPermissionUserIds.Contains(userId) || userId == currentUserId)
+        {
+            continue;
+        }
+
+        // Verify user exists
+        var userExists = await dbContext.UserProfiles.AnyAsync(u => u.UserId == userId);
+        if (!userExists)
+        {
+            continue;
+        }
+
+        dbContext.BoardPermissions.Add(new BoardPermission
+        {
+            BoardId = boardId,
+            UserId = userId,
+            Role = BoardRoles.Viewer,
+            CreatedUtc = utcNow
+        });
+    }
+
+    await dbContext.SaveChangesAsync();
+
+    // Return updated collaborators
+    var collaborators = await dbContext.BoardPermissions
+        .Where(bp => bp.BoardId == boardId)
+        .Join(dbContext.UserProfiles,
+            bp => bp.UserId,
+            up => up.UserId,
+            (bp, up) => new BoardCollaborator(up.UserId, up.DisplayName, up.FirstName, up.LastName, up.ProfilePictureUrl, bp.Role))
+        .ToListAsync();
+
+    return Results.Ok(collaborators);
+})
+.WithName("ShareBoard");
+
+app.MapDelete("/api/v1/boards/{boardId:guid}/permissions/{userId}", async (
+    Guid boardId,
+    string userId,
+    ClaimsPrincipal user,
+    CookbookDbContext dbContext) =>
+{
+    var board = await dbContext.Boards
+        .Include(b => b.Permissions)
+        .FirstOrDefaultAsync(b => b.Id == boardId);
+
+    if (board is null)
+    {
+        return Results.NotFound();
+    }
+
+    var currentUserId = user.FindFirst("oid")?.Value ??
+        user.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value ??
+        user.FindFirst("sub")?.Value;
+
+    if (currentUserId is null)
+    {
+        return Results.Forbid();
+    }
+
+    // Check if current user is Admin
+    var currentUserPermission = board.Permissions.FirstOrDefault(p => p.UserId == currentUserId);
+    if (currentUserPermission?.Role != BoardRoles.Admin)
+    {
+        return Results.Forbid();
+    }
+
+    // Prevent removing owner's Admin role
+    if (userId == board.OwnerUserId && currentUserPermission?.UserId == userId)
+    {
+        return Results.BadRequest("Cannot remove the board owner's permissions.");
+    }
+
+    var permission = await dbContext.BoardPermissions
+        .FirstOrDefaultAsync(bp => bp.BoardId == boardId && bp.UserId == userId);
+
+    if (permission is null)
+    {
+        return Results.NotFound();
+    }
+
+    dbContext.BoardPermissions.Remove(permission);
+    await dbContext.SaveChangesAsync();
+
+    return Results.Ok();
+})
+.WithName("RemovePermission");
+
+app.MapGet("/api/v1/boards/shared-with-me/{userId}", async (string userId, CookbookDbContext dbContext) =>
+{
+    var sharedBoards = await dbContext.BoardPermissions
+        .Where(bp => bp.UserId == userId)
+        .Join(dbContext.Boards,
+            bp => bp.BoardId,
+            b => b.Id,
+            (bp, b) => new { Permission = bp, Board = b })
+        .Where(x => x.Board.OwnerUserId != userId) // Exclude owned boards
+        .ToListAsync();
+
+    var result = sharedBoards
+        .Select(x => new SharedBoardSummary(
+            x.Board.Id,
+            x.Board.Name,
+            x.Board.OwnerUserId,
+            x.Permission.Role,
+            ToUtcOffset(x.Board.CreatedUtc)))
+        .OrderBy(b => b.Name)
+        .ToList();
+
+    return Results.Ok(result);
+})
+.WithName("GetSharedBoards");
+
 app.MapDefaultEndpoints();
 
 app.Run();
@@ -769,3 +1019,12 @@ record RecipeDto(
     string? NutritionFacts,
     string? StorageInfo,
     string? ImageUrl);
+
+// Board Sharing DTOs
+record UserSummaryDto(string UserId, string DisplayName, string FirstName, string LastName, string? ProfilePictureUrl);
+
+record ShareBoardRequest(List<string> UserIds);
+
+record BoardCollaborator(string UserId, string DisplayName, string FirstName, string LastName, string? ProfilePictureUrl, string Role);
+
+record SharedBoardSummary(Guid Id, string Name, string OwnerUserId, string Role, DateTimeOffset CreatedAt);

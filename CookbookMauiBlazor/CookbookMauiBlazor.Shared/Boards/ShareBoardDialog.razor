@@ -1,0 +1,230 @@
+@using global::Cookbook.Shared.Boards
+@using CookbookMauiBlazor.Shared.Services
+@using System.Collections.Generic
+
+@if (IsOpen)
+{
+    <div class="modal d-block" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Share Board</h5>
+                    <button type="button" class="btn-close" @onclick="CloseAsync"></button>
+                </div>
+                <div class="modal-body">
+                    @if (_isLoading)
+                    {
+                        <p>Loading...</p>
+                    }
+                    else
+                    {
+                        <div class="mb-3">
+                            <label class="form-label">Search users</label>
+                            <input type="text" class="form-control" placeholder="Search by name..." @bind="_searchQuery"
+                                   @oninput="OnSearchChangedAsync" />
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(_errorMessage))
+                        {
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                @_errorMessage
+                                <button type="button" class="btn-close" @onclick="() => _errorMessage = string.Empty"></button>
+                            </div>
+                        }
+
+                        <div class="mb-3">
+                            <h6>Current Collaborators</h6>
+                            @if (_collaborators.Count == 0)
+                            {
+                                <p class="text-muted small">No one else has access yet.</p>
+                            }
+                            else
+                            {
+                                <div class="list-group list-group-sm">
+                                    @foreach (var collaborator in _collaborators)
+                                    {
+                                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <div>@collaborator.DisplayName</div>
+                                                <small class="text-muted">@collaborator.Role</small>
+                                            </div>
+                                            @if (collaborator.UserId != _boardOwnerId && _isAdmin)
+                                            {
+                                                <button class="btn btn-sm btn-outline-danger"
+                                                        @onclick="() => RemoveCollaboratorAsync(collaborator.UserId)">
+                                                    Remove
+                                                </button>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+
+                        <div>
+                            <h6>Add Users</h6>
+                            @if (_availableUsers.Count == 0)
+                            {
+                                <p class="text-muted small">No users available to add.</p>
+                            }
+                            else
+                            {
+                                <div class="list-group list-group-sm" style="max-height: 300px; overflow-y: auto;">
+                                    @foreach (var user in _availableUsers)
+                                    {
+                                        var isSelected = _selectedUserIds.Contains(user.UserId);
+                                        <label class="list-group-item">
+                                            <input type="checkbox" checked="@isSelected"
+                                                   @onchange="(ChangeEventArgs args) => ToggleUserSelection(user.UserId, (bool?)args.Value ?? false)" />
+                                            <span class="ms-2">@user.DisplayName</span>
+                                        </label>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseAsync">Close</button>
+                    <button type="button" class="btn btn-primary" @onclick="ShareAsync"
+                            disabled="@(_selectedUserIds.Count == 0 || _isSaving)">
+                        @(_isSaving ? "Sharing..." : "Share")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Inject]
+    private IUserService UserService { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public Guid BoardId { get; set; }
+
+    [Parameter]
+    public string BoardOwnerId { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback OnShared { get; set; }
+
+    [Parameter]
+    public bool IsOpen { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private List<BoardCollaborator> _collaborators = [];
+    private List<UserSummary> _availableUsers = [];
+    private HashSet<string> _selectedUserIds = [];
+    private string _searchQuery = string.Empty;
+    private bool _isLoading;
+    private bool _isSaving;
+    private string _errorMessage = string.Empty;
+    private bool _isAdmin = true;
+    private string _boardOwnerId = string.Empty;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IsOpen && BoardId != Guid.Empty)
+        {
+            await LoadDataAsync();
+        }
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _isLoading = true;
+        _selectedUserIds.Clear();
+        _errorMessage = string.Empty;
+
+        try
+        {
+            _collaborators = (await UserService.GetBoardCollaboratorsAsync(BoardId)).ToList();
+            _availableUsers = (await UserService.SearchAsync(_searchQuery)).ToList();
+
+            // Filter out users who already have access
+            var existingUserIds = _collaborators.Select(c => c.UserId).ToHashSet();
+            _availableUsers = _availableUsers.Where(u => !existingUserIds.Contains(u.UserId)).ToList();
+
+            // Check if user is admin
+            _isAdmin = _collaborators.Any(c => c.Role == "Admin");
+            _boardOwnerId = _collaborators.FirstOrDefault(c => c.Role == "Admin")?.UserId ?? string.Empty;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "Failed to load data. Please try again.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task OnSearchChangedAsync(ChangeEventArgs args)
+    {
+        _searchQuery = args.Value?.ToString() ?? string.Empty;
+        _selectedUserIds.Clear();
+        await LoadDataAsync();
+    }
+
+    private void ToggleUserSelection(string userId, bool selected)
+    {
+        if (selected)
+        {
+            _selectedUserIds.Add(userId);
+        }
+        else
+        {
+            _selectedUserIds.Remove(userId);
+        }
+    }
+
+    private async Task ShareAsync()
+    {
+        if (_selectedUserIds.Count == 0)
+        {
+            return;
+        }
+
+        _isSaving = true;
+        _errorMessage = string.Empty;
+
+        try
+        {
+            await UserService.ShareBoardAsync(BoardId, _selectedUserIds);
+            await OnShared.InvokeAsync();
+            await CloseAsync();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "Failed to share board. Please try again.";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task RemoveCollaboratorAsync(string userId)
+    {
+        try
+        {
+            await UserService.RemovePermissionAsync(BoardId, userId);
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "Failed to remove collaborator. Please try again.";
+        }
+    }
+
+    private async Task CloseAsync()
+    {
+        _searchQuery = string.Empty;
+        _selectedUserIds.Clear();
+        _errorMessage = string.Empty;
+        await OnClose.InvokeAsync();
+    }
+}

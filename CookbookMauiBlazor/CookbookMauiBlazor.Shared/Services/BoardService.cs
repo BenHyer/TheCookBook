@@ -27,6 +27,21 @@ public sealed class BoardService : IBoardService
         }
     }
 
+    public async Task<IReadOnlyList<BoardSummary>> GetSharedAsync(string userId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var response = await _httpClient.GetAsync($"/api/v1/boards/shared-with-me/{userId}", cancellationToken);
+            response.EnsureSuccessStatusCode();
+            var boards = await response.Content.ReadFromJsonAsync<List<BoardSummary>>(cancellationToken: cancellationToken);
+            return boards ?? [];
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
     public async Task<BoardDetails?> GetDetailsAsync(Guid boardId, CancellationToken cancellationToken = default)
     {
         try

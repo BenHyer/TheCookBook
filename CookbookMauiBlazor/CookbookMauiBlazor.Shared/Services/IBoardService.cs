@@ -5,6 +5,7 @@ namespace CookbookMauiBlazor.Shared.Services;
 public interface IBoardService
 {
     Task<IReadOnlyList<BoardSummary>> GetByOwnerAsync(string ownerUserId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<BoardSummary>> GetSharedAsync(string userId, CancellationToken cancellationToken = default);
     Task<BoardDetails?> GetDetailsAsync(Guid boardId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<BoardRecipeSummary>> GetRecipesAsync(Guid boardId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<BoardRecipeSummary>> AddRecipesAsync(

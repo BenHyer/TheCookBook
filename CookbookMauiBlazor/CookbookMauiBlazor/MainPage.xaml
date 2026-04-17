@@ -4,11 +4,16 @@
              xmlns:local="clr-namespace:CookbookMauiBlazor"
              xmlns:shared="clr-namespace:CookbookMauiBlazor.Shared;assembly=CookbookMauiBlazor.Shared"
              x:Class="CookbookMauiBlazor.MainPage"
-             BackgroundColor="{DynamicResource PageBackgroundColor}">
+             BackgroundColor="White"
+             Padding="0">
 
-    <BlazorWebView x:Name="blazorWebView" HostPage="wwwroot/index.html">
+    <BlazorWebView x:Name="blazorWebView"
+                   HostPage="wwwroot/index.html"
+                   HorizontalOptions="Fill"
+                   VerticalOptions="Fill">
         <BlazorWebView.RootComponents>
-            <RootComponent Selector="#app" ComponentType="{x:Type shared:Routes}" />
+            <RootComponent Selector="#app"
+                           ComponentType="{x:Type shared:Routes}"/>
         </BlazorWebView.RootComponents>
     </BlazorWebView>
 
