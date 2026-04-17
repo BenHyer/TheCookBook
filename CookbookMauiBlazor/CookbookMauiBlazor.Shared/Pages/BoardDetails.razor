@@ -91,20 +91,20 @@ else
             @foreach (var recipe in _boardRecipes)
             {
                 <div class="col">
-                    <div class="card h-100">
+                    <NavLink class="card h-100 text-decoration-none" href="@($"/recipes/{recipe.Id}")">
                         @if (!string.IsNullOrWhiteSpace(recipe.ImageUrl))
                         {
                             <img src="@recipe.ImageUrl" class="card-img-top" alt="@recipe.Title"
                                  style="height:200px;object-fit:cover;" />
                         }
                         <div class="card-body">
-                            <h5 class="card-title">@recipe.Title</h5>
+                            <h5 class="card-title text-body">@recipe.Title</h5>
                             @if (!string.IsNullOrWhiteSpace(recipe.Description))
                             {
                                 <p class="card-text text-muted small">@recipe.Description</p>
                             }
                         </div>
-                    </div>
+                    </NavLink>
                 </div>
             }
         </div>

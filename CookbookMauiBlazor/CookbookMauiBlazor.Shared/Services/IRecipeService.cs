@@ -5,6 +5,7 @@ namespace CookbookMauiBlazor.Shared.Services;
 public interface IRecipeService
 {
     Task<List<Recipe>> GetRecipesAsync(CancellationToken cancellationToken = default);
+    Task<Recipe?> GetRecipeByIdAsync(int recipeId, CancellationToken cancellationToken = default);
     Task<List<Recipe>> GetRecipesByOwnerAsync(string ownerUserId, CancellationToken cancellationToken = default);
     Task<Recipe?> CreateRecipeAsync(Recipe recipe, CancellationToken cancellationToken = default);
     Task<Recipe?> UpdateRecipeAsync(Recipe recipe, CancellationToken cancellationToken = default);

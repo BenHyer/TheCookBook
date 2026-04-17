@@ -1,0 +1,194 @@
+@page "/recipes/{RecipeId:int}"
+@using CookbookMauiBlazor.Shared.Models
+@using CookbookMauiBlazor.Shared.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject IRecipeService RecipeService
+
+<PageTitle>@(_recipe?.Title ?? "Recipe")</PageTitle>
+
+@if (_loading)
+{
+    <p>Loading recipe...</p>
+}
+else if (_recipe is null)
+{
+    <div class="alert alert-warning">Recipe not found.</div>
+}
+else
+{
+    <div class="d-flex flex-column gap-4">
+        <div>
+            <h1>@_recipe.Title</h1>
+            @if (!string.IsNullOrWhiteSpace(_recipe.Description))
+            {
+                <p class="text-muted">@_recipe.Description</p>
+            }
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(_recipe.ImageUrl))
+        {
+            <img src="@_recipe.ImageUrl" class="rounded" alt="@_recipe.Title"
+                 style="max-height:360px;max-width:100%;object-fit:cover;" />
+        }
+
+        @if (HasAnyTiming())
+        {
+            <div class="d-flex flex-wrap gap-3 small text-muted">
+                @if (!string.IsNullOrWhiteSpace(_recipe.YieldServings))
+                {
+                    <span>Serves: @_recipe.YieldServings</span>
+                }
+                @if (!string.IsNullOrWhiteSpace(_recipe.PrepTime))
+                {
+                    <span>Prep: @_recipe.PrepTime</span>
+                }
+                @if (!string.IsNullOrWhiteSpace(_recipe.CookTime))
+                {
+                    <span>Cook: @_recipe.CookTime</span>
+                }
+                @if (!string.IsNullOrWhiteSpace(_recipe.TotalTime))
+                {
+                    <span>Total: @_recipe.TotalTime</span>
+                }
+                @if (!string.IsNullOrWhiteSpace(_recipe.CookingTemperature))
+                {
+                    <span>Temp: @_recipe.CookingTemperature</span>
+                }
+            </div>
+        }
+
+        <section>
+            <h3>Ingredients</h3>
+            @if (!BuildIngredients().Any())
+            {
+                <p class="text-muted">No ingredients listed.</p>
+            }
+            else
+            {
+                <ul class="list-unstyled">
+                    @foreach (var item in BuildIngredients())
+                    {
+                        <li class="mb-1">
+                            @if (!string.IsNullOrWhiteSpace(item.Quantity))
+                            {
+                                <span class="me-2">@item.Quantity</span>
+                            }
+                            <span>@item.Ingredient</span>
+                        </li>
+                    }
+                </ul>
+            }
+        </section>
+
+        <section>
+            <h3>Equipment</h3>
+            @if (!HasItems(_recipe.Equipment))
+            {
+                <p class="text-muted">No equipment listed.</p>
+            }
+            else
+            {
+                <ul>
+                    @foreach (var item in _recipe.Equipment.Where(HasText))
+                    {
+                        <li>@item</li>
+                    }
+                </ul>
+            }
+        </section>
+
+        <section>
+            <h3>Instructions</h3>
+            @if (!HasItems(_recipe.Instructions))
+            {
+                <p class="text-muted">No instructions listed.</p>
+            }
+            else
+            {
+                <ol>
+                    @foreach (var item in _recipe.Instructions.Where(HasText))
+                    {
+                        <li>@item</li>
+                    }
+                </ol>
+            }
+        </section>
+
+        @if (!string.IsNullOrWhiteSpace(_recipe.NutritionFacts))
+        {
+            <section>
+                <h3>Nutrition</h3>
+                <p>@_recipe.NutritionFacts</p>
+            </section>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(_recipe.StorageInfo))
+        {
+            <section>
+                <h3>Storage</h3>
+                <p>@_recipe.StorageInfo</p>
+            </section>
+        }
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int RecipeId { get; set; }
+
+    private Recipe? _recipe;
+    private bool _loading = true;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+        _recipe = null;
+
+        _recipe = await RecipeService.GetRecipeByIdAsync(RecipeId);
+        _loading = false;
+    }
+
+    private bool HasAnyTiming() =>
+        !string.IsNullOrWhiteSpace(_recipe?.YieldServings)
+        || !string.IsNullOrWhiteSpace(_recipe?.PrepTime)
+        || !string.IsNullOrWhiteSpace(_recipe?.CookTime)
+        || !string.IsNullOrWhiteSpace(_recipe?.TotalTime)
+        || !string.IsNullOrWhiteSpace(_recipe?.CookingTemperature);
+
+    private static bool HasText(string? value) => !string.IsNullOrWhiteSpace(value);
+
+    private static bool HasItems(IReadOnlyCollection<string>? items) =>
+        items is not null && items.Any(HasText);
+
+    private IEnumerable<(string? Quantity, string Ingredient)> BuildIngredients()
+    {
+        if (_recipe is null)
+        {
+            return Array.Empty<(string?, string)>();
+        }
+
+        var ingredientCount = _recipe.Ingredients?.Count ?? 0;
+        var quantityCount = _recipe.Quantities?.Count ?? 0;
+        var count = Math.Max(ingredientCount, quantityCount);
+        if (count == 0)
+        {
+            return Array.Empty<(string?, string)>();
+        }
+
+        var items = new List<(string?, string)>(count);
+        for (var i = 0; i < count; i++)
+        {
+            var ingredient = i < ingredientCount ? _recipe.Ingredients[i] : string.Empty;
+            var quantity = i < quantityCount ? _recipe.Quantities[i] : null;
+            if (string.IsNullOrWhiteSpace(ingredient) && string.IsNullOrWhiteSpace(quantity))
+            {
+                continue;
+            }
+
+            items.Add((quantity, ingredient));
+        }
+
+        return items;
+    }
+}
