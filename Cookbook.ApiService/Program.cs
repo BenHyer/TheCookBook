@@ -397,6 +397,57 @@ if (enableUserProfiles)
             profile.ProfilePictureUrl));
     })
     .WithName("UpdateUserProfile");
+
+    app.MapPost("/api/v1/users/ensure-profile", async (ClaimsPrincipal user, CookbookDbContext dbContext) =>
+    {
+        var userId = user.FindFirst("oid")?.Value ??
+            user.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value ??
+            user.FindFirst("sub")?.Value;
+
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return Results.Unauthorized();
+        }
+
+        var profile = await dbContext.UserProfiles.FindAsync(userId);
+        if (profile is not null)
+        {
+            return Results.Ok(new UserProfileDto(
+                profile.UserId,
+                profile.FirstName,
+                profile.LastName,
+                profile.DisplayName,
+                profile.ProfilePictureUrl));
+        }
+
+        // Extract basic info from Azure AD claims
+        var givenName = user.FindFirst("given_name")?.Value ?? string.Empty;
+        var surname = user.FindFirst("family_name")?.Value ?? string.Empty;
+        var name = user.FindFirst("name")?.Value ?? string.Empty;
+        var displayName = !string.IsNullOrWhiteSpace(name) ? name : $"{givenName} {surname}".Trim();
+
+        var utcNow = DateTime.UtcNow;
+        profile = new UserProfile
+        {
+            UserId = userId,
+            FirstName = givenName,
+            LastName = surname,
+            DisplayName = displayName,
+            CreatedUtc = utcNow,
+            UpdatedUtc = utcNow
+        };
+
+        dbContext.UserProfiles.Add(profile);
+        await dbContext.SaveChangesAsync();
+
+        return Results.Ok(new UserProfileDto(
+            profile.UserId,
+            profile.FirstName,
+            profile.LastName,
+            profile.DisplayName,
+            profile.ProfilePictureUrl));
+    })
+    .WithName("EnsureUserProfile");
 }
 else
 {

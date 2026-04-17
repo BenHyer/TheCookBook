@@ -91,6 +91,10 @@ namespace CookbookMauiBlazor
             {
                 client.BaseAddress = new Uri(apiBaseUrl);
             });
+            builder.Services.AddHttpClient<UserProfileInitService>(client =>
+            {
+                client.BaseAddress = new Uri(apiBaseUrl);
+            });
 
             builder.Services.AddMauiBlazorWebView();
 

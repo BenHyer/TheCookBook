@@ -20,7 +20,9 @@ public partial class BoardsPageViewModel : ObservableObject
     [ObservableProperty]
     private IReadOnlyList<BoardSummary> sharedBoards = [];
 
-    public BoardsPageViewModel(AuthenticationStateProvider authStateProvider, IBoardService boardService)
+    public BoardsPageViewModel(
+        AuthenticationStateProvider authStateProvider,
+        IBoardService boardService)
     {
         _authStateProvider = authStateProvider;
         _boardService = boardService;
@@ -38,6 +40,7 @@ public partial class BoardsPageViewModel : ObservableObject
             ?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value
             ?? string.Empty;
 
+        // User profile is ensured in MainLayout.razor on app init
         if (!string.IsNullOrWhiteSpace(OwnerUserId))
         {
             await LoadSharedBoardsAsync();
