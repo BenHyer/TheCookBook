@@ -26,6 +26,23 @@ public sealed class RecipeService : IRecipeService
         }
     }
 
+    public async Task<Recipe?> GetRecipeByIdAsync(int recipeId, CancellationToken cancellationToken = default)
+    {
+        if (recipeId <= 0)
+        {
+            return null;
+        }
+
+        try
+        {
+            return await _httpClient.GetFromJsonAsync<Recipe>($"/api/v1/recipes/{recipeId}", cancellationToken);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     public async Task<List<Recipe>> GetRecipesByOwnerAsync(string ownerUserId, CancellationToken cancellationToken = default)
     {
         try

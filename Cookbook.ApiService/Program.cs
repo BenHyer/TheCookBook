@@ -483,6 +483,20 @@ app.MapGet("/api/v1/recipes", async (CookbookDbContext dbContext) =>
 })
 .WithName("GetRecipes");
 
+app.MapGet("/api/v1/recipes/{recipeId:int}", async (int recipeId, CookbookDbContext dbContext) =>
+{
+    var recipe = await dbContext.Recipes
+        .Where(r => r.Id == recipeId)
+        .Select(r => new RecipeDto(
+            r.Id, r.OwnerUserId, r.Title, r.Description, r.YieldServings, r.PrepTime, r.CookTime,
+            r.TotalTime, r.Ingredients, r.Quantities, r.Equipment, r.Instructions,
+            r.CookingTemperature, r.NutritionFacts, r.StorageInfo, r.ImageUrl))
+        .FirstOrDefaultAsync();
+
+    return recipe is null ? Results.NotFound() : Results.Ok(recipe);
+})
+.WithName("GetRecipeById");
+
 app.MapGet("/api/v1/recipes/owner/{ownerUserId}", async (string ownerUserId, CookbookDbContext dbContext) =>
 {
     if (string.IsNullOrWhiteSpace(ownerUserId))
