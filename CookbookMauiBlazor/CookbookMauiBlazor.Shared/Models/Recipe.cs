@@ -22,5 +22,6 @@ namespace CookbookMauiBlazor.Shared.Models
         public string? NutritionFacts { get; set; }
         public string? StorageInfo { get; set; }
         public string? ImageUrl { get; set; }
+        
     }
 }
