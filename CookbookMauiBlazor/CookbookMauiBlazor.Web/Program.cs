@@ -92,6 +92,7 @@ builder.Services.AddHttpClient<UserProfileInitService>(client =>
 {
     client.BaseAddress = new Uri(apiBaseUrl);
 });
+builder.Services.AddScoped<NotificationService>();
 
 builder.Services
     .AddAuthentication(options =>

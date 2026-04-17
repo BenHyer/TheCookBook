@@ -6,10 +6,13 @@
 @using CookbookMauiBlazor.Shared.Viewmodels
 @using Microsoft.AspNetCore.Components.Authorization
 @using global::Cookbook.Shared.Boards
+@using System.Security.Claims
 
 @attribute [Authorize]
 @inject BoardsPageViewModel ViewModel
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IUserService UserService
+@inject NotificationService NotificationService
 @implements IDisposable
 
 <PageTitle>Boards</PageTitle>
@@ -19,6 +22,40 @@
 <CreateBoardForm OwnerUserId="@ViewModel.OwnerUserId" OnCreated="ViewModel.HandleBoardCreated" />
 <hr />
 
+@if (_pendingInvitations.Count > 0)
+{
+    <h2>Pending Invitations</h2>
+    @if (!string.IsNullOrWhiteSpace(_invitationError))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @_invitationError
+            <button type="button" class="btn-close" @onclick="() => _invitationError = string.Empty"></button>
+        </div>
+    }
+    <ul class="list-group mb-4">
+        @foreach (var invite in _pendingInvitations)
+        {
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="fw-semibold">@invite.BoardName</span>
+                    <small class="text-muted d-block">Shared by @invite.OwnerDisplayName &middot; @invite.Role</small>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-success" @onclick="() => AcceptInvitationAsync(invite)"
+                            disabled="@(_processingBoardId == invite.BoardId)">
+                        Accept
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" @onclick="() => RejectInvitationAsync(invite)"
+                            disabled="@(_processingBoardId == invite.BoardId)">
+                        Decline
+                    </button>
+                </div>
+            </li>
+        }
+    </ul>
+    <hr />
+}
+
 <h2>My Boards</h2>
 <BoardList OwnerUserId="@ViewModel.OwnerUserId" ReloadToken="@ViewModel.ReloadToken" OnShare="HandleShareClick" />
 
@@ -26,27 +63,20 @@
 {
     <hr />
     <h2>Shared with Me</h2>
-    @if (ViewModel.SharedBoards.Count == 0)
-    {
-        <p>No boards shared with you yet.</p>
-    }
-    else
-    {
-        <ul class="list-group">
-            @foreach (var board in ViewModel.SharedBoards)
-            {
-                <li class="list-group-item d-flex justify-content-between align-items-center">
-                    <div>
-                        <span>@board.Name</span>
-                        <small class="text-muted d-block">by @_boardOwners.GetValueOrDefault(board.OwnerUserId, "Unknown User")</small>
-                    </div>
-                    <NavLink class="btn btn-sm btn-outline-secondary" href="@($"/boards/{board.Id}")">
-                        Open
-                    </NavLink>
-                </li>
-            }
-        </ul>
-    }
+    <ul class="list-group">
+        @foreach (var board in ViewModel.SharedBoards)
+        {
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                    <span>@board.Name</span>
+                    <small class="text-muted d-block">by @_boardOwners.GetValueOrDefault(board.OwnerUserId, board.OwnerUserId)</small>
+                </div>
+                <NavLink class="btn btn-sm btn-outline-secondary" href="@($"/boards/{board.Id}")">
+                    Open
+                </NavLink>
+            </li>
+        }
+    </ul>
 }
 
 <ShareBoardDialog BoardId="@_shareDialogBoardId" BoardOwnerId="@_shareDialogOwner"
@@ -59,29 +89,102 @@
     private string _shareDialogOwner = string.Empty;
     private string _currentUserId = string.Empty;
     private Dictionary<string, string> _boardOwners = new();
+    private List<BoardInvitation> _pendingInvitations = [];
+    private Guid? _processingBoardId;
+    private string _invitationError = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
         ViewModel.PropertyChanged += OnViewModelChanged;
+
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
         _currentUserId = user.FindFirst("oid")?.Value ??
             user.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value ??
             user.FindFirst("sub")?.Value ?? string.Empty;
+
         await ViewModel.InitializeAsync();
-        await LoadBoardOwnersAsync();
+        await Task.WhenAll(LoadInvitationsAsync(), LoadBoardOwnersAsync());
+    }
+
+    private async Task LoadInvitationsAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_currentUserId)) return;
+
+        try
+        {
+            _pendingInvitations = (await UserService.GetPendingInvitationsAsync(_currentUserId)).ToList();
+        }
+        catch
+        {
+            _pendingInvitations = [];
+        }
     }
 
     private async Task LoadBoardOwnersAsync()
     {
-        // For now, we'll just use the owner ID as the display name
-        // In a full implementation, we'd fetch user profiles
-        foreach (var board in ViewModel.SharedBoards)
+        var ownerIds = ViewModel.SharedBoards
+            .Select(b => b.OwnerUserId)
+            .Distinct()
+            .Where(id => !_boardOwners.ContainsKey(id))
+            .ToList();
+
+        foreach (var ownerId in ownerIds)
         {
-            if (!_boardOwners.ContainsKey(board.OwnerUserId))
+            try
             {
-                _boardOwners[board.OwnerUserId] = board.OwnerUserId;
+                var profile = await UserService.SearchAsync(ownerId);
+                var match = profile.FirstOrDefault(u => u.UserId == ownerId);
+                _boardOwners[ownerId] = match?.DisplayName ?? ownerId;
             }
+            catch
+            {
+                _boardOwners[ownerId] = ownerId;
+            }
+        }
+    }
+
+    private async Task AcceptInvitationAsync(BoardInvitation invite)
+    {
+        _processingBoardId = invite.BoardId;
+        _invitationError = string.Empty;
+
+        try
+        {
+            await UserService.AcceptInvitationAsync(invite.BoardId);
+            _pendingInvitations.Remove(invite);
+            await ViewModel.LoadSharedBoardsAsync();
+            await LoadBoardOwnersAsync();
+            await NotificationService.RefreshAsync(_currentUserId);
+        }
+        catch
+        {
+            _invitationError = $"Failed to accept invitation to \"{invite.BoardName}\". Please try again.";
+        }
+        finally
+        {
+            _processingBoardId = null;
+        }
+    }
+
+    private async Task RejectInvitationAsync(BoardInvitation invite)
+    {
+        _processingBoardId = invite.BoardId;
+        _invitationError = string.Empty;
+
+        try
+        {
+            await UserService.RejectInvitationAsync(invite.BoardId);
+            _pendingInvitations.Remove(invite);
+            await NotificationService.RefreshAsync(_currentUserId);
+        }
+        catch
+        {
+            _invitationError = $"Failed to decline invitation to \"{invite.BoardName}\". Please try again.";
+        }
+        finally
+        {
+            _processingBoardId = null;
         }
     }
 

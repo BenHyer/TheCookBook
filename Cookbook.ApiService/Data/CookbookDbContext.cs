@@ -115,6 +115,10 @@ public class CookbookDbContext(DbContextOptions<CookbookDbContext> options) : Db
             entity.Property(x => x.Role)
                 .IsRequired()
                 .HasMaxLength(20);
+            entity.Property(x => x.Status)
+                .IsRequired()
+                .HasMaxLength(20)
+                .HasDefaultValue(BoardPermissionStatus.Active);
             entity.Property(x => x.CreatedUtc)
                 .IsRequired();
 

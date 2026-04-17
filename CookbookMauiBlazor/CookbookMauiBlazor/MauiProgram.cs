@@ -95,6 +95,7 @@ namespace CookbookMauiBlazor
             {
                 client.BaseAddress = new Uri(apiBaseUrl);
             });
+            builder.Services.AddScoped<NotificationService>();
 
             builder.Services.AddMauiBlazorWebView();
 

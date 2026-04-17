@@ -797,7 +797,7 @@ app.MapGet("/api/v1/boards/{boardId:guid}/collaborators", async (Guid boardId, C
     }
 
     var permissions = await dbContext.BoardPermissions
-        .Where(bp => bp.BoardId == boardId)
+        .Where(bp => bp.BoardId == boardId && bp.Status == BoardPermissionStatus.Active)
         .Join(dbContext.UserProfiles,
             bp => bp.UserId,
             up => up.UserId,
@@ -812,14 +812,19 @@ app.MapPost("/api/v1/boards/{boardId:guid}/share", async (
     Guid boardId,
     ShareBoardRequest request,
     ClaimsPrincipal user,
-    CookbookDbContext dbContext) =>
+    CookbookDbContext dbContext,
+    ILogger<Program> logger) =>
 {
+    logger.LogInformation("[ShareBoard] Request for boardId={BoardId}, userIds={UserIds}, role={Role}",
+        boardId, string.Join(",", request.UserIds ?? []), request.Role);
+
     var board = await dbContext.Boards
         .Include(b => b.Permissions)
         .FirstOrDefaultAsync(b => b.Id == boardId);
 
     if (board is null)
     {
+        logger.LogWarning("[ShareBoard] Board {BoardId} not found", boardId);
         return Results.NotFound();
     }
 
@@ -827,51 +832,62 @@ app.MapPost("/api/v1/boards/{boardId:guid}/share", async (
         user.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value ??
         user.FindFirst("sub")?.Value;
 
+    logger.LogInformation("[ShareBoard] Resolved currentUserId={CurrentUserId}", currentUserId ?? "null");
+
     if (currentUserId is null)
     {
+        logger.LogWarning("[ShareBoard] Could not resolve caller identity from claims");
         return Results.Forbid();
     }
 
-    // Check if current user is Admin
-    var userPermission = board.Permissions.FirstOrDefault(p => p.UserId == currentUserId);
+    // Check if current user is an active Admin
+    var userPermission = board.Permissions.FirstOrDefault(p => p.UserId == currentUserId && p.Status == BoardPermissionStatus.Active);
+    logger.LogInformation("[ShareBoard] Caller permission: role={Role}, status={Status}",
+        userPermission?.Role ?? "none", userPermission?.Status ?? "none");
+
     if (userPermission?.Role != BoardRoles.Admin)
     {
+        logger.LogWarning("[ShareBoard] Caller {CurrentUserId} is not Admin on board {BoardId}", currentUserId, boardId);
         return Results.Forbid();
     }
 
     var role = request.Role is BoardRoles.Viewer or BoardRoles.Editor ? request.Role : BoardRoles.Viewer;
     var utcNow = DateTime.UtcNow;
+    // Block re-inviting users who already have any permission (Active or Pending)
     var existingPermissionUserIds = board.Permissions.Select(p => p.UserId).ToHashSet();
 
     foreach (var userId in request.UserIds)
     {
-        // Skip if user already has permission or if it's the current user
         if (existingPermissionUserIds.Contains(userId) || userId == currentUserId)
         {
+            logger.LogInformation("[ShareBoard] Skipping userId={UserId} (already has permission or is caller)", userId);
             continue;
         }
 
-        // Verify user exists
         var userExists = await dbContext.UserProfiles.AnyAsync(u => u.UserId == userId);
         if (!userExists)
         {
+            logger.LogWarning("[ShareBoard] Skipping userId={UserId} — no UserProfile found", userId);
             continue;
         }
 
+        logger.LogInformation("[ShareBoard] Adding Pending permission for userId={UserId}, role={Role}", userId, role);
         dbContext.BoardPermissions.Add(new BoardPermission
         {
             BoardId = boardId,
             UserId = userId,
             Role = role,
+            Status = BoardPermissionStatus.Pending,
             CreatedUtc = utcNow
         });
     }
 
     await dbContext.SaveChangesAsync();
+    logger.LogInformation("[ShareBoard] SaveChanges completed for boardId={BoardId}", boardId);
 
-    // Return updated collaborators
+    // Return active collaborators only
     var collaborators = await dbContext.BoardPermissions
-        .Where(bp => bp.BoardId == boardId)
+        .Where(bp => bp.BoardId == boardId && bp.Status == BoardPermissionStatus.Active)
         .Join(dbContext.UserProfiles,
             bp => bp.UserId,
             up => up.UserId,
@@ -906,8 +922,8 @@ app.MapDelete("/api/v1/boards/{boardId:guid}/permissions/{userId}", async (
         return Results.Forbid();
     }
 
-    // Check if current user is Admin
-    var currentUserPermission = board.Permissions.FirstOrDefault(p => p.UserId == currentUserId);
+    // Check if current user is an active Admin
+    var currentUserPermission = board.Permissions.FirstOrDefault(p => p.UserId == currentUserId && p.Status == BoardPermissionStatus.Active);
     if (currentUserPermission?.Role != BoardRoles.Admin)
     {
         return Results.Forbid();
@@ -937,7 +953,7 @@ app.MapDelete("/api/v1/boards/{boardId:guid}/permissions/{userId}", async (
 app.MapGet("/api/v1/boards/shared-with-me/{userId}", async (string userId, CookbookDbContext dbContext) =>
 {
     var sharedBoards = await dbContext.BoardPermissions
-        .Where(bp => bp.UserId == userId)
+        .Where(bp => bp.UserId == userId && bp.Status == BoardPermissionStatus.Active)
         .Join(dbContext.Boards,
             bp => bp.BoardId,
             b => b.Id,
@@ -958,6 +974,81 @@ app.MapGet("/api/v1/boards/shared-with-me/{userId}", async (string userId, Cookb
     return Results.Ok(result);
 })
 .WithName("GetSharedBoards");
+
+// Invitation endpoints
+
+app.MapGet("/api/v1/users/{userId}/invitations", async (string userId, CookbookDbContext dbContext) =>
+{
+    var invitations = await dbContext.BoardPermissions
+        .Where(bp => bp.UserId == userId && bp.Status == BoardPermissionStatus.Pending)
+        .Join(dbContext.Boards,
+            bp => bp.BoardId,
+            b => b.Id,
+            (bp, b) => new { Permission = bp, Board = b })
+        .Join(dbContext.UserProfiles,
+            x => x.Board.OwnerUserId,
+            up => up.UserId,
+            (x, up) => new BoardInvitationDto(
+                x.Board.Id,
+                x.Board.Name,
+                x.Board.OwnerUserId,
+                up.DisplayName,
+                x.Permission.Role,
+                ToUtcOffset(x.Permission.CreatedUtc)))
+        .OrderByDescending(i => i.InvitedAt)
+        .ToListAsync();
+
+    return Results.Ok(invitations);
+})
+.WithName("GetPendingInvitations");
+
+app.MapPost("/api/v1/boards/{boardId:guid}/invitations/accept", async (
+    Guid boardId,
+    ClaimsPrincipal user,
+    CookbookDbContext dbContext) =>
+{
+    var currentUserId = user.FindFirst("oid")?.Value ??
+        user.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value ??
+        user.FindFirst("sub")?.Value;
+
+    if (currentUserId is null) return Results.Forbid();
+
+    var permission = await dbContext.BoardPermissions
+        .FirstOrDefaultAsync(bp => bp.BoardId == boardId && bp.UserId == currentUserId && bp.Status == BoardPermissionStatus.Pending);
+
+    if (permission is null) return Results.NotFound();
+
+    permission.Status = BoardPermissionStatus.Active;
+    await dbContext.SaveChangesAsync();
+
+    return Results.Ok();
+})
+.WithName("AcceptInvitation")
+.RequireAuthorization();
+
+app.MapPost("/api/v1/boards/{boardId:guid}/invitations/reject", async (
+    Guid boardId,
+    ClaimsPrincipal user,
+    CookbookDbContext dbContext) =>
+{
+    var currentUserId = user.FindFirst("oid")?.Value ??
+        user.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value ??
+        user.FindFirst("sub")?.Value;
+
+    if (currentUserId is null) return Results.Forbid();
+
+    var permission = await dbContext.BoardPermissions
+        .FirstOrDefaultAsync(bp => bp.BoardId == boardId && bp.UserId == currentUserId && bp.Status == BoardPermissionStatus.Pending);
+
+    if (permission is null) return Results.NotFound();
+
+    dbContext.BoardPermissions.Remove(permission);
+    await dbContext.SaveChangesAsync();
+
+    return Results.Ok();
+})
+.WithName("RejectInvitation")
+.RequireAuthorization();
 
 app.MapDefaultEndpoints();
 
@@ -1068,3 +1159,5 @@ record ShareBoardRequest(List<string> UserIds, string? Role);
 record BoardCollaborator(string UserId, string DisplayName, string FirstName, string LastName, string? ProfilePictureUrl, string Role);
 
 record SharedBoardSummary(Guid Id, string Name, string OwnerUserId, string Role, DateTimeOffset CreatedAt);
+
+record BoardInvitationDto(Guid BoardId, string BoardName, string OwnerUserId, string OwnerDisplayName, string Role, DateTimeOffset InvitedAt);

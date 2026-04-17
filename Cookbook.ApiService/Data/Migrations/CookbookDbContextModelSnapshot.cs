@@ -74,6 +74,12 @@ namespace Cookbook.ApiService.Data.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasDefaultValue("Active")
+                        .HasColumnType("nvarchar(20)");
+
                     b.Property<string>("UserId")
                         .IsRequired()
                         .HasMaxLength(200)

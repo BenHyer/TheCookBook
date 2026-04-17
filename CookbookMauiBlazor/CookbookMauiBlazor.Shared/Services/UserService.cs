@@ -63,4 +63,30 @@ public sealed class UserService : IUserService
             cancellationToken);
         response.EnsureSuccessStatusCode();
     }
+
+    public async Task<IReadOnlyList<BoardInvitation>> GetPendingInvitationsAsync(string userId, CancellationToken cancellationToken = default)
+    {
+        var invitations = await _httpClient.GetFromJsonAsync<List<BoardInvitation>>(
+            $"/api/v1/users/{userId}/invitations",
+            cancellationToken);
+        return invitations ?? [];
+    }
+
+    public async Task AcceptInvitationAsync(Guid boardId, CancellationToken cancellationToken = default)
+    {
+        var response = await _httpClient.PostAsync(
+            $"/api/v1/boards/{boardId}/invitations/accept",
+            null,
+            cancellationToken);
+        response.EnsureSuccessStatusCode();
+    }
+
+    public async Task RejectInvitationAsync(Guid boardId, CancellationToken cancellationToken = default)
+    {
+        var response = await _httpClient.PostAsync(
+            $"/api/v1/boards/{boardId}/invitations/reject",
+            null,
+            cancellationToken);
+        response.EnsureSuccessStatusCode();
+    }
 }

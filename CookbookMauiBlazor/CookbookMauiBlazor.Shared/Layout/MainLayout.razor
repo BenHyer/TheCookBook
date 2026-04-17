@@ -1,7 +1,11 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
 @using CookbookMauiBlazor.Shared.Services
 @inject UserProfileInitService UserProfileInitService
+@inject NotificationService NotificationService
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <AuthorizeView>
     <Authorized>
@@ -34,9 +38,18 @@
 @code {
     protected override async Task OnInitializedAsync()
     {
-        // Ensure the authenticated user's profile exists in the database
-        // This creates a profile from Azure AD claims if one doesn't exist
         await UserProfileInitService.EnsureProfileAsync();
+
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        var userId = user.FindFirst("oid")?.Value
+            ?? user.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value
+            ?? user.FindFirst("sub")?.Value
+            ?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (!string.IsNullOrWhiteSpace(userId))
+        {
+            await NotificationService.RefreshAsync(userId);
+        }
     }
 }
-
