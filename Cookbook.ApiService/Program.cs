@@ -30,6 +30,12 @@ if (!string.IsNullOrWhiteSpace(azureAdClientId))
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
+var featureFlags = builder.Configuration.GetSection("FeatureFlags");
+var enableBulkAddBoardRecipes = featureFlags.GetValue("EnableBulkAddBoardRecipes", true);
+var enableUserProfiles = featureFlags.GetValue("EnableUserProfiles", true);
+var enableProfilePictures = featureFlags.GetValue("EnableProfilePictures", true);
+var enableRecipeImages = featureFlags.GetValue("EnableRecipeImages", true);
+
 var connectionString = builder.Configuration.GetConnectionString("sqldb");
 if (string.IsNullOrWhiteSpace(connectionString))
 {
@@ -172,92 +178,99 @@ app.MapGet("/api/v1/boards/{boardId:guid}/recipes", async (Guid boardId, Cookboo
 })
 .WithName("GetBoardRecipes");
 
-app.MapPost("/api/v1/boards/{boardId:guid}/recipes/bulk-add", async (
-    Guid boardId,
-    BulkAddBoardRecipesRequest request,
-    CookbookDbContext dbContext) =>
+if (enableBulkAddBoardRecipes)
 {
-    if (string.IsNullOrWhiteSpace(request.OwnerUserId))
+    app.MapPost("/api/v1/boards/{boardId:guid}/recipes/bulk-add", async (
+        Guid boardId,
+        BulkAddBoardRecipesRequest request,
+        CookbookDbContext dbContext) =>
     {
-        return Results.ValidationProblem(new Dictionary<string, string[]>
+        if (string.IsNullOrWhiteSpace(request.OwnerUserId))
         {
-            ["ownerUserId"] = ["Owner user id is required."]
-        });
-    }
-
-    if (request.RecipeIds.Count == 0)
-    {
-        return Results.ValidationProblem(new Dictionary<string, string[]>
-        {
-            ["recipeIds"] = ["At least one recipe id is required."]
-        });
-    }
-
-    var board = await dbContext.Boards.FindAsync(boardId);
-    if (board is null)
-    {
-        return Results.NotFound();
-    }
-
-    var ownerUserId = request.OwnerUserId.Trim();
-    if (!string.Equals(board.OwnerUserId, ownerUserId, StringComparison.Ordinal))
-    {
-        return Results.Forbid();
-    }
-
-    var distinctRecipeIds = request.RecipeIds
-        .Where(id => id > 0)
-        .Distinct()
-        .ToList();
-
-    if (distinctRecipeIds.Count == 0)
-    {
-        return Results.ValidationProblem(new Dictionary<string, string[]>
-        {
-            ["recipeIds"] = ["At least one valid recipe id is required."]
-        });
-    }
-
-    var validRecipeIds = await dbContext.Recipes
-        .Where(r => r.OwnerUserId == ownerUserId && distinctRecipeIds.Contains(r.Id))
-        .Select(r => r.Id)
-        .ToListAsync();
-
-    var existingRecipeIds = await dbContext.BoardRecipes
-        .Where(br => br.BoardId == boardId && distinctRecipeIds.Contains(br.RecipeId))
-        .Select(br => br.RecipeId)
-        .ToListAsync();
-
-    var newRecipeIds = validRecipeIds
-        .Except(existingRecipeIds)
-        .ToList();
-
-    if (newRecipeIds.Count > 0)
-    {
-        var utcNow = DateTime.UtcNow;
-        foreach (var recipeId in newRecipeIds)
-        {
-            dbContext.BoardRecipes.Add(new BoardRecipe
+            return Results.ValidationProblem(new Dictionary<string, string[]>
             {
-                BoardId = boardId,
-                RecipeId = recipeId,
-                CreatedUtc = utcNow
+                ["ownerUserId"] = ["Owner user id is required."]
             });
         }
 
-        await dbContext.SaveChangesAsync();
-    }
+        if (request.RecipeIds.Count == 0)
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["recipeIds"] = ["At least one recipe id is required."]
+            });
+        }
 
-    var updatedRecipes = await dbContext.BoardRecipes
-        .Where(br => br.BoardId == boardId)
-        .Select(br => br.Recipe)
-        .OrderBy(r => r.Title)
-        .Select(r => new BoardRecipeSummary(r.Id, r.Title, r.Description, r.ImageUrl))
-        .ToListAsync();
+        var board = await dbContext.Boards.FindAsync(boardId);
+        if (board is null)
+        {
+            return Results.NotFound();
+        }
 
-    return Results.Ok(updatedRecipes);
-})
-.WithName("BulkAddBoardRecipes");
+        var ownerUserId = request.OwnerUserId.Trim();
+        if (!string.Equals(board.OwnerUserId, ownerUserId, StringComparison.Ordinal))
+        {
+            return Results.Forbid();
+        }
+
+        var distinctRecipeIds = request.RecipeIds
+            .Where(id => id > 0)
+            .Distinct()
+            .ToList();
+
+        if (distinctRecipeIds.Count == 0)
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["recipeIds"] = ["At least one valid recipe id is required."]
+            });
+        }
+
+        var validRecipeIds = await dbContext.Recipes
+            .Where(r => r.OwnerUserId == ownerUserId && distinctRecipeIds.Contains(r.Id))
+            .Select(r => r.Id)
+            .ToListAsync();
+
+        var existingRecipeIds = await dbContext.BoardRecipes
+            .Where(br => br.BoardId == boardId && distinctRecipeIds.Contains(br.RecipeId))
+            .Select(br => br.RecipeId)
+            .ToListAsync();
+
+        var newRecipeIds = validRecipeIds
+            .Except(existingRecipeIds)
+            .ToList();
+
+        if (newRecipeIds.Count > 0)
+        {
+            var utcNow = DateTime.UtcNow;
+            foreach (var recipeId in newRecipeIds)
+            {
+                dbContext.BoardRecipes.Add(new BoardRecipe
+                {
+                    BoardId = boardId,
+                    RecipeId = recipeId,
+                    CreatedUtc = utcNow
+                });
+            }
+
+            await dbContext.SaveChangesAsync();
+        }
+
+        var updatedRecipes = await dbContext.BoardRecipes
+            .Where(br => br.BoardId == boardId)
+            .Select(br => br.Recipe)
+            .OrderBy(r => r.Title)
+            .Select(r => new BoardRecipeSummary(r.Id, r.Title, r.Description, r.ImageUrl))
+            .ToListAsync();
+
+        return Results.Ok(updatedRecipes);
+    })
+    .WithName("BulkAddBoardRecipes");
+}
+else
+{
+    app.Logger.LogInformation("Feature flag disabled: bulk add board recipes endpoint.");
+}
 
 app.MapPost("/api/v1/boards", async (CreateBoardRequest request, CookbookDbContext dbContext) =>
 {
@@ -329,117 +342,131 @@ app.MapGet("/api/v1/metrics/track-dashboard-view", () =>
 .WithName("TrackDashboardView")
 .AllowAnonymous();
 
-app.MapGet("/api/v1/users/{userId}/profile", async (string userId, CookbookDbContext dbContext) =>
+if (enableUserProfiles)
 {
-    var profile = await dbContext.UserProfiles.FindAsync(userId);
-    if (profile is null)
-        return Results.NotFound();
-
-    return Results.Ok(new UserProfileDto(
-        profile.UserId,
-        profile.FirstName,
-        profile.LastName,
-        profile.DisplayName,
-        profile.ProfilePictureUrl));
-})
-.WithName("GetUserProfile");
-
-app.MapPut("/api/v1/users/{userId}/profile", async (string userId, UpdateProfileRequest request, CookbookDbContext dbContext) =>
-{
-    var utcNow = DateTime.UtcNow;
-    var profile = await dbContext.UserProfiles.FindAsync(userId);
-
-    if (profile is null)
+    app.MapGet("/api/v1/users/{userId}/profile", async (string userId, CookbookDbContext dbContext) =>
     {
-        profile = new UserProfile
+        var profile = await dbContext.UserProfiles.FindAsync(userId);
+        if (profile is null)
+            return Results.NotFound();
+
+        return Results.Ok(new UserProfileDto(
+            profile.UserId,
+            profile.FirstName,
+            profile.LastName,
+            profile.DisplayName,
+            profile.ProfilePictureUrl));
+    })
+    .WithName("GetUserProfile");
+
+    app.MapPut("/api/v1/users/{userId}/profile", async (string userId, UpdateProfileRequest request, CookbookDbContext dbContext) =>
+    {
+        var utcNow = DateTime.UtcNow;
+        var profile = await dbContext.UserProfiles.FindAsync(userId);
+
+        if (profile is null)
         {
-            UserId = userId,
-            FirstName = request.FirstName.Trim(),
-            LastName = request.LastName.Trim(),
-            DisplayName = request.DisplayName.Trim(),
-            CreatedUtc = utcNow,
-            UpdatedUtc = utcNow
-        };
-        dbContext.UserProfiles.Add(profile);
-    }
-    else
-    {
-        profile.FirstName = request.FirstName.Trim();
-        profile.LastName = request.LastName.Trim();
-        profile.DisplayName = request.DisplayName.Trim();
-        profile.UpdatedUtc = utcNow;
-    }
-
-    await dbContext.SaveChangesAsync();
-
-    return Results.Ok(new UserProfileDto(
-        profile.UserId,
-        profile.FirstName,
-        profile.LastName,
-        profile.DisplayName,
-        profile.ProfilePictureUrl));
-})
-.WithName("UpdateUserProfile");
-
-app.MapPost("/api/v1/users/{userId}/profile/picture", async (
-    string userId,
-    IFormFile file,
-    CookbookDbContext dbContext,
-    [FromServices] BlobContainerClient? containerClient) =>
-{
-    if (containerClient is null)
-        return Results.Problem("Blob storage is not configured.");
-
-    if (file.Length == 0)
-        return Results.BadRequest("No file uploaded.");
-
-    var allowedTypes = new[] { "image/jpeg", "image/png", "image/gif", "image/webp" };
-    if (!allowedTypes.Contains(file.ContentType.ToLowerInvariant()))
-        return Results.BadRequest("Only JPEG, PNG, GIF, and WebP images are allowed.");
-
-    if (file.Length > 5 * 1024 * 1024)
-        return Results.BadRequest("File size must be under 5 MB.");
-
-    var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-    var blobName = $"{userId}/profile{extension}";
-    var blobClient = containerClient.GetBlobClient(blobName);
-
-    await using var stream = file.OpenReadStream();
-    await blobClient.UploadAsync(stream, new BlobUploadOptions
-    {
-        HttpHeaders = new BlobHttpHeaders { ContentType = file.ContentType }
-    });
-
-    var pictureUrl = blobClient.Uri.ToString();
-    var utcNow = DateTime.UtcNow;
-
-    var profile = await dbContext.UserProfiles.FindAsync(userId);
-    if (profile is null)
-    {
-        profile = new UserProfile
+            profile = new UserProfile
+            {
+                UserId = userId,
+                FirstName = request.FirstName.Trim(),
+                LastName = request.LastName.Trim(),
+                DisplayName = request.DisplayName.Trim(),
+                CreatedUtc = utcNow,
+                UpdatedUtc = utcNow
+            };
+            dbContext.UserProfiles.Add(profile);
+        }
+        else
         {
-            UserId = userId,
-            FirstName = string.Empty,
-            LastName = string.Empty,
-            DisplayName = string.Empty,
-            ProfilePictureUrl = pictureUrl,
-            CreatedUtc = utcNow,
-            UpdatedUtc = utcNow
-        };
-        dbContext.UserProfiles.Add(profile);
-    }
-    else
+            profile.FirstName = request.FirstName.Trim();
+            profile.LastName = request.LastName.Trim();
+            profile.DisplayName = request.DisplayName.Trim();
+            profile.UpdatedUtc = utcNow;
+        }
+
+        await dbContext.SaveChangesAsync();
+
+        return Results.Ok(new UserProfileDto(
+            profile.UserId,
+            profile.FirstName,
+            profile.LastName,
+            profile.DisplayName,
+            profile.ProfilePictureUrl));
+    })
+    .WithName("UpdateUserProfile");
+}
+else
+{
+    app.Logger.LogInformation("Feature flag disabled: user profile endpoints.");
+}
+
+if (enableUserProfiles && enableProfilePictures)
+{
+    app.MapPost("/api/v1/users/{userId}/profile/picture", async (
+        string userId,
+        IFormFile file,
+        CookbookDbContext dbContext,
+        [FromServices] BlobContainerClient? containerClient) =>
     {
-        profile.ProfilePictureUrl = pictureUrl;
-        profile.UpdatedUtc = utcNow;
-    }
+        if (containerClient is null)
+            return Results.Problem("Blob storage is not configured.");
 
-    await dbContext.SaveChangesAsync();
+        if (file.Length == 0)
+            return Results.BadRequest("No file uploaded.");
 
-    return Results.Ok(new { url = pictureUrl });
-})
-.WithName("UploadProfilePicture")
-.DisableAntiforgery();
+        var allowedTypes = new[] { "image/jpeg", "image/png", "image/gif", "image/webp" };
+        if (!allowedTypes.Contains(file.ContentType.ToLowerInvariant()))
+            return Results.BadRequest("Only JPEG, PNG, GIF, and WebP images are allowed.");
+
+        if (file.Length > 5 * 1024 * 1024)
+            return Results.BadRequest("File size must be under 5 MB.");
+
+        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+        var blobName = $"{userId}/profile{extension}";
+        var blobClient = containerClient.GetBlobClient(blobName);
+
+        await using var stream = file.OpenReadStream();
+        await blobClient.UploadAsync(stream, new BlobUploadOptions
+        {
+            HttpHeaders = new BlobHttpHeaders { ContentType = file.ContentType }
+        });
+
+        var pictureUrl = blobClient.Uri.ToString();
+        var utcNow = DateTime.UtcNow;
+
+        var profile = await dbContext.UserProfiles.FindAsync(userId);
+        if (profile is null)
+        {
+            profile = new UserProfile
+            {
+                UserId = userId,
+                FirstName = string.Empty,
+                LastName = string.Empty,
+                DisplayName = string.Empty,
+                ProfilePictureUrl = pictureUrl,
+                CreatedUtc = utcNow,
+                UpdatedUtc = utcNow
+            };
+            dbContext.UserProfiles.Add(profile);
+        }
+        else
+        {
+            profile.ProfilePictureUrl = pictureUrl;
+            profile.UpdatedUtc = utcNow;
+        }
+
+        await dbContext.SaveChangesAsync();
+
+        return Results.Ok(new { url = pictureUrl });
+    })
+    .WithName("UploadProfilePicture")
+    .DisableAntiforgery();
+}
+else
+{
+    app.Logger.LogInformation("Feature flag disabled: profile picture uploads.");
+}
 
 app.MapGet("/api/v1/recipes", async (CookbookDbContext dbContext) =>
 {
@@ -579,46 +606,53 @@ app.MapPut("/api/v1/recipes/{recipeId}", async (
 })
 .WithName("UpdateRecipe");
 
-app.MapPost("/api/v1/recipes/{recipeId}/image", async (
-    int recipeId,
-    IFormFile file,
-    CookbookDbContext dbContext,
-    [FromServices] BlobContainerClient? containerClient) =>
+if (enableRecipeImages)
 {
-    if (containerClient is null)
-        return Results.Problem("Blob storage is not configured.");
-
-    var recipe = await dbContext.Recipes.FindAsync(recipeId);
-    if (recipe is null)
-        return Results.NotFound();
-
-    if (file.Length == 0)
-        return Results.BadRequest("No file uploaded.");
-
-    var allowedTypes = new[] { "image/jpeg", "image/png", "image/gif", "image/webp" };
-    if (!allowedTypes.Contains(file.ContentType.ToLowerInvariant()))
-        return Results.BadRequest("Only JPEG, PNG, GIF, and WebP images are allowed.");
-
-    if (file.Length > 5 * 1024 * 1024)
-        return Results.BadRequest("File size must be under 5 MB.");
-
-    var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-    var blobName = $"recipes/{recipeId}/image{extension}";
-    var blobClient = containerClient.GetBlobClient(blobName);
-
-    await using var stream = file.OpenReadStream();
-    await blobClient.UploadAsync(stream, new BlobUploadOptions
+    app.MapPost("/api/v1/recipes/{recipeId}/image", async (
+        int recipeId,
+        IFormFile file,
+        CookbookDbContext dbContext,
+        [FromServices] BlobContainerClient? containerClient) =>
     {
-        HttpHeaders = new BlobHttpHeaders { ContentType = file.ContentType }
-    });
+        if (containerClient is null)
+            return Results.Problem("Blob storage is not configured.");
 
-    recipe.ImageUrl = blobClient.Uri.ToString();
-    await dbContext.SaveChangesAsync();
+        var recipe = await dbContext.Recipes.FindAsync(recipeId);
+        if (recipe is null)
+            return Results.NotFound();
 
-    return Results.Ok(new { url = recipe.ImageUrl });
-})
-.WithName("UploadRecipeImage")
-.DisableAntiforgery();
+        if (file.Length == 0)
+            return Results.BadRequest("No file uploaded.");
+
+        var allowedTypes = new[] { "image/jpeg", "image/png", "image/gif", "image/webp" };
+        if (!allowedTypes.Contains(file.ContentType.ToLowerInvariant()))
+            return Results.BadRequest("Only JPEG, PNG, GIF, and WebP images are allowed.");
+
+        if (file.Length > 5 * 1024 * 1024)
+            return Results.BadRequest("File size must be under 5 MB.");
+
+        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+        var blobName = $"recipes/{recipeId}/image{extension}";
+        var blobClient = containerClient.GetBlobClient(blobName);
+
+        await using var stream = file.OpenReadStream();
+        await blobClient.UploadAsync(stream, new BlobUploadOptions
+        {
+            HttpHeaders = new BlobHttpHeaders { ContentType = file.ContentType }
+        });
+
+        recipe.ImageUrl = blobClient.Uri.ToString();
+        await dbContext.SaveChangesAsync();
+
+        return Results.Ok(new { url = recipe.ImageUrl });
+    })
+    .WithName("UploadRecipeImage")
+    .DisableAntiforgery();
+}
+else
+{
+    app.Logger.LogInformation("Feature flag disabled: recipe image uploads.");
+}
 
 app.MapDefaultEndpoints();
 

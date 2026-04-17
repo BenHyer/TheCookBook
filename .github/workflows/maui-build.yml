@@ -45,7 +45,6 @@ jobs:
         shell: pwsh
         run: dotnet workload install maui --ignore-failed-sources
 
-
   build-windows:
     runs-on: windows-latest
     needs: prepare
@@ -56,6 +55,7 @@ jobs:
       MAUI_AZUREAD_CLIENT_ID: ${{ secrets.MAUI_AZUREAD_CLIENT_ID }}
       MAUI_AZUREAD_SCOPES: ${{ secrets.MAUI_AZUREAD_SCOPES }}
       MAUI_API_BASE_URL: ${{ secrets.MAUI_API_BASE_URL }}
+      MAUI_FEATURE_ENABLE_USER_PROFILES: ${{ vars.MAUI_FEATURE_ENABLE_USER_PROFILES }}
 
     steps:
       - name: Checkout
@@ -97,6 +97,8 @@ jobs:
           $clientId = $env:MAUI_AZUREAD_CLIENT_ID
           $scopesRaw = $env:MAUI_AZUREAD_SCOPES
           $apiBaseUrl = if ([string]::IsNullOrWhiteSpace($env:MAUI_API_BASE_URL)) { "http://localhost:5346" } else { $env:MAUI_API_BASE_URL }
+          $enableProfilesRaw = $env:MAUI_FEATURE_ENABLE_USER_PROFILES
+          $enableProfiles = if ([string]::IsNullOrWhiteSpace($enableProfilesRaw)) { $true } else { [System.Convert]::ToBoolean($enableProfilesRaw) }
 
           $scopes = @()
           if (-not [string]::IsNullOrWhiteSpace($scopesRaw)) {
@@ -105,6 +107,7 @@ jobs:
 
           $config = [ordered]@{
             ApiService = @{ BaseUrl = $apiBaseUrl }
+            FeatureFlags = @{ EnableUserProfiles = $enableProfiles }
             AzureAd = @{
               Instance = $instance
               TenantId = $tenantId
@@ -128,6 +131,7 @@ jobs:
       MAUI_AZUREAD_CLIENT_ID: ${{ secrets.MAUI_AZUREAD_CLIENT_ID }}
       MAUI_AZUREAD_SCOPES: ${{ secrets.MAUI_AZUREAD_SCOPES }}
       MAUI_API_BASE_URL: ${{ secrets.MAUI_API_BASE_URL }}
+      MAUI_FEATURE_ENABLE_USER_PROFILES: ${{ vars.MAUI_FEATURE_ENABLE_USER_PROFILES }}
 
     steps:
       - name: Checkout
@@ -169,6 +173,8 @@ jobs:
           $clientId = $env:MAUI_AZUREAD_CLIENT_ID
           $scopesRaw = $env:MAUI_AZUREAD_SCOPES
           $apiBaseUrl = if ([string]::IsNullOrWhiteSpace($env:MAUI_API_BASE_URL)) { "http://localhost:5346" } else { $env:MAUI_API_BASE_URL }
+          $enableProfilesRaw = $env:MAUI_FEATURE_ENABLE_USER_PROFILES
+          $enableProfiles = if ([string]::IsNullOrWhiteSpace($enableProfilesRaw)) { $true } else { [System.Convert]::ToBoolean($enableProfilesRaw) }
 
           $scopes = @()
           if (-not [string]::IsNullOrWhiteSpace($scopesRaw)) {
@@ -177,6 +183,7 @@ jobs:
 
           $config = [ordered]@{
             ApiService = @{ BaseUrl = $apiBaseUrl }
+            FeatureFlags = @{ EnableUserProfiles = $enableProfiles }
             AzureAd = @{
               Instance = $instance
               TenantId = $tenantId

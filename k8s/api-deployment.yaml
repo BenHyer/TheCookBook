@@ -47,6 +47,11 @@ spec:
                 configMapKeyRef:
                   name: cookbook-config
                   key: OTEL_EXPORTER_OTLP_ENDPOINT
+            - name: FeatureFlags__EnableUserProfiles
+              valueFrom:
+                configMapKeyRef:
+                  name: cookbook-config
+                  key: FeatureFlags__EnableUserProfiles
           readinessProbe:
             httpGet:
               path: /health

@@ -3,17 +3,23 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Forms
 @using CookbookMauiBlazor.Shared.Services
+@using Microsoft.Extensions.Configuration
 
 @attribute [Authorize]
 @inject AuthenticationStateProvider AuthStateProvider
 @inject IUserProfileService ProfileService
+@inject IConfiguration Configuration
 
 <PageTitle>Profile</PageTitle>
 
 <div class="profile-page">
     <h1>My Profile</h1>
 
-    @if (_loading)
+    @if (!_profilesEnabled)
+    {
+        <p>The account page is currently disabled.</p>
+    }
+    else if (_loading)
     {
         <p>Loading...</p>
     }
@@ -32,7 +38,8 @@
             }
 
             <div class="mt-2">
-                <InputFile OnChange="HandlePictureSelected" accept="image/jpeg,image/png,image/gif,image/webp" class="form-control" style="max-width:320px;" />
+                <InputFile OnChange="HandlePictureSelected" accept="image/jpeg,image/png,image/gif,image/webp"
+                           class="form-control" style="max-width:320px;" />
                 @if (_pictureUploading)
                 {
                     <small class="text-muted">Uploading...</small>
@@ -84,6 +91,7 @@
 @code {
     private string _userId = string.Empty;
     private string? _pictureUrl;
+    private bool _profilesEnabled = true;
     private bool _loading = true;
     private bool _saving;
     private bool _saveSuccess;
@@ -95,6 +103,13 @@
 
     protected override async Task OnInitializedAsync()
     {
+        _profilesEnabled = Configuration.GetValue("FeatureFlags:EnableUserProfiles", true);
+        if (!_profilesEnabled)
+        {
+            _loading = false;
+            return;
+        }
+
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
 

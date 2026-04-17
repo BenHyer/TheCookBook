@@ -57,6 +57,7 @@ jobs:
       IMAGE_TAG: pr-${{ github.event.number }}
       BENCAMPUS_HOST: pr-${{ github.event.number }}.bencampus.duckdns.org
       BENHHOME_HOST: pr-${{ github.event.number }}.benhhome.duckdns.org
+      FEATURE_ENABLE_USER_PROFILES: ${{ vars.FEATURE_ENABLE_USER_PROFILES }}
 
     steps:
       - name: Checkout
@@ -85,6 +86,12 @@ jobs:
             -e "s/namespace: cookbook$/namespace: $NS/" \
             -e "s|http://otel-collector:|http://otel-collector.cookbook:|" \
             k8s/configmap.yaml | kubectl apply -f -
+
+      - name: Configure feature flags
+        run: |
+          FEATURE_ENABLE_USER_PROFILES=${FEATURE_ENABLE_USER_PROFILES:-true}
+          kubectl patch configmap cookbook-config -n "$NS" --type merge \
+            -p "{\"data\":{\"FeatureFlags__EnableUserProfiles\":\"$FEATURE_ENABLE_USER_PROFILES\"}}"
 
       - name: Apply deployments and services
         # Reuse the production manifests as-is; sed patches the hardcoded
