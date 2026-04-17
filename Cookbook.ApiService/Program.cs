@@ -104,9 +104,9 @@ if (app.Environment.IsDevelopment())
 
 // Feature flags
 var featureFlags = builder.Configuration.GetSection("FeatureFlags");
-var enableBulkAdd      = featureFlags.GetValue("EnableBulkAddBoardRecipes", true);
+var enableBulkAdd = featureFlags.GetValue("EnableBulkAddBoardRecipes", true);
 var enableUserProfiles = featureFlags.GetValue("EnableUserProfiles", true);
-var enablePictures     = featureFlags.GetValue("EnableProfilePictures", true);
+var enablePictures = featureFlags.GetValue("EnableProfilePictures", true);
 var enableRecipeImages = featureFlags.GetValue("EnableRecipeImages", true);
 
 app.MapGet("/", () => "API service is running.");
