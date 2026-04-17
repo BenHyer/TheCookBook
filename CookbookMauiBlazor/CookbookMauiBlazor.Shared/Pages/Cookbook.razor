@@ -1,56 +1,52 @@
 @page "/cookbook"
+@using System.ComponentModel
 @using global::Cookbook.Shared.Boards
 @using CookbookMauiBlazor.Shared.Models
-@using CookbookMauiBlazor.Shared.Services
 @using CookbookMauiBlazor.Shared.Viewmodels
-@using Microsoft.AspNetCore.Components.Authorization
-@inject IRecipeService RecipeService
-@inject AuthenticationStateProvider AuthStateProvider
-@inject IAuthService AuthService
-@inject BoardViewModel BoardViewModel
-@inject NavigationManager Navigation
+@inject CookbookViewModel ViewModel
+@implements IDisposable
 
 <PageTitle>Cookbook</PageTitle>
 
 <h3>Cookbook</h3>
 
-@if (_requiresSignIn)
+@if (ViewModel.RequiresSignIn)
 {
     <div class="alert alert-info">
         <div>Sign in to create and view your recipes.</div>
-        <button class="btn btn-primary mt-2" @onclick="SignInAsync">Sign in</button>
+        <button class="btn btn-primary mt-2" @onclick="ViewModel.SignInAsync">Sign in</button>
     </div>
 }
 else
 {
     <div class="mb-4 d-flex gap-2 flex-wrap">
-        <button class="btn btn-primary" @onclick="ToggleForm" disabled="@(_editingRecipe is not null)">
-            @(_showForm ? "Cancel" : "+ New Recipe")
+        <button class="btn btn-primary" @onclick="ViewModel.ToggleForm" disabled="@(ViewModel.EditingRecipe is not null)">
+            @(ViewModel.ShowForm ? "Cancel" : "+ New Recipe")
         </button>
-        <button class="btn btn-outline-primary" @onclick="ToggleBoardAddPanelAsync"
-                disabled="@(_editingRecipe is not null)">
+        <button class="btn btn-outline-primary" @onclick="ViewModel.ToggleBoardAddPanelAsync"
+                disabled="@(ViewModel.EditingRecipe is not null)">
             Add recipes to board
         </button>
-        @if (_editingRecipe is not null)
+        @if (ViewModel.EditingRecipe is not null)
         {
-            <span class="text-muted align-self-center">Editing: @_editingRecipe.Title</span>
+            <span class="text-muted align-self-center">Editing: @ViewModel.EditingRecipe.Title</span>
         }
     </div>
 
-    @if (_showBoardAddPanel)
+    @if (ViewModel.ShowBoardAddPanel)
     {
         <div class="card mb-4">
             <div class="card-body">
                 <h5 class="card-title">Add recipes to a board</h5>
-                @if (!string.IsNullOrWhiteSpace(_boardAddError))
+                @if (!string.IsNullOrWhiteSpace(ViewModel.BoardAddError))
                 {
-                    <div class="alert alert-danger">@_boardAddError</div>
+                    <div class="alert alert-danger">@ViewModel.BoardAddError</div>
                 }
                 <div class="mb-3">
                     <label class="form-label">Select board</label>
-                    <InputSelect class="form-select" @bind-Value="_selectedBoardId">
+                    <InputSelect class="form-select" @bind-Value="ViewModel.SelectedBoardId">
                         <option value="">Choose a board</option>
-                        @foreach (var board in _boards)
+                        @foreach (var board in ViewModel.Boards)
                         {
                             <option value="@board.Id">@board.Name</option>
                         }
@@ -58,72 +54,74 @@ else
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Search recipes</label>
-                    <input class="form-control" @bind="_boardSearchText" @bind:event="oninput" placeholder="Search by name" />
+                    <input class="form-control" @bind="ViewModel.BoardSearchText" @bind:event="oninput"
+                           placeholder="Search by name" />
                 </div>
-                @if (_recipes.Count == 0)
+                @if (ViewModel.Recipes.Count == 0)
                 {
                     <p class="text-muted">No recipes available.</p>
                 }
                 else
                 {
                     <div class="border rounded p-2" style="max-height: 320px; overflow-y: auto;">
-                        @foreach (var recipe in FilteredBoardAddRecipes())
+                        @foreach (var recipe in ViewModel.FilteredBoardAddRecipes())
                         {
                             var checkboxId = $"board-add-recipe-{recipe.Id}";
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="@checkboxId"
-                                       checked="@_selectedBoardRecipeIds.Contains(recipe.Id)"
-                                       @onchange="(args) => ToggleBoardSelection(recipe.Id, args)" />
+                                       checked="@ViewModel.SelectedBoardRecipeIds.Contains(recipe.Id)"
+                                       @onchange="(args) => ViewModel.ToggleBoardSelection(recipe.Id, args.Value is bool isChecked && isChecked)" />
                                 <label class="form-check-label" for="@checkboxId">@recipe.Title</label>
                             </div>
                         }
                     </div>
                 }
                 <div class="mt-3 d-flex gap-2 flex-wrap">
-                    <button class="btn btn-primary" @onclick="AddRecipesToBoardAsync"
-                            disabled="@(_addingToBoard || _selectedBoardRecipeIds.Count == 0 || _selectedBoardId is null)">
-                        @(_addingToBoard ? "Adding..." : "Add selected")
+                    <button class="btn btn-primary" @onclick="ViewModel.AddRecipesToBoardAsync"
+                            disabled="@(ViewModel.AddingToBoard || ViewModel.SelectedBoardRecipeIds.Count == 0 || ViewModel.SelectedBoardId is null)">
+                        @(ViewModel.AddingToBoard ? "Adding..." : "Add selected")
                     </button>
-                    <button class="btn btn-outline-secondary" @onclick="CloseBoardAddPanel"
-                            disabled="@_addingToBoard">Cancel</button>
+                    <button class="btn btn-outline-secondary" @onclick="ViewModel.CloseBoardAddPanel"
+                            disabled="@ViewModel.AddingToBoard">Cancel</button>
                 </div>
             </div>
         </div>
     }
 
-    @if (_editingRecipe is not null)
+    @if (ViewModel.EditingRecipe is not null)
     {
         <div class="card mb-4">
             <div class="card-body">
-                <EditRecipeForm Recipe="@_editingRecipe" OnSaved="OnRecipeUpdated" OnCanceled="CancelEdit" />
+                <EditRecipeForm Recipe="@ViewModel.EditingRecipe" OnSaved="ViewModel.HandleRecipeUpdated"
+                                OnCanceled="ViewModel.CancelEdit" />
             </div>
         </div>
     }
-    else if (_showForm)
+    else if (ViewModel.ShowForm)
     {
         <div class="card mb-4">
             <div class="card-body">
-                <NewRecipeForm OwnerUserId="@_ownerUserId" OnCreated="OnRecipeCreated" />
+                <NewRecipeForm OwnerUserId="@ViewModel.OwnerUserId" OnCreated="ViewModel.HandleRecipeCreated" />
             </div>
         </div>
     }
 
-    @if (_loading)
+    @if (ViewModel.Loading)
     {
         <p>Loading recipes...</p>
     }
-    else if (_recipes.Count == 0)
+    else if (ViewModel.Recipes.Count == 0)
     {
         <p class="text-muted">No recipes yet. Add one above!</p>
     }
     else
     {
         <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-            @foreach (var recipe in _recipes)
+            @foreach (var recipe in ViewModel.Recipes)
             {
                 <div class="col">
                     <div class="card h-100 text-decoration-none" style="cursor:pointer;"
-                         @onclick="() => NavigateToRecipe(recipe.Id)">
+                         @onclick="() => ViewModel.NavigateToRecipe(recipe.Id)">
                         @if (!string.IsNullOrWhiteSpace(recipe.ImageUrl))
                         {
                             <img src="@recipe.ImageUrl" class="card-img-top" alt="@recipe.Title"
@@ -132,8 +130,8 @@ else
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-start">
                                 <h5 class="card-title text-body">@recipe.Title</h5>
-                                <button class="btn btn-sm btn-outline-secondary" type="button" @onclick="() => StartEdit(recipe)"
-                                        @onclick:stopPropagation="true">
+                                <button class="btn btn-sm btn-outline-secondary" type="button"
+                                        @onclick="() => ViewModel.StartEdit(recipe)" @onclick:stopPropagation="true">
                                     Edit
                                 </button>
                             </div>
@@ -164,159 +162,19 @@ else
 }
 
 @code {
-    private List<Recipe> _recipes = new();
-    private bool _loading = true;
-    private bool _showForm;
-    private bool _requiresSignIn;
-    private string _ownerUserId = string.Empty;
-    private Recipe? _editingRecipe;
-    private bool _showBoardAddPanel;
-    private bool _addingToBoard;
-    private string _boardSearchText = string.Empty;
-    private string? _boardAddError;
-    private Guid? _selectedBoardId;
-    private IReadOnlyList<BoardSummary> _boards = [];
-    private HashSet<int> _selectedBoardRecipeIds = new();
-
     protected override async Task OnInitializedAsync()
     {
-        await LoadRecipesAsync();
+        ViewModel.PropertyChanged += OnViewModelChanged;
+        await ViewModel.InitializeAsync();
     }
 
-    private void ToggleForm() => _showForm = !_showForm;
-
-    private async Task OnRecipeCreated(Recipe recipe)
+    private void OnViewModelChanged(object? sender, PropertyChangedEventArgs e)
     {
-        _recipes.Insert(0, recipe);
-        _showForm = false;
+        _ = InvokeAsync(StateHasChanged);
     }
 
-    private async Task OnRecipeUpdated(Recipe recipe)
+    public void Dispose()
     {
-        var index = _recipes.FindIndex(r => r.Id == recipe.Id);
-        if (index >= 0)
-        {
-            _recipes[index] = recipe;
-        }
-
-        _editingRecipe = null;
-    }
-
-    private void StartEdit(Recipe recipe)
-    {
-        _editingRecipe = recipe;
-        _showForm = false;
-    }
-
-    private void NavigateToRecipe(int recipeId)
-    {
-        Navigation.NavigateTo($"/recipes/{recipeId}");
-    }
-
-    private void CancelEdit()
-    {
-        _editingRecipe = null;
-    }
-
-    private async Task SignInAsync()
-    {
-        await AuthService.SignInAsync("/cookbook");
-        await LoadRecipesAsync();
-    }
-
-    private async Task ToggleBoardAddPanelAsync()
-    {
-        _showBoardAddPanel = !_showBoardAddPanel;
-        _boardAddError = null;
-        _boardSearchText = string.Empty;
-        _selectedBoardRecipeIds.Clear();
-
-        if (_showBoardAddPanel && !string.IsNullOrWhiteSpace(_ownerUserId))
-        {
-            _boards = await BoardViewModel.LoadBoardsAsync(_ownerUserId);
-        }
-    }
-
-    private void CloseBoardAddPanel()
-    {
-        _showBoardAddPanel = false;
-        _selectedBoardRecipeIds.Clear();
-        _boardAddError = null;
-    }
-
-    private IEnumerable<Recipe> FilteredBoardAddRecipes()
-    {
-        var search = _boardSearchText.Trim();
-        return _recipes.Where(r => string.IsNullOrWhiteSpace(search)
-            || r.Title.Contains(search, StringComparison.OrdinalIgnoreCase));
-    }
-
-    private void ToggleBoardSelection(int recipeId, ChangeEventArgs args)
-    {
-        if (args.Value is bool isChecked && isChecked)
-        {
-            _selectedBoardRecipeIds.Add(recipeId);
-        }
-        else
-        {
-            _selectedBoardRecipeIds.Remove(recipeId);
-        }
-    }
-
-    private async Task AddRecipesToBoardAsync()
-    {
-        _boardAddError = null;
-
-        if (string.IsNullOrWhiteSpace(_ownerUserId))
-        {
-            _boardAddError = "Sign in to add recipes.";
-            return;
-        }
-
-        if (_selectedBoardId is null)
-        {
-            _boardAddError = "Select a board.";
-            return;
-        }
-
-        if (_selectedBoardRecipeIds.Count == 0)
-        {
-            _boardAddError = "Select at least one recipe.";
-            return;
-        }
-
-        _addingToBoard = true;
-        await BoardViewModel.AddRecipesAsync(_selectedBoardId.Value, _ownerUserId, _selectedBoardRecipeIds);
-        _addingToBoard = false;
-
-        _selectedBoardRecipeIds.Clear();
-        _showBoardAddPanel = false;
-    }
-
-    private async Task LoadRecipesAsync()
-    {
-        _loading = true;
-        _recipes = new List<Recipe>();
-
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User;
-
-        _ownerUserId =
-            user.FindFirst("oid")?.Value
-            ?? user.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value
-            ?? user.FindFirst("sub")?.Value
-            ?? user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
-            ?? string.Empty;
-
-        if (string.IsNullOrWhiteSpace(_ownerUserId))
-        {
-            _requiresSignIn = true;
-            _loading = false;
-            return;
-        }
-
-        _requiresSignIn = false;
-        _recipes = await RecipeService.GetRecipesByOwnerAsync(_ownerUserId);
-        _loading = false;
+        ViewModel.PropertyChanged -= OnViewModelChanged;
     }
 }
