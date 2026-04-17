@@ -979,7 +979,7 @@ app.MapGet("/api/v1/boards/shared-with-me/{userId}", async (string userId, Cookb
 
 app.MapGet("/api/v1/users/{userId}/invitations", async (string userId, CookbookDbContext dbContext) =>
 {
-    var invitations = await dbContext.BoardPermissions
+    var raw = await dbContext.BoardPermissions
         .Where(bp => bp.UserId == userId && bp.Status == BoardPermissionStatus.Pending)
         .Join(dbContext.Boards,
             bp => bp.BoardId,
@@ -988,15 +988,27 @@ app.MapGet("/api/v1/users/{userId}/invitations", async (string userId, CookbookD
         .Join(dbContext.UserProfiles,
             x => x.Board.OwnerUserId,
             up => up.UserId,
-            (x, up) => new BoardInvitationDto(
-                x.Board.Id,
-                x.Board.Name,
-                x.Board.OwnerUserId,
-                up.DisplayName,
-                x.Permission.Role,
-                ToUtcOffset(x.Permission.CreatedUtc)))
-        .OrderByDescending(i => i.InvitedAt)
+            (x, up) => new
+            {
+                BoardId = x.Board.Id,
+                BoardName = x.Board.Name,
+                OwnerUserId = x.Board.OwnerUserId,
+                OwnerDisplayName = up.DisplayName,
+                Role = x.Permission.Role,
+                CreatedUtc = x.Permission.CreatedUtc
+            })
+        .OrderByDescending(i => i.CreatedUtc)
         .ToListAsync();
+
+    var invitations = raw
+        .Select(x => new BoardInvitationDto(
+            x.BoardId,
+            x.BoardName,
+            x.OwnerUserId,
+            x.OwnerDisplayName,
+            x.Role,
+            ToUtcOffset(x.CreatedUtc)))
+        .ToList();
 
     return Results.Ok(invitations);
 })
