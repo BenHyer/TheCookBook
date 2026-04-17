@@ -9,6 +9,7 @@ namespace CookbookMauiBlazor.Services
         private static readonly ClaimsPrincipal Anonymous = new ClaimsPrincipal(new ClaimsIdentity());
         private readonly IPublicClientApplication _publicClient;
         private readonly AzureAdOptions _options;
+        private ClaimsPrincipal _cachedUser = Anonymous;
 
         public MauiAuthenticationStateProvider(
             IPublicClientApplication publicClient,
@@ -18,9 +19,39 @@ namespace CookbookMauiBlazor.Services
             _options = options;
         }
 
-        public override Task<AuthenticationState> GetAuthenticationStateAsync()
+        public override async Task<AuthenticationState> GetAuthenticationStateAsync()
         {
-            return Task.FromResult(new AuthenticationState(Anonymous));
+            // If we have a cached authenticated user, return it
+            if (_cachedUser.Identity?.IsAuthenticated ?? false)
+            {
+                return new AuthenticationState(_cachedUser);
+            }
+
+            // Try to restore from cached accounts
+            try
+            {
+                var scopes = _options.Scopes.Length > 0 ? _options.Scopes : new[] { "User.Read" };
+                var accounts = await _publicClient.GetAccountsAsync();
+                var account = accounts.FirstOrDefault();
+
+                if (account != null)
+                {
+                    var result = await _publicClient.AcquireTokenSilent(scopes, account)
+                        .ExecuteAsync();
+
+                    if (result != null)
+                    {
+                        SetAuthenticatedFromResult(result);
+                        return new AuthenticationState(_cachedUser);
+                    }
+                }
+            }
+            catch (MsalException)
+            {
+                // Token acquisition failed, user is not authenticated
+            }
+
+            return new AuthenticationState(Anonymous);
         }
 
         public async Task<bool> SignInAsync()
@@ -58,20 +89,26 @@ namespace CookbookMauiBlazor.Services
 
         public void SetAnonymous()
         {
+            _cachedUser = Anonymous;
             NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(Anonymous)));
         }
 
         private void SetAuthenticated(AuthenticationResult result)
         {
+            SetAuthenticatedFromResult(result);
+            NotifyAuthenticationStateChanged(GetAuthenticationStateAsync());
+        }
+
+        private void SetAuthenticatedFromResult(AuthenticationResult result)
+        {
             if (result is null)
             {
-                SetAnonymous();
+                _cachedUser = Anonymous;
                 return;
             }
 
             var identity = new ClaimsIdentity(result.ClaimsPrincipal.Claims, "MSAL");
-            var user = new ClaimsPrincipal(identity);
-            NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(user)));
+            _cachedUser = new ClaimsPrincipal(identity);
         }
     }
 }

@@ -2,10 +2,14 @@
 @using Microsoft.AspNetCore.Authorization
 @using System.ComponentModel
 @using CookbookMauiBlazor.Shared.Boards
+@using CookbookMauiBlazor.Shared.Services
 @using CookbookMauiBlazor.Shared.Viewmodels
+@using Microsoft.AspNetCore.Components.Authorization
+@using global::Cookbook.Shared.Boards
 
 @attribute [Authorize]
 @inject BoardsPageViewModel ViewModel
+@inject AuthenticationStateProvider AuthenticationStateProvider
 @implements IDisposable
 
 <PageTitle>Boards</PageTitle>
@@ -14,18 +18,88 @@
 
 <CreateBoardForm OwnerUserId="@ViewModel.OwnerUserId" OnCreated="ViewModel.HandleBoardCreated" />
 <hr />
-<BoardList OwnerUserId="@ViewModel.OwnerUserId" ReloadToken="@ViewModel.ReloadToken" />
+
+<h2>My Boards</h2>
+<BoardList OwnerUserId="@ViewModel.OwnerUserId" ReloadToken="@ViewModel.ReloadToken" OnShare="HandleShareClick" />
+
+@if (ViewModel.SharedBoards.Count > 0)
+{
+    <hr />
+    <h2>Shared with Me</h2>
+    @if (ViewModel.SharedBoards.Count == 0)
+    {
+        <p>No boards shared with you yet.</p>
+    }
+    else
+    {
+        <ul class="list-group">
+            @foreach (var board in ViewModel.SharedBoards)
+            {
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <span>@board.Name</span>
+                        <small class="text-muted d-block">by @_boardOwners.GetValueOrDefault(board.OwnerUserId, "Unknown User")</small>
+                    </div>
+                    <NavLink class="btn btn-sm btn-outline-secondary" href="@($"/boards/{board.Id}")">
+                        Open
+                    </NavLink>
+                </li>
+            }
+        </ul>
+    }
+}
+
+<ShareBoardDialog BoardId="@_shareDialogBoardId" BoardOwnerId="@_shareDialogOwner" IsOpen="@_shareDialogOpen"
+                  OnClose="CloseShareDialog" OnShared="OnBoardShared" />
 
 @code {
+    private bool _shareDialogOpen;
+    private Guid _shareDialogBoardId;
+    private string _shareDialogOwner = string.Empty;
+    private Dictionary<string, string> _boardOwners = new();
+
     protected override async Task OnInitializedAsync()
     {
         ViewModel.PropertyChanged += OnViewModelChanged;
         await ViewModel.InitializeAsync();
+        await LoadBoardOwnersAsync();
+    }
+
+    private async Task LoadBoardOwnersAsync()
+    {
+        // For now, we'll just use the owner ID as the display name
+        // In a full implementation, we'd fetch user profiles
+        foreach (var board in ViewModel.SharedBoards)
+        {
+            if (!_boardOwners.ContainsKey(board.OwnerUserId))
+            {
+                _boardOwners[board.OwnerUserId] = board.OwnerUserId;
+            }
+        }
     }
 
     private void OnViewModelChanged(object? sender, PropertyChangedEventArgs e)
     {
         _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void HandleShareClick(BoardSummary board)
+    {
+        _shareDialogBoardId = board.Id;
+        _shareDialogOwner = board.OwnerUserId;
+        _shareDialogOpen = true;
+    }
+
+    private async Task CloseShareDialog()
+    {
+        _shareDialogOpen = false;
+        _shareDialogBoardId = Guid.Empty;
+        _shareDialogOwner = string.Empty;
+    }
+
+    private async Task OnBoardShared()
+    {
+        _shareDialogOpen = false;
     }
 
     public void Dispose()

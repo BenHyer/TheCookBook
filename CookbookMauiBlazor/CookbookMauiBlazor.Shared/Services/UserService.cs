@@ -1,0 +1,86 @@
+using System.Net.Http.Json;
+
+namespace CookbookMauiBlazor.Shared.Services;
+
+public sealed class UserService : IUserService
+{
+    private readonly HttpClient _httpClient;
+
+    public UserService(HttpClient httpClient)
+    {
+        _httpClient = httpClient;
+    }
+
+    public async Task<IReadOnlyList<UserSummary>> SearchAsync(string? searchQuery = null, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var query = string.IsNullOrWhiteSpace(searchQuery) ? string.Empty : $"?search={Uri.EscapeDataString(searchQuery)}";
+            var users = await _httpClient.GetFromJsonAsync<List<UserSummary>>(
+                $"/api/v1/users{query}",
+                cancellationToken);
+            return users ?? [];
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    public async Task<IReadOnlyList<BoardCollaborator>> GetBoardCollaboratorsAsync(Guid boardId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var collaborators = await _httpClient.GetFromJsonAsync<List<BoardCollaborator>>(
+                $"/api/v1/boards/{boardId}/collaborators",
+                cancellationToken);
+            return collaborators ?? [];
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    public async Task ShareBoardAsync(Guid boardId, IReadOnlyCollection<string> userIds, CancellationToken cancellationToken = default)
+    {
+        if (userIds.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            var request = new { userIds = userIds.ToList() };
+            var response = await _httpClient.PostAsJsonAsync(
+                $"/api/v1/boards/{boardId}/share",
+                request,
+                cancellationToken);
+            response.EnsureSuccessStatusCode();
+        }
+        catch
+        {
+            // Handle error
+        }
+    }
+
+    public async Task RemovePermissionAsync(Guid boardId, string userId, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return;
+        }
+
+        try
+        {
+            var response = await _httpClient.DeleteAsync(
+                $"/api/v1/boards/{boardId}/permissions/{userId}",
+                cancellationToken);
+            response.EnsureSuccessStatusCode();
+        }
+        catch
+        {
+            // Handle error
+        }
+    }
+}
