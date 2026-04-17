@@ -1,39 +1,35 @@
 @page "/boards"
 @using Microsoft.AspNetCore.Authorization
-@using Microsoft.AspNetCore.Components.Authorization
+@using System.ComponentModel
 @using CookbookMauiBlazor.Shared.Boards
+@using CookbookMauiBlazor.Shared.Viewmodels
 
 @attribute [Authorize]
-@inject AuthenticationStateProvider AuthStateProvider
+@inject BoardsPageViewModel ViewModel
+@implements IDisposable
 
 <PageTitle>Boards</PageTitle>
 
 <h1>Boards</h1>
 
-<CreateBoardForm OwnerUserId="@_ownerUserId" OnCreated="HandleBoardCreated" />
+<CreateBoardForm OwnerUserId="@ViewModel.OwnerUserId" OnCreated="ViewModel.HandleBoardCreated" />
 <hr />
-<BoardList OwnerUserId="@_ownerUserId" ReloadToken="@_reloadToken" />
+<BoardList OwnerUserId="@ViewModel.OwnerUserId" ReloadToken="@ViewModel.ReloadToken" />
 
 @code {
-    private string _ownerUserId = string.Empty;
-    private int _reloadToken;
-
     protected override async Task OnInitializedAsync()
     {
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User;
-
-        _ownerUserId =
-            user.FindFirst("oid")?.Value
-            ?? user.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value
-            ?? user.FindFirst("sub")?.Value
-            ?? user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
-            ?? string.Empty;
-
+        ViewModel.PropertyChanged += OnViewModelChanged;
+        await ViewModel.InitializeAsync();
     }
 
-    private void HandleBoardCreated()
+    private void OnViewModelChanged(object? sender, PropertyChangedEventArgs e)
     {
-        _reloadToken++;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        ViewModel.PropertyChanged -= OnViewModelChanged;
     }
 }

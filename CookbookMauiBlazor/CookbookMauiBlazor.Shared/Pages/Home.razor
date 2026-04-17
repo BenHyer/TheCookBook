@@ -1,8 +1,8 @@
 ﻿@page "/"
-@using Microsoft.AspNetCore.Components.Authorization
-@using CookbookMauiBlazor.Shared.Services
-@inject AuthenticationStateProvider AuthStateProvider
-@inject IAuthService AuthService
+@using System.ComponentModel
+@using CookbookMauiBlazor.Shared.Viewmodels
+@inject HomePageViewModel ViewModel
+@implements IDisposable
 
 <PageTitle>Cookbook</PageTitle>
 
@@ -11,11 +11,11 @@
     <p class="text-muted">Manage boards and recipes from one place.</p>
 </div>
 
-@if (_requiresSignIn)
+@if (ViewModel.RequiresSignIn)
 {
     <div class="alert alert-info mt-4">
         <div>Sign in or create an account to start saving recipes.</div>
-        <button class="btn btn-primary mt-2" @onclick="SignInAsync">Sign in</button>
+        <button class="btn btn-primary mt-2" @onclick="ViewModel.SignInAsync">Sign in</button>
     </div>
 }
 
@@ -34,14 +34,19 @@
 </div>
 
 @code {
-    private bool _requiresSignIn;
-
     protected override async Task OnInitializedAsync()
     {
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User;
-        _requiresSignIn = !user.Identity?.IsAuthenticated ?? true;
+        ViewModel.PropertyChanged += OnViewModelChanged;
+        await ViewModel.InitializeAsync();
     }
 
-    private Task SignInAsync() => AuthService.SignInAsync("/");
+    private void OnViewModelChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        ViewModel.PropertyChanged -= OnViewModelChanged;
+    }
 }

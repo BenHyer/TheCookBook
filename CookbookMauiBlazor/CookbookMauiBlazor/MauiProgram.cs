@@ -68,6 +68,10 @@ namespace CookbookMauiBlazor
                 sp.GetRequiredService<MauiAuthenticationStateProvider>());
             builder.Services.AddScoped<BoardViewModel>();
             builder.Services.AddScoped<CookbookViewModel>();
+            builder.Services.AddScoped<ProfilePageViewModel>();
+            builder.Services.AddScoped<BoardDetailsViewModel>();
+            builder.Services.AddScoped<BoardsPageViewModel>();
+            builder.Services.AddScoped<HomePageViewModel>();
             builder.Services.AddAuthorizationCore();
 
             var apiBaseUrl = builder.Configuration["ApiService:BaseUrl"] ?? "http://localhost:5346";
