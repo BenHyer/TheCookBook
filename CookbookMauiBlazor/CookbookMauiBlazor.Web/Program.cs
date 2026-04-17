@@ -65,6 +65,10 @@ builder.Services.AddSingleton<IFormFactor, FormFactor>();
 builder.Services.AddScoped<IAuthService, WebAuthService>();
 builder.Services.AddScoped<BoardViewModel>();
 builder.Services.AddScoped<CookbookViewModel>();
+builder.Services.AddScoped<ProfilePageViewModel>();
+builder.Services.AddScoped<BoardDetailsViewModel>();
+builder.Services.AddScoped<BoardsPageViewModel>();
+builder.Services.AddScoped<HomePageViewModel>();
 builder.Services.AddCascadingAuthenticationState();
 
 var apiBaseUrl = builder.Configuration["ApiService:BaseUrl"] ?? "http://localhost:5346";
