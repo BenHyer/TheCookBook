@@ -205,9 +205,9 @@ else
             await BoardService.DeleteAsync(BoardId);
             NavigationManager.NavigateTo("/boards");
         }
-        catch
+        catch (Exception ex)
         {
-            _deleteError = "Failed to delete the board. Please try again.";
+            _deleteError = $"Failed to delete the board: {ex.Message}";
         }
         finally
         {

@@ -165,9 +165,9 @@
             _boardOwnerId = _collaborators.FirstOrDefault(c => c.Role == "Admin")?.UserId ?? string.Empty;
             _isCurrentUserAdmin = _collaborators.Any(c => c.UserId == CurrentUserId && c.Role == "Admin");
         }
-        catch
+        catch (Exception ex)
         {
-            _errorMessage = "Failed to load collaborators. Please try again.";
+            _errorMessage = $"Failed to load collaborators: {ex.Message}";
         }
         finally
         {
@@ -191,9 +191,9 @@
                 .Where(u => !existingUserIds.Contains(u.UserId) && u.UserId != CurrentUserId)
                 .ToList();
         }
-        catch
+        catch (Exception ex)
         {
-            _errorMessage = "Failed to search users. Please try again.";
+            _errorMessage = $"Failed to search users: {ex.Message}";
         }
     }
 
@@ -237,9 +237,9 @@
             await OnShared.InvokeAsync();
             await CloseAsync();
         }
-        catch
+        catch (Exception ex)
         {
-            _errorMessage = "Failed to share board. Please try again.";
+            _errorMessage = $"Failed to share board: {ex.Message}";
         }
         finally
         {
@@ -254,9 +254,9 @@
             await UserService.RemovePermissionAsync(BoardId, userId);
             await LoadCollaboratorsAsync();
         }
-        catch
+        catch (Exception ex)
         {
-            _errorMessage = "Failed to remove collaborator. Please try again.";
+            _errorMessage = $"Failed to remove collaborator: {ex.Message}";
         }
     }
 

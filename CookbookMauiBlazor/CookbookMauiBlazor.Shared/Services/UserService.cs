@@ -51,7 +51,15 @@ public sealed class UserService : IUserService
             $"/api/v1/boards/{boardId}/share",
             request,
             cancellationToken);
-        response.EnsureSuccessStatusCode();
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new HttpRequestException(
+                $"Share failed: {(int)response.StatusCode} {response.StatusCode}. {body}",
+                null,
+                response.StatusCode);
+        }
     }
 
     public async Task RemovePermissionAsync(Guid boardId, string userId, CancellationToken cancellationToken = default)
@@ -61,7 +69,15 @@ public sealed class UserService : IUserService
         var response = await _httpClient.DeleteAsync(
             $"/api/v1/boards/{boardId}/permissions/{userId}",
             cancellationToken);
-        response.EnsureSuccessStatusCode();
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new HttpRequestException(
+                $"Remove permission failed: {(int)response.StatusCode} {response.StatusCode}. {body}",
+                null,
+                response.StatusCode);
+        }
     }
 
     public async Task<IReadOnlyList<BoardInvitation>> GetPendingInvitationsAsync(string userId, CancellationToken cancellationToken = default)

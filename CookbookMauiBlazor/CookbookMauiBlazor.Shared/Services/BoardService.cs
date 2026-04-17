@@ -119,6 +119,14 @@ public sealed class BoardService : IBoardService
     public async Task DeleteAsync(Guid boardId, CancellationToken cancellationToken = default)
     {
         var response = await _httpClient.DeleteAsync($"/api/v1/boards/{boardId}", cancellationToken);
-        response.EnsureSuccessStatusCode();
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new HttpRequestException(
+                $"Delete failed: {(int)response.StatusCode} {response.StatusCode}. {body}",
+                null,
+                response.StatusCode);
+        }
     }
 }
