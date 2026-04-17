@@ -36,6 +36,7 @@ var enableUserProfiles = featureFlags.GetValue("EnableUserProfiles", true);
 var enableProfilePictures = featureFlags.GetValue("EnableProfilePictures", true);
 var enableRecipeImages = featureFlags.GetValue("EnableRecipeImages", true);
 
+
 var connectionString = builder.Configuration.GetConnectionString("sqldb");
 if (string.IsNullOrWhiteSpace(connectionString))
 {
