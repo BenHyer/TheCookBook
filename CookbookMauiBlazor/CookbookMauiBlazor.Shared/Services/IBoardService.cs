@@ -14,4 +14,5 @@ public interface IBoardService
         IReadOnlyCollection<int> recipeIds,
         CancellationToken cancellationToken = default);
     Task CreateAsync(string ownerUserId, string name, CancellationToken cancellationToken = default);
+    Task DeleteAsync(Guid boardId, CancellationToken cancellationToken = default);
 }

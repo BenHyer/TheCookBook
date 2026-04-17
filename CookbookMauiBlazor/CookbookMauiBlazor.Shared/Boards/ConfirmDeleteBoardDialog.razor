@@ -1,0 +1,36 @@
+@if (IsOpen)
+{
+    <div class="modal d-block" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Delete Board</h5>
+                    <button type="button" class="btn-close" @onclick="OnCancel" disabled="@IsDeleting"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete <strong>@BoardName</strong>?</p>
+                    <p class="text-muted small mb-0">This will permanently remove the board and all its contents. This cannot be undone.</p>
+                    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+                    {
+                        <div class="alert alert-danger mt-3 mb-0">@ErrorMessage</div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="OnCancel" disabled="@IsDeleting">Cancel</button>
+                    <button type="button" class="btn btn-danger" @onclick="OnConfirm" disabled="@IsDeleting">
+                        @(IsDeleting ? "Deleting..." : "Delete")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public string BoardName { get; set; } = string.Empty;
+    [Parameter] public bool IsDeleting { get; set; }
+    [Parameter] public string ErrorMessage { get; set; } = string.Empty;
+    [Parameter] public EventCallback OnConfirm { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+}

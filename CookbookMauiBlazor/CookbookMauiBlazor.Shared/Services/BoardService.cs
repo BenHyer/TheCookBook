@@ -115,4 +115,10 @@ public sealed class BoardService : IBoardService
             // Handle error
         }
     }
+
+    public async Task DeleteAsync(Guid boardId, CancellationToken cancellationToken = default)
+    {
+        var response = await _httpClient.DeleteAsync($"/api/v1/boards/{boardId}", cancellationToken);
+        response.EnsureSuccessStatusCode();
+    }
 }

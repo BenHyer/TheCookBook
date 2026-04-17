@@ -11,6 +11,8 @@
 @attribute [Authorize]
 @inject BoardDetailsViewModel ViewModel
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IBoardService BoardService
+@inject NavigationManager NavigationManager
 @implements IDisposable
 
 <PageTitle>@(ViewModel.BoardDetails?.Name ?? "Board")</PageTitle>
@@ -39,6 +41,7 @@ else
             @if (_isOwner)
             {
                 <button class="btn btn-outline-primary" @onclick="OpenShareDialog">Share</button>
+                <button class="btn btn-outline-danger" @onclick="OpenDeleteDialog">Delete</button>
             }
         </div>
     </div>
@@ -46,6 +49,13 @@ else
     <ShareBoardDialog BoardId="BoardId" BoardOwnerId="ViewModel.BoardDetails.OwnerUserId"
                       CurrentUserId="@_currentUserId" IsOpen="@_shareDialogOpen"
                       OnClose="CloseShareDialog" OnShared="OnBoardShared" />
+
+    <ConfirmDeleteBoardDialog IsOpen="@_deleteDialogOpen"
+                              BoardName="@(ViewModel.BoardDetails.Name)"
+                              IsDeleting="@_isDeleting"
+                              ErrorMessage="@_deleteError"
+                              OnConfirm="ConfirmDeleteAsync"
+                              OnCancel="CloseDeleteDialog" />
 
     @if (ViewModel.ShowAddPanel)
     {
@@ -130,6 +140,9 @@ else
     public Guid BoardId { get; set; }
 
     private bool _shareDialogOpen;
+    private bool _deleteDialogOpen;
+    private bool _isDeleting;
+    private string _deleteError = string.Empty;
     private bool _isOwner;
     private string _currentUserId = string.Empty;
 
@@ -166,8 +179,39 @@ else
 
     private async Task OnBoardShared()
     {
-        // Optionally refresh board data if needed
         _shareDialogOpen = false;
+    }
+
+    private void OpenDeleteDialog()
+    {
+        _deleteError = string.Empty;
+        _deleteDialogOpen = true;
+    }
+
+    private void CloseDeleteDialog()
+    {
+        _deleteDialogOpen = false;
+        _deleteError = string.Empty;
+    }
+
+    private async Task ConfirmDeleteAsync()
+    {
+        _isDeleting = true;
+        _deleteError = string.Empty;
+
+        try
+        {
+            await BoardService.DeleteAsync(BoardId);
+            NavigationManager.NavigateTo("/boards");
+        }
+        catch
+        {
+            _deleteError = "Failed to delete the board. Please try again.";
+        }
+        finally
+        {
+            _isDeleting = false;
+        }
     }
 
     private void OnViewModelChanged(object? sender, PropertyChangedEventArgs e)

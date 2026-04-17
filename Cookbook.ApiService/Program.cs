@@ -336,6 +336,39 @@ app.MapPost("/api/v1/boards", async (CreateBoardRequest request, CookbookDbConte
 })
 .WithName("CreateBoard");
 
+app.MapDelete("/api/v1/boards/{boardId:guid}", async (
+    Guid boardId,
+    ClaimsPrincipal user,
+    CookbookDbContext dbContext) =>
+{
+    var currentUserId = user.FindFirst("oid")?.Value ??
+        user.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value ??
+        user.FindFirst("sub")?.Value;
+
+    if (currentUserId is null)
+    {
+        return Results.Forbid();
+    }
+
+    var board = await dbContext.Boards.FindAsync(boardId);
+    if (board is null)
+    {
+        return Results.NotFound();
+    }
+
+    if (board.OwnerUserId != currentUserId)
+    {
+        return Results.Forbid();
+    }
+
+    dbContext.Boards.Remove(board);
+    await dbContext.SaveChangesAsync();
+
+    return Results.NoContent();
+})
+.WithName("DeleteBoard")
+.RequireAuthorization();
+
 app.MapGet("/api/v1/metrics/track-dashboard-view", () =>
 {
     CookbookMetrics.TrackDashboardView();

@@ -1,5 +1,7 @@
 @using global::Cookbook.Shared.Boards
+@using CookbookMauiBlazor.Shared.Services
 @using CookbookMauiBlazor.Shared.Viewmodels
+
 @if (_boards.Count == 0)
 {
     <p>No boards yet.</p>
@@ -21,15 +23,28 @@ else
                     <NavLink class="btn btn-sm btn-outline-secondary" href="@($"/boards/{board.Id}")">
                         Open
                     </NavLink>
+                    <button class="btn btn-sm btn-outline-danger" @onclick="() => OpenDeleteDialog(board)">
+                        Delete
+                    </button>
                 </div>
             </li>
         }
     </ul>
 }
 
+<ConfirmDeleteBoardDialog IsOpen="@(_pendingDeleteBoard is not null)"
+                          BoardName="@(_pendingDeleteBoard?.Name ?? string.Empty)"
+                          IsDeleting="@_isDeleting"
+                          ErrorMessage="@_deleteError"
+                          OnConfirm="ConfirmDeleteAsync"
+                          OnCancel="CancelDelete" />
+
 @code {
     [Inject]
     private BoardViewModel BoardViewModel { get; set; } = default!;
+
+    [Inject]
+    private IBoardService BoardService { get; set; } = default!;
 
     [Parameter, EditorRequired]
     public string OwnerUserId { get; set; } = string.Empty;
@@ -40,10 +55,52 @@ else
     [Parameter]
     public EventCallback<BoardSummary> OnShare { get; set; }
 
+    [Parameter]
+    public EventCallback OnDeleted { get; set; }
+
     private IReadOnlyList<BoardSummary> _boards = [];
+    private BoardSummary? _pendingDeleteBoard;
+    private bool _isDeleting;
+    private string _deleteError = string.Empty;
 
     protected override async Task OnParametersSetAsync()
     {
         _boards = await BoardViewModel.LoadBoardsAsync(OwnerUserId);
+    }
+
+    private void OpenDeleteDialog(BoardSummary board)
+    {
+        _pendingDeleteBoard = board;
+        _deleteError = string.Empty;
+    }
+
+    private void CancelDelete()
+    {
+        _pendingDeleteBoard = null;
+        _deleteError = string.Empty;
+    }
+
+    private async Task ConfirmDeleteAsync()
+    {
+        if (_pendingDeleteBoard is null) return;
+
+        _isDeleting = true;
+        _deleteError = string.Empty;
+
+        try
+        {
+            await BoardService.DeleteAsync(_pendingDeleteBoard.Id);
+            _pendingDeleteBoard = null;
+            _boards = await BoardViewModel.LoadBoardsAsync(OwnerUserId);
+            await OnDeleted.InvokeAsync();
+        }
+        catch
+        {
+            _deleteError = "Failed to delete the board. Please try again.";
+        }
+        finally
+        {
+            _isDeleting = false;
+        }
     }
 }
