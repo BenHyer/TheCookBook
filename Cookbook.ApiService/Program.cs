@@ -368,12 +368,16 @@ if (enableUserProfiles)
 
         if (profile is null)
         {
+            var firstName = request.FirstName.Trim();
+            var lastName = request.LastName.Trim();
             profile = new UserProfile
             {
                 UserId = userId,
-                FirstName = request.FirstName.Trim(),
-                LastName = request.LastName.Trim(),
-                DisplayName = request.DisplayName.Trim(),
+                FirstName = firstName,
+                LastName = lastName,
+                DisplayName = string.IsNullOrWhiteSpace(request.DisplayName)
+                    ? $"{firstName} {lastName}".Trim()
+                    : request.DisplayName.Trim(),
                 CreatedUtc = utcNow,
                 UpdatedUtc = utcNow
             };
@@ -383,7 +387,9 @@ if (enableUserProfiles)
         {
             profile.FirstName = request.FirstName.Trim();
             profile.LastName = request.LastName.Trim();
-            profile.DisplayName = request.DisplayName.Trim();
+            profile.DisplayName = string.IsNullOrWhiteSpace(request.DisplayName)
+                ? $"{request.FirstName.Trim()} {request.LastName.Trim()}".Trim()
+                : request.DisplayName.Trim();
             profile.UpdatedUtc = utcNow;
         }
 
@@ -800,6 +806,7 @@ app.MapPost("/api/v1/boards/{boardId:guid}/share", async (
         return Results.Forbid();
     }
 
+    var role = request.Role is BoardRoles.Viewer or BoardRoles.Editor ? request.Role : BoardRoles.Viewer;
     var utcNow = DateTime.UtcNow;
     var existingPermissionUserIds = board.Permissions.Select(p => p.UserId).ToHashSet();
 
@@ -822,7 +829,7 @@ app.MapPost("/api/v1/boards/{boardId:guid}/share", async (
         {
             BoardId = boardId,
             UserId = userId,
-            Role = BoardRoles.Viewer,
+            Role = role,
             CreatedUtc = utcNow
         });
     }
@@ -1023,7 +1030,7 @@ record RecipeDto(
 // Board Sharing DTOs
 record UserSummaryDto(string UserId, string DisplayName, string FirstName, string LastName, string? ProfilePictureUrl);
 
-record ShareBoardRequest(List<string> UserIds);
+record ShareBoardRequest(List<string> UserIds, string? Role);
 
 record BoardCollaborator(string UserId, string DisplayName, string FirstName, string LastName, string? ProfilePictureUrl, string Role);
 

@@ -49,18 +49,25 @@
     }
 }
 
-<ShareBoardDialog BoardId="@_shareDialogBoardId" BoardOwnerId="@_shareDialogOwner" IsOpen="@_shareDialogOpen"
+<ShareBoardDialog BoardId="@_shareDialogBoardId" BoardOwnerId="@_shareDialogOwner"
+                  CurrentUserId="@_currentUserId" IsOpen="@_shareDialogOpen"
                   OnClose="CloseShareDialog" OnShared="OnBoardShared" />
 
 @code {
     private bool _shareDialogOpen;
     private Guid _shareDialogBoardId;
     private string _shareDialogOwner = string.Empty;
+    private string _currentUserId = string.Empty;
     private Dictionary<string, string> _boardOwners = new();
 
     protected override async Task OnInitializedAsync()
     {
         ViewModel.PropertyChanged += OnViewModelChanged;
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        _currentUserId = user.FindFirst("oid")?.Value ??
+            user.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value ??
+            user.FindFirst("sub")?.Value ?? string.Empty;
         await ViewModel.InitializeAsync();
         await LoadBoardOwnersAsync();
     }

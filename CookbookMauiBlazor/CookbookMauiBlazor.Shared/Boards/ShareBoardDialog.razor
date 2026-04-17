@@ -20,8 +20,8 @@
                     {
                         <div class="mb-3">
                             <label class="form-label">Search users</label>
-                            <input type="text" class="form-control" placeholder="Search by name..." @bind="_searchQuery"
-                                   @oninput="OnSearchChangedAsync" />
+                            <input type="text" class="form-control" placeholder="Search by name..."
+                                   @bind="_searchQuery" @oninput="OnSearchChangedAsync" />
                         </div>
 
                         @if (!string.IsNullOrWhiteSpace(_errorMessage))
@@ -48,7 +48,7 @@
                                                 <div>@collaborator.DisplayName</div>
                                                 <small class="text-muted">@collaborator.Role</small>
                                             </div>
-                                            @if (collaborator.UserId != _boardOwnerId && _isAdmin)
+                                            @if (collaborator.UserId != _boardOwnerId && _isCurrentUserAdmin)
                                             {
                                                 <button class="btn btn-sm btn-outline-danger"
                                                         @onclick="() => RemoveCollaboratorAsync(collaborator.UserId)">
@@ -63,13 +63,17 @@
 
                         <div>
                             <h6>Add Users</h6>
-                            @if (_availableUsers.Count == 0)
+                            @if (string.IsNullOrWhiteSpace(_searchQuery))
                             {
-                                <p class="text-muted small">No users available to add.</p>
+                                <p class="text-muted small">Type to search for users.</p>
+                            }
+                            else if (_availableUsers.Count == 0)
+                            {
+                                <p class="text-muted small">No users found.</p>
                             }
                             else
                             {
-                                <div class="list-group list-group-sm" style="max-height: 300px; overflow-y: auto;">
+                                <div class="list-group list-group-sm mb-3" style="max-height: 300px; overflow-y: auto;">
                                     @foreach (var user in _availableUsers)
                                     {
                                         var isSelected = _selectedUserIds.Contains(user.UserId);
@@ -80,6 +84,17 @@
                                         </label>
                                     }
                                 </div>
+
+                                @if (_selectedUserIds.Count > 0)
+                                {
+                                    <div>
+                                        <label class="form-label">Role</label>
+                                        <select class="form-select" @bind="_selectedRole">
+                                            <option value="Viewer">Viewer</option>
+                                            <option value="Editor">Editor</option>
+                                        </select>
+                                    </div>
+                                }
                             }
                         </div>
                     }
@@ -107,6 +122,9 @@
     public string BoardOwnerId { get; set; } = string.Empty;
 
     [Parameter]
+    public string CurrentUserId { get; set; } = string.Empty;
+
+    [Parameter]
     public EventCallback OnShared { get; set; }
 
     [Parameter]
@@ -119,21 +137,23 @@
     private List<UserSummary> _availableUsers = [];
     private HashSet<string> _selectedUserIds = [];
     private string _searchQuery = string.Empty;
+    private string _selectedRole = "Viewer";
     private bool _isLoading;
     private bool _isSaving;
     private string _errorMessage = string.Empty;
-    private bool _isAdmin = true;
+    private bool _isCurrentUserAdmin;
     private string _boardOwnerId = string.Empty;
+    private CancellationTokenSource? _searchCts;
 
     protected override async Task OnParametersSetAsync()
     {
         if (IsOpen && BoardId != Guid.Empty)
         {
-            await LoadDataAsync();
+            await LoadCollaboratorsAsync();
         }
     }
 
-    private async Task LoadDataAsync()
+    private async Task LoadCollaboratorsAsync()
     {
         _isLoading = true;
         _selectedUserIds.Clear();
@@ -142,19 +162,12 @@
         try
         {
             _collaborators = (await UserService.GetBoardCollaboratorsAsync(BoardId)).ToList();
-            _availableUsers = (await UserService.SearchAsync(_searchQuery)).ToList();
-
-            // Filter out users who already have access
-            var existingUserIds = _collaborators.Select(c => c.UserId).ToHashSet();
-            _availableUsers = _availableUsers.Where(u => !existingUserIds.Contains(u.UserId)).ToList();
-
-            // Check if user is admin
-            _isAdmin = _collaborators.Any(c => c.Role == "Admin");
             _boardOwnerId = _collaborators.FirstOrDefault(c => c.Role == "Admin")?.UserId ?? string.Empty;
+            _isCurrentUserAdmin = _collaborators.Any(c => c.UserId == CurrentUserId && c.Role == "Admin");
         }
-        catch (Exception ex)
+        catch
         {
-            _errorMessage = "Failed to load data. Please try again.";
+            _errorMessage = "Failed to load collaborators. Please try again.";
         }
         finally
         {
@@ -162,42 +175,69 @@
         }
     }
 
+    private async Task LoadUsersAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_searchQuery))
+        {
+            _availableUsers = [];
+            return;
+        }
+
+        try
+        {
+            var allUsers = (await UserService.SearchAsync(_searchQuery)).ToList();
+            var existingUserIds = _collaborators.Select(c => c.UserId).ToHashSet();
+            _availableUsers = allUsers
+                .Where(u => !existingUserIds.Contains(u.UserId) && u.UserId != CurrentUserId)
+                .ToList();
+        }
+        catch
+        {
+            _errorMessage = "Failed to search users. Please try again.";
+        }
+    }
+
     private async Task OnSearchChangedAsync(ChangeEventArgs args)
     {
         _searchQuery = args.Value?.ToString() ?? string.Empty;
         _selectedUserIds.Clear();
-        await LoadDataAsync();
+
+        _searchCts?.Cancel();
+        _searchCts?.Dispose();
+        _searchCts = new CancellationTokenSource();
+        var token = _searchCts.Token;
+
+        try
+        {
+            await Task.Delay(300, token);
+            await LoadUsersAsync();
+            StateHasChanged();
+        }
+        catch (OperationCanceledException) { }
     }
 
     private void ToggleUserSelection(string userId, bool selected)
     {
         if (selected)
-        {
             _selectedUserIds.Add(userId);
-        }
         else
-        {
             _selectedUserIds.Remove(userId);
-        }
     }
 
     private async Task ShareAsync()
     {
-        if (_selectedUserIds.Count == 0)
-        {
-            return;
-        }
+        if (_selectedUserIds.Count == 0) return;
 
         _isSaving = true;
         _errorMessage = string.Empty;
 
         try
         {
-            await UserService.ShareBoardAsync(BoardId, _selectedUserIds);
+            await UserService.ShareBoardAsync(BoardId, _selectedUserIds, _selectedRole);
             await OnShared.InvokeAsync();
             await CloseAsync();
         }
-        catch (Exception ex)
+        catch
         {
             _errorMessage = "Failed to share board. Please try again.";
         }
@@ -212,9 +252,9 @@
         try
         {
             await UserService.RemovePermissionAsync(BoardId, userId);
-            await LoadDataAsync();
+            await LoadCollaboratorsAsync();
         }
-        catch (Exception ex)
+        catch
         {
             _errorMessage = "Failed to remove collaborator. Please try again.";
         }
@@ -224,7 +264,11 @@
     {
         _searchQuery = string.Empty;
         _selectedUserIds.Clear();
+        _selectedRole = "Viewer";
         _errorMessage = string.Empty;
+        _searchCts?.Cancel();
+        _searchCts?.Dispose();
+        _searchCts = null;
         await OnClose.InvokeAsync();
     }
 }

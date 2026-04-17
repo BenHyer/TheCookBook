@@ -42,45 +42,25 @@ public sealed class UserService : IUserService
         }
     }
 
-    public async Task ShareBoardAsync(Guid boardId, IReadOnlyCollection<string> userIds, CancellationToken cancellationToken = default)
+    public async Task ShareBoardAsync(Guid boardId, IReadOnlyCollection<string> userIds, string role = "Viewer", CancellationToken cancellationToken = default)
     {
-        if (userIds.Count == 0)
-        {
-            return;
-        }
+        if (userIds.Count == 0) return;
 
-        try
-        {
-            var request = new { userIds = userIds.ToList() };
-            var response = await _httpClient.PostAsJsonAsync(
-                $"/api/v1/boards/{boardId}/share",
-                request,
-                cancellationToken);
-            response.EnsureSuccessStatusCode();
-        }
-        catch
-        {
-            // Handle error
-        }
+        var request = new { userIds = userIds.ToList(), role };
+        var response = await _httpClient.PostAsJsonAsync(
+            $"/api/v1/boards/{boardId}/share",
+            request,
+            cancellationToken);
+        response.EnsureSuccessStatusCode();
     }
 
     public async Task RemovePermissionAsync(Guid boardId, string userId, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(userId))
-        {
-            return;
-        }
+        if (string.IsNullOrWhiteSpace(userId)) return;
 
-        try
-        {
-            var response = await _httpClient.DeleteAsync(
-                $"/api/v1/boards/{boardId}/permissions/{userId}",
-                cancellationToken);
-            response.EnsureSuccessStatusCode();
-        }
-        catch
-        {
-            // Handle error
-        }
+        var response = await _httpClient.DeleteAsync(
+            $"/api/v1/boards/{boardId}/permissions/{userId}",
+            cancellationToken);
+        response.EnsureSuccessStatusCode();
     }
 }

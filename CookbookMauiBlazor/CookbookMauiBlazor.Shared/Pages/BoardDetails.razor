@@ -43,7 +43,8 @@ else
         </div>
     </div>
 
-    <ShareBoardDialog BoardId="BoardId" BoardOwnerId="ViewModel.BoardDetails.OwnerUserId" IsOpen="@_shareDialogOpen"
+    <ShareBoardDialog BoardId="BoardId" BoardOwnerId="ViewModel.BoardDetails.OwnerUserId"
+                      CurrentUserId="@_currentUserId" IsOpen="@_shareDialogOpen"
                       OnClose="CloseShareDialog" OnShared="OnBoardShared" />
 
     @if (ViewModel.ShowAddPanel)
