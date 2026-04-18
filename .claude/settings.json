@@ -5,7 +5,11 @@
       "Bash(xargs cat *)",
       "Bash(grep -r \"Microsoft.Identity.Web\" CookbookMauiBlazor/CookbookMauiBlazor.Web/*.csproj)",
       "Bash(grep -n \"AZURE_AD\\\\|cookbook-secrets\\\\|kubectl.*secret\" .github/workflows/*.yml)",
-      "Bash(gh secret *)"
+      "Bash(gh secret *)",
+      "Read(//c/Users/marcs/.nuget/packages/opentelemetry.exporter.opentelemetryprotocol/1.15.1/**)",
+      "Bash(dotnet fsi *)",
+      "Read(//tmp/**)",
+      "Bash(unzip -l \"opentelemetry.exporter.opentelemetryprotocol.1.15.1.nupkg\")"
     ]
   }
 }

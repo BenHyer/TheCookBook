@@ -14,6 +14,7 @@ using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.Identity.Web.UI;
 using CookbookMauiBlazor.Shared.Viewmodels;
 using OpenTelemetry;
+using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Exporter;
 using OpenTelemetry.Resources;
