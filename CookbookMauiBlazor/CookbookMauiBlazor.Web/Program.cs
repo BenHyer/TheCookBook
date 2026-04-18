@@ -37,6 +37,11 @@ builder.Logging.AddOpenTelemetry(logging =>
 {
     logging.IncludeFormattedMessage = true;
     logging.IncludeScopes = true;
+    logging.AddOtlpExporter(otlpOptions =>
+    {
+        otlpOptions.Endpoint = new Uri(otlpEndpoint);
+        otlpOptions.Protocol = OtlpExportProtocol.Grpc;
+    });
 });
 
 builder.Services
@@ -46,14 +51,6 @@ builder.Services
     {
         metrics.AddMeter(CookbookWebMetrics.MeterName);
         metrics.AddOtlpExporter(otlpOptions =>
-        {
-            otlpOptions.Endpoint = new Uri(otlpEndpoint);
-            otlpOptions.Protocol = OtlpExportProtocol.Grpc;
-        });
-    })
-    .WithLogging(logging =>
-    {
-        logging.AddOtlpExporter(otlpOptions =>
         {
             otlpOptions.Endpoint = new Uri(otlpEndpoint);
             otlpOptions.Protocol = OtlpExportProtocol.Grpc;
