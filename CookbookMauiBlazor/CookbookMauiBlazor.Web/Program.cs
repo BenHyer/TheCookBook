@@ -50,6 +50,14 @@ builder.Services
             otlpOptions.Endpoint = new Uri(otlpEndpoint);
             otlpOptions.Protocol = OtlpExportProtocol.Grpc;
         });
+    })
+    .WithLogging(logging =>
+    {
+        logging.AddOtlpExporter(otlpOptions =>
+        {
+            otlpOptions.Endpoint = new Uri(otlpEndpoint);
+            otlpOptions.Protocol = OtlpExportProtocol.Grpc;
+        });
     });
 
 // Add services to the container.
