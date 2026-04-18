@@ -252,12 +252,21 @@ jobs:
           PGCONNSTR: "Host=localhost;Port=5432;Database=cookbook_integration_test;Username=postgres;Password=testpass"
         run: dotnet test Cookbook.IntegrationTests/Cookbook.IntegrationTests.csproj --configuration Release --nologo --no-restore --verbosity minimal
 
-      - name: Verify Postgres stopped (cleanup confirmation)
+      - name: Stop and verify Postgres cleanup
         if: always()
         run: |
-          echo "Service containers are destroyed by GitHub Actions after every job run."
-          echo "Confirming no leftover artifacts..."
-          docker ps --filter "ancestor=postgres:16" --format "{{.Names}}" | grep . && echo "WARNING: container still running" || echo "Postgres container is gone. Cleanup confirmed."
+          echo "=== Stopping Postgres container ==="
+          docker ps -q --filter "ancestor=postgres:16" | xargs -r docker stop
+          docker ps -aq --filter "ancestor=postgres:16" | xargs -r docker rm
+
+          echo "=== Verifying cleanup ==="
+          running=$(docker ps -q --filter "ancestor=postgres:16")
+          if [ -n "$running" ]; then
+            echo "ERROR: Postgres container is still running after cleanup attempt."
+            exit 1
+          else
+            echo "Postgres container stopped and removed. Cleanup verified."
+          fi
 
   push-api:
     needs: [build-lint-test, test-testproject, integration-tests]
