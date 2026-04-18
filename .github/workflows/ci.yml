@@ -250,11 +250,8 @@ jobs:
       - name: Run integration tests
         env:
           PGCONNSTR: "Host=localhost;Port=5432;Database=cookbook_integration_test;Username=postgres;Password=testpass"
-        run: dotnet test Cookbook.IntegrationTests/Cookbook.IntegrationTests.csproj --configuration Release --nologo --no-restore
+        run: dotnet test Cookbook.IntegrationTests/Cookbook.IntegrationTests.csproj --configuration Release --nologo --no-restore --verbosity minimal
 
-      # GitHub Actions automatically stops and removes service containers at the end of a job,
-      # whether the job succeeds or fails. This explicit step confirms cleanup and
-      # verifies the database is unreachable before the job exits.
       - name: Verify Postgres stopped (cleanup confirmation)
         if: always()
         run: |
