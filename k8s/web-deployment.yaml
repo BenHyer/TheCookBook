@@ -57,6 +57,11 @@ spec:
                 configMapKeyRef:
                   name: cookbook-config
                   key: AzureAd__SignedOutCallbackPath
+            - name: AzureAd__Scopes
+              valueFrom:
+                configMapKeyRef:
+                  name: cookbook-config
+                  key: AzureAd__Scopes
             - name: FeatureFlags__EnableUserProfiles
               valueFrom:
                 configMapKeyRef:

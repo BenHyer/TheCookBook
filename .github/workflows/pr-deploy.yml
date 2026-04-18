@@ -77,6 +77,8 @@ jobs:
             --from-literal=AZURE_AD_TENANT_ID="${{ secrets.AZURE_AD_TENANT_ID }}" \
             --from-literal=AZURE_AD_CLIENT_ID="${{ secrets.AZURE_AD_CLIENT_ID }}" \
             --from-literal=AZURE_AD_CLIENT_SECRET="${{ secrets.AZURE_AD_CLIENT_SECRET }}" \
+            --from-literal=AZURE_AD_API_TENANT_ID="${{ secrets.AZURE_AD_API_TENANT_ID }}" \
+            --from-literal=AZURE_AD_API_CLIENT_ID="${{ secrets.AZURE_AD_API_CLIENT_ID }}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Apply ConfigMap

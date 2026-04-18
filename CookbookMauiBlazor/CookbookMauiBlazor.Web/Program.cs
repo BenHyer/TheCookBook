@@ -75,7 +75,7 @@ var apiBaseUrl = builder.Configuration["ApiService:BaseUrl"] ?? "http://localhos
 builder.Services.AddHttpClient<IBoardService, BoardService>(client =>
 {
     client.BaseAddress = new Uri(apiBaseUrl);
-});
+}).AddHttpMessageHandler<ApiAuthHandler>();
 builder.Services.AddHttpClient<IUserProfileService, UserProfileService>(client =>
 {
     client.BaseAddress = new Uri(apiBaseUrl);
@@ -87,12 +87,14 @@ builder.Services.AddHttpClient<IRecipeService, RecipeService>(client =>
 builder.Services.AddHttpClient<IUserService, UserService>(client =>
 {
     client.BaseAddress = new Uri(apiBaseUrl);
-});
+}).AddHttpMessageHandler<ApiAuthHandler>();
 builder.Services.AddHttpClient<UserProfileInitService>(client =>
 {
     client.BaseAddress = new Uri(apiBaseUrl);
 });
 builder.Services.AddScoped<NotificationService>();
+
+var apiScopes = builder.Configuration["AzureAd:Scopes"]?.Split(' ', StringSplitOptions.RemoveEmptyEntries) ?? [];
 
 builder.Services
     .AddAuthentication(options =>
@@ -119,8 +121,12 @@ builder.Services
                 return Task.CompletedTask;
             }
         };
-    });
+    })
+    .EnableTokenAcquisitionToCallDownstreamApi(apiScopes)
+    .AddInMemoryTokenCaches();
 builder.Services.AddAuthorization();
+
+builder.Services.AddTransient<ApiAuthHandler>();
 
 var azureAdClientId = builder.Configuration["AzureAd:ClientId"];
 var hasAzureAdAuth = !string.IsNullOrWhiteSpace(azureAdClientId);

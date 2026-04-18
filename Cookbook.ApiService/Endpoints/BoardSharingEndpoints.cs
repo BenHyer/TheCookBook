@@ -140,7 +140,8 @@ public static class BoardSharingEndpoints
 
             return Results.Ok(collaborators);
         })
-        .WithName("ShareBoard");
+        .WithName("ShareBoard")
+        .RequireAuthorization();
 
         app.MapDelete("/api/v1/boards/{boardId:guid}/permissions/{userId}", async (
             Guid boardId,
@@ -180,7 +181,8 @@ public static class BoardSharingEndpoints
 
             return Results.Ok();
         })
-        .WithName("RemovePermission");
+        .WithName("RemovePermission")
+        .RequireAuthorization();
 
         app.MapGet("/api/v1/boards/shared-with-me/{userId}", async (string userId, CookbookDbContext dbContext) =>
         {

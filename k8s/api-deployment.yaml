@@ -52,6 +52,21 @@ spec:
                 configMapKeyRef:
                   name: cookbook-config
                   key: FeatureFlags__EnableUserProfiles
+            - name: AzureAd__Instance
+              valueFrom:
+                configMapKeyRef:
+                  name: cookbook-config
+                  key: AzureAd__Instance
+            - name: AzureAd__TenantId
+              valueFrom:
+                secretKeyRef:
+                  name: cookbook-secrets
+                  key: AZURE_AD_API_TENANT_ID
+            - name: AzureAd__ClientId
+              valueFrom:
+                secretKeyRef:
+                  name: cookbook-secrets
+                  key: AZURE_AD_API_CLIENT_ID
           readinessProbe:
             httpGet:
               path: /health

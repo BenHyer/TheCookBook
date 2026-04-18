@@ -11,4 +11,5 @@ data:
   AzureAd__Instance: "https://ultimatecookbook.ciamlogin.com/"
   AzureAd__CallbackPath: "/signin-oidc"
   AzureAd__SignedOutCallbackPath: "/signout-oidc"
+  AzureAd__Scopes: "api://133e5a35-ce6c-4e8f-a764-7008bad72271/access_as_user"
   FeatureFlags__EnableUserProfiles: "true"
