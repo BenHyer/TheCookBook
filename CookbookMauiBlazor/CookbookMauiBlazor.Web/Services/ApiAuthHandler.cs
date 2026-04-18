@@ -24,10 +24,11 @@ public class ApiAuthHandler : DelegatingHandler
             var token = await _tokenAcquisition.GetAccessTokenForUserAsync(_scopes);
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         }
-        catch (MicrosoftIdentityWebChallengeUserException)
+        catch (Exception)
         {
-            // User needs to re-authenticate; let the request through without a token
-            // so the API returns 401 and the UI can handle the redirect to sign-in
+            // Token acquisition failed (user needs re-auth, no HttpContext in SignalR, etc.)
+            // Let the request through without a token — endpoints that require auth will
+            // return 401 and the UI can handle it; endpoints that don't will still work.
         }
 
         return await base.SendAsync(request, cancellationToken);
