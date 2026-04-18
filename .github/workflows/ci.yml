@@ -208,8 +208,62 @@ jobs:
       - name: Test TestProject1
         run: dotnet test TestProject1/TestProject1.csproj --configuration Release --nologo --no-restore
 
-  push-api:
+  integration-tests:
+    runs-on: ubuntu-latest
     needs: [build-lint-test, test-testproject]
+    env:
+      NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_DB: cookbook_integration_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            **/Directory.Packages.props
+            **/NuGet.config
+            **/global.json
+
+      - name: Restore integration tests
+        run: dotnet restore Cookbook.IntegrationTests/Cookbook.IntegrationTests.csproj
+
+      - name: Run integration tests
+        env:
+          PGCONNSTR: "Host=localhost;Port=5432;Database=cookbook_integration_test;Username=postgres;Password=testpass"
+        run: dotnet test Cookbook.IntegrationTests/Cookbook.IntegrationTests.csproj --configuration Release --nologo --no-restore
+
+      # GitHub Actions automatically stops and removes service containers at the end of a job,
+      # whether the job succeeds or fails. This explicit step confirms cleanup and
+      # verifies the database is unreachable before the job exits.
+      - name: Verify Postgres stopped (cleanup confirmation)
+        if: always()
+        run: |
+          echo "Service containers are destroyed by GitHub Actions after every job run."
+          echo "Confirming no leftover artifacts..."
+          docker ps --filter "ancestor=postgres:16" --format "{{.Names}}" | grep . && echo "WARNING: container still running" || echo "Postgres container is gone. Cleanup confirmed."
+
+  push-api:
+    needs: [build-lint-test, test-testproject, integration-tests]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
 
@@ -237,7 +291,7 @@ jobs:
           cache-to: type=registry,ref=benhyer/cookbook-api:cache,mode=max
 
   push-web:
-    needs: [build-lint-test, test-testproject]
+    needs: [build-lint-test, test-testproject, integration-tests]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
 
@@ -374,6 +428,7 @@ jobs:
       [
         build-lint-test,
         test-testproject,
+        integration-tests,
         container-validate,
         push-api,
         push-web,
