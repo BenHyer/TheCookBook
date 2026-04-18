@@ -10,7 +10,7 @@ public class FailureDemoTests : IClassFixture<DatabaseFixture>
         _fixture = fixture;
     }
 
-    [Fact]
+    [Fact(Skip = "demo only")]
     public async Task Demo_IntentionalFailure_BoardNameShouldNotBeEmpty()
     {
         await using var db = _fixture.CreateContext();
