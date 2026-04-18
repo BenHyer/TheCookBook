@@ -91,7 +91,7 @@ builder.Services.AddHttpClient<IUserService, UserService>(client =>
 builder.Services.AddHttpClient<UserProfileInitService>(client =>
 {
     client.BaseAddress = new Uri(apiBaseUrl);
-});
+}).AddHttpMessageHandler<ApiAuthHandler>();
 builder.Services.AddScoped<NotificationService>();
 
 var apiScopes = builder.Configuration["AzureAd:Scopes"]?.Split(' ', StringSplitOptions.RemoveEmptyEntries) ?? [];
