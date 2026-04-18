@@ -79,15 +79,13 @@ public static class UserEndpoints
             .WithName("UpdateUserProfile");
 
             app.MapPost("/api/v1/users/ensure-profile", async (
-                ClaimsPrincipal user,
+                EnsureProfileRequest request,
                 CookbookDbContext dbContext) =>
             {
-                var userId = user.FindFirst("oid")?.Value ??
-                    user.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value ??
-                    user.FindFirst("sub")?.Value;
+                var userId = request.UserId;
 
                 if (string.IsNullOrWhiteSpace(userId))
-                    return Results.Unauthorized();
+                    return Results.BadRequest("UserId is required.");
 
                 var profile = await dbContext.UserProfiles.FindAsync(userId);
                 if (profile is not null)
@@ -100,10 +98,11 @@ public static class UserEndpoints
                         profile.ProfilePictureUrl));
                 }
 
-                var givenName = user.FindFirst("given_name")?.Value ?? string.Empty;
-                var surname = user.FindFirst("family_name")?.Value ?? string.Empty;
-                var name = user.FindFirst("name")?.Value ?? string.Empty;
-                var displayName = !string.IsNullOrWhiteSpace(name) ? name : $"{givenName} {surname}".Trim();
+                var givenName = request.GivenName ?? string.Empty;
+                var surname = request.Surname ?? string.Empty;
+                var displayName = !string.IsNullOrWhiteSpace(request.DisplayName)
+                    ? request.DisplayName
+                    : $"{givenName} {surname}".Trim();
 
                 var utcNow = DateTime.UtcNow;
                 profile = new UserProfile
@@ -206,3 +205,4 @@ public static class UserEndpoints
 
 record UserProfileDto(string UserId, string FirstName, string LastName, string DisplayName, string? ProfilePictureUrl);
 record UpdateProfileRequest(string FirstName, string LastName, string DisplayName);
+record EnsureProfileRequest(string UserId, string? GivenName, string? Surname, string? DisplayName);

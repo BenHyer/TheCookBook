@@ -1,4 +1,6 @@
 using System.Net.Http.Json;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Components.Authorization;
 
 namespace CookbookMauiBlazor.Shared.Services;
 
@@ -17,15 +19,29 @@ public sealed class UserProfileInitService
 
     /// <summary>
     /// Ensures the current authenticated user has a profile in the database.
-    /// If they don't, creates one using their Azure AD claims.
+    /// Reads claims from the provided auth state and sends them in the request body
+    /// so no Bearer token is required (safe for Blazor Server / SignalR contexts).
     /// </summary>
-    public async Task EnsureProfileAsync(CancellationToken cancellationToken = default)
+    public async Task EnsureProfileAsync(AuthenticationState authState, CancellationToken cancellationToken = default)
     {
+        var user = authState.User;
+        var userId = user.FindFirst("oid")?.Value
+            ?? user.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value
+            ?? user.FindFirst("sub")?.Value
+            ?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (string.IsNullOrWhiteSpace(userId))
+            return;
+
+        var givenName = user.FindFirst("given_name")?.Value;
+        var surname = user.FindFirst("family_name")?.Value;
+        var displayName = user.FindFirst("name")?.Value;
+
         try
         {
             await _httpClient.PostAsJsonAsync(
                 "/api/v1/users/ensure-profile",
-                (object?)null,
+                new { userId, givenName, surname, displayName },
                 cancellationToken);
         }
         catch

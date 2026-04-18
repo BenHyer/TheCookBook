@@ -38,9 +38,8 @@
 @code {
     protected override async Task OnInitializedAsync()
     {
-        await UserProfileInitService.EnsureProfileAsync();
-
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        await UserProfileInitService.EnsureProfileAsync(authState);
         var user = authState.User;
         var userId = user.FindFirst("oid")?.Value
             ?? user.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value
