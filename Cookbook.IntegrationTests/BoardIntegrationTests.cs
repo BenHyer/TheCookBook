@@ -2,11 +2,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Cookbook.IntegrationTests;
 
-/// <summary>
-/// Integration tests that run against a real PostgreSQL database.
-/// The DatabaseFixture creates and tears down the schema for each test class,
-/// ensuring no artifacts remain even when tests fail.
-/// </summary>
 public class BoardIntegrationTests : IClassFixture<DatabaseFixture>
 {
     private readonly DatabaseFixture _fixture;

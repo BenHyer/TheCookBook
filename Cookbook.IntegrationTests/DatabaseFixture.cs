@@ -2,10 +2,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Cookbook.IntegrationTests;
 
-/// <summary>
-/// Shared fixture that creates the schema once per test class and drops it on dispose.
-/// Even if tests fail, Dispose() is called by xunit — so no artifacts are left.
-/// </summary>
 public class DatabaseFixture : IDisposable
 {
     public IntegrationTestDbContext CreateContext()
