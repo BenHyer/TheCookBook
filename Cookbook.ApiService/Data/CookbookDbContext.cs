@@ -66,22 +66,18 @@ public class CookbookDbContext(DbContextOptions<CookbookDbContext> options) : Db
 
             entity.Property(x => x.Ingredients)
                 .HasConversion(listConverter)
-                .HasColumnType("nvarchar(max)")
                 .Metadata.SetValueComparer(listComparer);
 
             entity.Property(x => x.Quantities)
                 .HasConversion(listConverter)
-                .HasColumnType("nvarchar(max)")
                 .Metadata.SetValueComparer(listComparer);
 
             entity.Property(x => x.Equipment)
                 .HasConversion(listConverter)
-                .HasColumnType("nvarchar(max)")
                 .Metadata.SetValueComparer(listComparer);
 
             entity.Property(x => x.Instructions)
                 .HasConversion(listConverter)
-                .HasColumnType("nvarchar(max)")
                 .Metadata.SetValueComparer(listComparer);
         });
 
