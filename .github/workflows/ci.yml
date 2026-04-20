@@ -214,21 +214,6 @@ jobs:
     env:
       NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
 
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: testpass
-          POSTGRES_DB: cookbook_integration_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -248,25 +233,7 @@ jobs:
         run: dotnet restore Cookbook.IntegrationTests/Cookbook.IntegrationTests.csproj
 
       - name: Run integration tests
-        env:
-          PGCONNSTR: "Host=localhost;Port=5432;Database=cookbook_integration_test;Username=postgres;Password=testpass"
         run: dotnet test Cookbook.IntegrationTests/Cookbook.IntegrationTests.csproj --configuration Release --nologo --no-restore --verbosity minimal
-
-      - name: Stop and verify Postgres cleanup
-        if: always()
-        run: |
-          echo "=== Stopping Postgres container ==="
-          docker ps -q --filter "ancestor=postgres:16" | xargs -r docker stop
-          docker ps -aq --filter "ancestor=postgres:16" | xargs -r docker rm
-
-          echo "=== Verifying cleanup ==="
-          running=$(docker ps -q --filter "ancestor=postgres:16")
-          if [ -n "$running" ]; then
-            echo "ERROR: Postgres container is still running after cleanup attempt."
-            exit 1
-          else
-            echo "Postgres container stopped and removed. Cleanup verified."
-          fi
 
   push-api:
     needs: [build-lint-test, test-testproject, integration-tests]

@@ -1,24 +1,23 @@
-using Microsoft.Data.SqlClient;
+using DotNet.Testcontainers.Builders;
 using Microsoft.EntityFrameworkCore;
+using Testcontainers.PostgreSql;
 
 namespace Cookbook.IntegrationTests;
 
-/// <summary>
-/// Creates an isolated SQL Server / Azure SQL database for one test class and drops it on dispose.
-/// Each fixture instance gets a unique database name so test classes can run in parallel.
-///
-/// Set SQLCONNSTR to override the server connection (without a Database= segment):
-///   LocalDB (default): Server=(localdb)\mssqllocaldb;Trusted_Connection=True
-///   Azure SQL example: Server=tcp:myserver.database.windows.net,1433;User ID=user;Password=pass;Encrypt=True
-/// </summary>
-public class DatabaseFixture : IDisposable
+public class DatabaseFixture : IAsyncLifetime
 {
-    private readonly string _dbName = $"cookbook_test_{Guid.NewGuid():N}";
+    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder()
+        .WithImage("postgres:16")
+        .WithDatabase($"cookbook_test_{Guid.NewGuid():N}")
+        .WithUsername("test")
+        .WithPassword("test")
+        .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(5432))
+        .Build();
 
     public IntegrationTestDbContext CreateContext()
     {
         var options = new DbContextOptionsBuilder<IntegrationTestDbContext>()
-            .UseSqlServer(BuildConnectionString())
+            .UseNpgsql(_container.GetConnectionString())
             .Options;
 
         var context = new IntegrationTestDbContext(options);
@@ -26,21 +25,12 @@ public class DatabaseFixture : IDisposable
         return context;
     }
 
-    public void Dispose()
+    public async Task InitializeAsync() => await _container.StartAsync();
+
+    public async Task DisposeAsync()
     {
         using var context = CreateContext();
-        context.Database.EnsureDeleted();
-    }
-
-    private string BuildConnectionString()
-    {
-        var serverConn = Environment.GetEnvironmentVariable("SQLCONNSTR")
-            ?? @"Server=(localdb)\mssqllocaldb;Trusted_Connection=True;MultipleActiveResultSets=True";
-
-        var builder = new SqlConnectionStringBuilder(serverConn)
-        {
-            InitialCatalog = _dbName
-        };
-        return builder.ConnectionString;
+        await context.Database.EnsureDeletedAsync();
+        await _container.DisposeAsync();
     }
 }
