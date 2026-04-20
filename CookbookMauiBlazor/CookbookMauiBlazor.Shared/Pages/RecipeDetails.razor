@@ -2,8 +2,11 @@
 @using CookbookMauiBlazor.Shared.Models
 @using CookbookMauiBlazor.Shared.Services
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
 @attribute [Authorize]
 @inject IRecipeService RecipeService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IJSRuntime JS
 
 <PageTitle>@(_recipe?.Title ?? "Recipe")</PageTitle>
 
@@ -15,14 +18,30 @@ else if (_recipe is null)
 {
     <div class="alert alert-warning">Recipe not found.</div>
 }
+else if (_editing)
+{
+    <div class="mb-3">
+        <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="CancelEdit">&#8592; Cancel editing</button>
+    </div>
+    <EditRecipeForm Recipe="_recipe" OnSaved="HandleSaved" OnCanceled="CancelEdit" />
+}
 else
 {
     <div class="d-flex flex-column gap-4">
+
+        <div class="d-flex justify-content-between align-items-center gap-2">
+            <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="GoBack">&#8592; Back</button>
+            @if (_isOwner)
+            {
+                <button class="btn btn-outline-primary btn-sm" type="button" @onclick="() => _editing = true">Edit Recipe</button>
+            }
+        </div>
+
         <div>
-            <h1>@_recipe.Title</h1>
+            <h1 class="mb-1">@_recipe.Title</h1>
             @if (!string.IsNullOrWhiteSpace(_recipe.Description))
             {
-                <p class="text-muted">@_recipe.Description</p>
+                <p class="text-muted mb-0">@_recipe.Description</p>
             }
         </div>
 
@@ -34,102 +53,130 @@ else
 
         @if (HasAnyTiming())
         {
-            <div class="d-flex flex-wrap gap-3 small text-muted">
+            <div class="d-flex flex-wrap gap-2">
                 @if (!string.IsNullOrWhiteSpace(_recipe.YieldServings))
                 {
-                    <span>Serves: @_recipe.YieldServings</span>
+                    <span class="recipe-meta-pill">Serves: @_recipe.YieldServings</span>
                 }
                 @if (!string.IsNullOrWhiteSpace(_recipe.PrepTime))
                 {
-                    <span>Prep: @_recipe.PrepTime</span>
+                    <span class="recipe-meta-pill">Prep: @_recipe.PrepTime</span>
                 }
                 @if (!string.IsNullOrWhiteSpace(_recipe.CookTime))
                 {
-                    <span>Cook: @_recipe.CookTime</span>
+                    <span class="recipe-meta-pill">Cook: @_recipe.CookTime</span>
                 }
                 @if (!string.IsNullOrWhiteSpace(_recipe.TotalTime))
                 {
-                    <span>Total: @_recipe.TotalTime</span>
+                    <span class="recipe-meta-pill">Total: @_recipe.TotalTime</span>
                 }
                 @if (!string.IsNullOrWhiteSpace(_recipe.CookingTemperature))
                 {
-                    <span>Temp: @_recipe.CookingTemperature</span>
+                    <span class="recipe-meta-pill">Temp: @_recipe.CookingTemperature</span>
                 }
             </div>
         }
 
-        <section>
-            <h3>Ingredients</h3>
-            @if (!BuildIngredients().Any())
-            {
-                <p class="text-muted">No ingredients listed.</p>
-            }
-            else
-            {
-                <ul class="list-unstyled">
-                    @foreach (var item in BuildIngredients())
+        @{
+            var ingredients = BuildIngredients().ToList();
+        }
+        @if (ingredients.Any())
+        {
+            <section>
+                <h3 class="mb-2">Ingredients</h3>
+                <ul class="ingredient-checklist">
+                    @for (var i = 0; i < ingredients.Count; i++)
                     {
-                        <li class="mb-1">
+                        var idx = i;
+                        var item = ingredients[idx];
+                        var isChecked = _checkedIngredients.Contains(idx);
+                        <li class="ingredient-check-item @(isChecked ? "ingredient-checked" : "")"
+                            @onclick="() => ToggleIngredient(idx)">
+                            <span class="ingredient-check-box">@(isChecked ? "&#10003;" : "")</span>
                             @if (!string.IsNullOrWhiteSpace(item.Quantity))
                             {
-                                <span class="me-2">@item.Quantity</span>
+                                <span class="ingredient-detail-qty">@item.Quantity</span>
                             }
                             <span>@item.Ingredient</span>
                         </li>
                     }
                 </ul>
-            }
-        </section>
+                @if (_checkedIngredients.Count > 0)
+                {
+                    <button class="btn btn-outline-secondary btn-sm mt-2" type="button" @onclick="ClearChecked">
+                        Clear checked (@_checkedIngredients.Count)
+                    </button>
+                }
+            </section>
+        }
 
-        <section>
-            <h3>Equipment</h3>
-            @if (!HasItems(_recipe.Equipment))
-            {
-                <p class="text-muted">No equipment listed.</p>
-            }
-            else
-            {
-                <ul>
-                    @foreach (var item in _recipe.Equipment.Where(HasText))
-                    {
-                        <li>@item</li>
-                    }
-                </ul>
-            }
-        </section>
+        @if (HasItems(_recipe.Equipment))
+        {
+            <section>
+                <button class="recipe-section-toggle" type="button" @onclick="() => _showEquipment = !_showEquipment">
+                    <h3 class="d-inline mb-0">Equipment</h3>
+                    <span class="toggle-chevron">@(_showEquipment ? "&#9650;" : "&#9660;")</span>
+                </button>
+                @if (_showEquipment)
+                {
+                    <ul class="mt-2">
+                        @foreach (var item in _recipe.Equipment.Where(HasText))
+                        {
+                            <li>@item</li>
+                        }
+                    </ul>
+                }
+            </section>
+        }
 
-        <section>
-            <h3>Instructions</h3>
-            @if (!HasItems(_recipe.Instructions))
-            {
-                <p class="text-muted">No instructions listed.</p>
-            }
-            else
-            {
-                <ol>
-                    @foreach (var item in _recipe.Instructions.Where(HasText))
-                    {
-                        <li>@item</li>
+        @if (HasItems(_recipe.Instructions))
+        {
+            <section>
+                <h3 class="mb-3">Instructions</h3>
+                <div class="step-list">
+                    @{
+                        var steps = _recipe.Instructions.Where(HasText).ToList();
                     }
-                </ol>
-            }
-        </section>
+                    @for (var i = 0; i < steps.Count; i++)
+                    {
+                        var stepNum = i + 1;
+                        <div class="step-card">
+                            <div class="step-number">@stepNum</div>
+                            <div class="step-text">@steps[i]</div>
+                        </div>
+                    }
+                </div>
+            </section>
+        }
 
         @if (!string.IsNullOrWhiteSpace(_recipe.NutritionFacts))
         {
             <section>
-                <h3>Nutrition</h3>
-                <p>@_recipe.NutritionFacts</p>
+                <button class="recipe-section-toggle" type="button" @onclick="() => _showNutrition = !_showNutrition">
+                    <h3 class="d-inline mb-0">Nutrition</h3>
+                    <span class="toggle-chevron">@(_showNutrition ? "&#9650;" : "&#9660;")</span>
+                </button>
+                @if (_showNutrition)
+                {
+                    <p class="mt-2">@_recipe.NutritionFacts</p>
+                }
             </section>
         }
 
         @if (!string.IsNullOrWhiteSpace(_recipe.StorageInfo))
         {
             <section>
-                <h3>Storage</h3>
-                <p>@_recipe.StorageInfo</p>
+                <button class="recipe-section-toggle" type="button" @onclick="() => _showStorage = !_showStorage">
+                    <h3 class="d-inline mb-0">Storage</h3>
+                    <span class="toggle-chevron">@(_showStorage ? "&#9650;" : "&#9660;")</span>
+                </button>
+                @if (_showStorage)
+                {
+                    <p class="mt-2">@_recipe.StorageInfo</p>
+                }
             </section>
         }
+
     </div>
 }
 
@@ -139,15 +186,51 @@ else
 
     private Recipe? _recipe;
     private bool _loading = true;
+    private bool _editing;
+    private bool _isOwner;
+    private bool _showEquipment = true;
+    private bool _showNutrition;
+    private bool _showStorage;
+    private HashSet<int> _checkedIngredients = new();
 
     protected override async Task OnParametersSetAsync()
     {
         _loading = true;
         _recipe = null;
+        _editing = false;
+        _checkedIngredients.Clear();
 
         _recipe = await RecipeService.GetRecipeByIdAsync(RecipeId);
+
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        var userId =
+            user.FindFirst("oid")?.Value
+            ?? user.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value
+            ?? user.FindFirst("sub")?.Value
+            ?? string.Empty;
+
+        _isOwner = !string.IsNullOrWhiteSpace(userId) && userId == _recipe?.OwnerUserId;
         _loading = false;
     }
+
+    private async Task GoBack() => await JS.InvokeVoidAsync("history.back");
+
+    private void CancelEdit() => _editing = false;
+
+    private void HandleSaved(Recipe updated)
+    {
+        _recipe = updated;
+        _editing = false;
+    }
+
+    private void ToggleIngredient(int index)
+    {
+        if (!_checkedIngredients.Remove(index))
+            _checkedIngredients.Add(index);
+    }
+
+    private void ClearChecked() => _checkedIngredients.Clear();
 
     private bool HasAnyTiming() =>
         !string.IsNullOrWhiteSpace(_recipe?.YieldServings)

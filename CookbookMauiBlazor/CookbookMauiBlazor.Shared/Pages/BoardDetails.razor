@@ -111,6 +111,12 @@ else
                             <img src="@recipe.ImageUrl" class="card-img-top" alt="@recipe.Title"
                                  style="height:200px;object-fit:cover;" />
                         }
+                        else
+                        {
+                            <div class="recipe-card-placeholder card-img-top">
+                                <span>@recipe.Title[0]</span>
+                            </div>
+                        }
                         <div class="card-body">
                             <h5 class="card-title text-body">@recipe.Title</h5>
                             @if (!string.IsNullOrWhiteSpace(recipe.Description))

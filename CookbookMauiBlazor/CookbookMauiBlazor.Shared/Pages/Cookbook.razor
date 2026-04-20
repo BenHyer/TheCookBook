@@ -4,6 +4,7 @@
 @using CookbookMauiBlazor.Shared.Models
 @using CookbookMauiBlazor.Shared.Viewmodels
 @inject CookbookViewModel ViewModel
+@inject IJSRuntime JS
 @implements IDisposable
 
 <PageTitle>Cookbook</PageTitle>
@@ -90,7 +91,7 @@ else
 
     @if (ViewModel.EditingRecipe is not null)
     {
-        <div class="card mb-4">
+        <div id="recipe-edit-form" class="card mb-4">
             <div class="card-body">
                 <EditRecipeForm Recipe="@ViewModel.EditingRecipe" OnSaved="ViewModel.HandleRecipeUpdated"
                                 OnCanceled="ViewModel.CancelEdit" />
@@ -116,56 +117,103 @@ else
     }
     else
     {
-        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-            @foreach (var recipe in ViewModel.Recipes)
-            {
-                <div class="col">
-                    <div class="card h-100 text-decoration-none" style="cursor:pointer;"
-                         @onclick="() => ViewModel.NavigateToRecipe(recipe.Id)">
-                        @if (!string.IsNullOrWhiteSpace(recipe.ImageUrl))
-                        {
-                            <img src="@recipe.ImageUrl" class="card-img-top" alt="@recipe.Title"
-                                 style="height:200px;object-fit:cover;" />
-                        }
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <h5 class="card-title text-body">@recipe.Title</h5>
-                                <button class="btn btn-sm btn-outline-secondary" type="button"
-                                        @onclick="() => ViewModel.StartEdit(recipe)" @onclick:stopPropagation="true">
-                                    Edit
-                                </button>
-                            </div>
-                            @if (!string.IsNullOrWhiteSpace(recipe.Description))
+        <div class="mb-3">
+            <input class="form-control" placeholder="Search recipes..." @bind="_recipeSearch" @bind:event="oninput" />
+        </div>
+
+        @{
+            var filtered = FilteredRecipes().ToList();
+        }
+        @if (filtered.Count == 0)
+        {
+            <p class="text-muted">No recipes match "@_recipeSearch".</p>
+        }
+        else
+        {
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                @foreach (var recipe in filtered)
+                {
+                    <div class="col">
+                        <div class="card h-100 text-decoration-none" style="cursor:pointer;"
+                             @onclick="() => ViewModel.NavigateToRecipe(recipe.Id)">
+                            @if (!string.IsNullOrWhiteSpace(recipe.ImageUrl))
                             {
-                                <p class="card-text text-muted small">@recipe.Description</p>
+                                <img src="@recipe.ImageUrl" class="card-img-top" alt="@recipe.Title"
+                                     style="height:200px;object-fit:cover;" />
                             }
-                            <div class="d-flex gap-3 small text-muted">
-                                @if (!string.IsNullOrWhiteSpace(recipe.PrepTime))
+                            else
+                            {
+                                <div class="recipe-card-placeholder card-img-top">
+                                    <span>@recipe.Title[0]</span>
+                                </div>
+                            }
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <h5 class="card-title text-body">@recipe.Title</h5>
+                                    <button class="btn btn-sm btn-outline-secondary" type="button"
+                                            @onclick="() => HandleStartEdit(recipe)" @onclick:stopPropagation="true">
+                                        Edit
+                                    </button>
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(recipe.Description))
                                 {
-                                    <span>Prep: @recipe.PrepTime</span>
+                                    <p class="card-text text-muted small">@recipe.Description</p>
                                 }
-                                @if (!string.IsNullOrWhiteSpace(recipe.CookTime))
-                                {
-                                    <span>Cook: @recipe.CookTime</span>
-                                }
-                                @if (!string.IsNullOrWhiteSpace(recipe.YieldServings))
-                                {
-                                    <span>Serves: @recipe.YieldServings</span>
-                                }
+                                <div class="d-flex gap-3 small text-muted">
+                                    @if (!string.IsNullOrWhiteSpace(recipe.PrepTime))
+                                    {
+                                        <span>Prep: @recipe.PrepTime</span>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(recipe.CookTime))
+                                    {
+                                        <span>Cook: @recipe.CookTime</span>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(recipe.YieldServings))
+                                    {
+                                        <span>Serves: @recipe.YieldServings</span>
+                                    }
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            }
-        </div>
+                }
+            </div>
+        }
     }
 }
 
 @code {
+    private string _recipeSearch = string.Empty;
+    private bool _scrollToEdit;
+
     protected override async Task OnInitializedAsync()
     {
         ViewModel.PropertyChanged += OnViewModelChanged;
         await ViewModel.InitializeAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_scrollToEdit)
+        {
+            _scrollToEdit = false;
+            await JS.InvokeVoidAsync("eval",
+                "document.getElementById('recipe-edit-form')?.scrollIntoView({behavior:'smooth',block:'start'})");
+        }
+    }
+
+    private void HandleStartEdit(Recipe recipe)
+    {
+        ViewModel.StartEdit(recipe);
+        _scrollToEdit = true;
+    }
+
+    private IEnumerable<Recipe> FilteredRecipes()
+    {
+        var search = _recipeSearch.Trim();
+        return string.IsNullOrWhiteSpace(search)
+            ? ViewModel.Recipes
+            : ViewModel.Recipes.Where(r => r.Title.Contains(search, StringComparison.OrdinalIgnoreCase));
     }
 
     private void OnViewModelChanged(object? sender, PropertyChangedEventArgs e)

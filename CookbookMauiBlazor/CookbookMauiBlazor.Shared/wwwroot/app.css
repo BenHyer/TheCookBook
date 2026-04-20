@@ -145,6 +145,100 @@ h1:focus {
     border: 3px solid #dee2e6;
 }
 
+/* ── Ingredient editor (shared by NewRecipeForm and EditRecipeForm) ── */
+.ingredients-section {
+    margin-top: 1.5rem;
+}
+
+.ingredients-grid {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.ingredients-row {
+    display: grid;
+    gap: 0.5rem;
+    grid-template-columns: 2fr 0.7fr 1fr 1fr auto;
+    align-items: center;
+}
+
+.ingredient-input {
+    background: #0b1dbf;
+    border: 1px solid #1b2fe0;
+    color: #ffffff;
+}
+
+.ingredient-input::placeholder {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.ingredient-input:focus {
+    background: #0b1dbf;
+    border-color: #4057ff;
+    box-shadow: 0 0 0 0.2rem rgba(64, 87, 255, 0.25);
+    color: #ffffff;
+}
+
+.ingredient-remove {
+    padding: 0.375rem 0.6rem;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.add-ingredient-btn {
+    border-style: dashed;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+}
+
+/* ── Recipe save bar ── */
+.recipe-save-bar {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+@media (max-width: 768px) {
+    .ingredients-row {
+        grid-template-columns: 0.7fr 1fr auto;
+        grid-template-rows: auto auto;
+    }
+
+    .ingredient-name {
+        grid-column: 1 / span 2;
+        grid-row: 1;
+    }
+
+    .ingredient-remove {
+        grid-column: 3;
+        grid-row: 1;
+        align-self: center;
+    }
+
+    .ingredient-qty {
+        grid-column: 1;
+        grid-row: 2;
+    }
+
+    .ingredient-unit {
+        grid-column: 2;
+        grid-row: 2;
+    }
+
+    .ingredient-note {
+        grid-column: 1 / span 2;
+        grid-row: 3;
+    }
+
+    .recipe-save-bar {
+        flex-direction: column-reverse;
+    }
+
+    .recipe-save-bar > * {
+        width: 100%;
+    }
+}
+
 .form-floating>.form-control-plaintext::placeholder,
 .form-floating>.form-control::placeholder {
     color: var(--bs-secondary-color);
@@ -154,4 +248,150 @@ h1:focus {
 .form-floating>.form-control-plaintext:focus::placeholder,
 .form-floating>.form-control:focus::placeholder {
     text-align: start;
+}
+
+/* ── Recipe card image placeholder ── */
+.recipe-card-placeholder {
+    height: 200px;
+    background: linear-gradient(135deg, #0b1462 0%, #0b1dbf 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.2);
+    font-size: 5rem;
+    font-weight: 700;
+    user-select: none;
+    letter-spacing: -0.02em;
+}
+
+/* ── Timing pills on recipe detail ── */
+.recipe-meta-pill {
+    display: inline-block;
+    padding: 0.3rem 0.75rem;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 2rem;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.8);
+    white-space: nowrap;
+}
+
+/* ── Ingredient checklist (recipe detail) ── */
+.ingredient-checklist {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.ingredient-check-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.65rem 0.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    cursor: pointer;
+    border-radius: 0.375rem;
+    transition: background 0.1s;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.ingredient-check-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.ingredient-check-item:active {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.ingredient-check-box {
+    width: 1.35rem;
+    height: 1.35rem;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    flex-shrink: 0;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.ingredient-checked .ingredient-check-box {
+    background: #0b1dbf;
+    border-color: #4057ff;
+    color: #fff;
+}
+
+.ingredient-checked span:not(.ingredient-check-box) {
+    opacity: 0.4;
+    text-decoration: line-through;
+}
+
+.ingredient-detail-qty {
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 0.875em;
+    min-width: 3.5rem;
+    flex-shrink: 0;
+}
+
+/* ── Instruction step cards ── */
+.step-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.step-card {
+    display: flex;
+    gap: 1rem;
+    background: #111;
+    border: 1px solid #2b2b2b;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    align-items: flex-start;
+}
+
+.step-number {
+    background: #0b1dbf;
+    color: #fff;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.875rem;
+    flex-shrink: 0;
+    margin-top: 0.1rem;
+}
+
+.step-text {
+    line-height: 1.6;
+}
+
+/* ── Collapsible section toggles ── */
+.recipe-section-toggle {
+    background: none;
+    border: none;
+    padding: 0;
+    color: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    text-align: left;
+}
+
+.recipe-section-toggle:hover h3 {
+    opacity: 0.75;
+}
+
+.toggle-chevron {
+    font-size: 0.6rem;
+    color: rgba(255, 255, 255, 0.4);
+    margin-left: 0.4rem;
+    vertical-align: middle;
 }

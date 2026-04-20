@@ -1,4 +1,4 @@
-﻿@using System.ComponentModel.DataAnnotations
+@using System.ComponentModel.DataAnnotations
 @using CookbookMauiBlazor.Shared.Models
 @using CookbookMauiBlazor.Shared.Services
 @inject IRecipeService RecipeService
@@ -44,26 +44,47 @@
     </div>
 
     <div class="ingredients-section mb-3">
-        <div class="ingredients-header d-flex align-items-center gap-3">
-            <div class="ingredients-title">Ingredients</div>
-            <button class="btn btn-danger" type="button" @onclick="AddIngredientRow">Add Ingredient</button>
-        </div>
+        <label class="form-label fw-semibold">Ingredients</label>
+
+        <datalist id="measurement-units">
+            <option value="tsp" />
+            <option value="tbsp" />
+            <option value="cup" />
+            <option value="cups" />
+            <option value="oz" />
+            <option value="fl oz" />
+            <option value="lb" />
+            <option value="g" />
+            <option value="kg" />
+            <option value="ml" />
+            <option value="L" />
+            <option value="cloves" />
+            <option value="slices" />
+            <option value="pieces" />
+            <option value="fillets" />
+            <option value="pinch" />
+            <option value="to taste" />
+            <option value="whole" />
+        </datalist>
 
         <div class="ingredients-grid">
             @for (var i = 0; i < _model.Ingredients.Count; i++)
             {
                 var line = _model.Ingredients[i];
-
                 <div class="ingredients-row" @key="line.Id">
-                    <InputText class="form-control ingredient-input" placeholder="Ingredient" @bind-Value="line.Name" />
-                    <InputText class="form-control ingredient-input" placeholder="Qty" type="number" step="any"
-                               inputmode="decimal" @bind-Value="line.Quantity" />
-                    <InputText class="form-control ingredient-input" placeholder="Measurement"
-                               @bind-Value="line.Measurement" />
-                    <InputText class="form-control ingredient-input" placeholder="Custom" @bind-Value="line.Custom" />
+                    <InputText class="form-control ingredient-input ingredient-name" placeholder="Ingredient name" @bind-Value="line.Name" />
+                    <InputText class="form-control ingredient-input ingredient-qty" placeholder="Qty (e.g. 1/2)" @bind-Value="line.Quantity" />
+                    <InputText class="form-control ingredient-input ingredient-unit" placeholder="Unit" list="measurement-units" @bind-Value="line.Measurement" />
+                    <InputText class="form-control ingredient-input ingredient-note" placeholder="Note" @bind-Value="line.Custom" />
+                    <button class="btn btn-outline-danger ingredient-remove" type="button" title="Remove ingredient"
+                            @onclick="() => RemoveIngredientRow(line.Id)">&#215;</button>
                 </div>
             }
         </div>
+
+        <button class="btn btn-outline-success add-ingredient-btn w-100 mt-2" type="button" @onclick="AddIngredientRow">
+            + Add Ingredient
+        </button>
     </div>
 
     <div class="mb-3">
@@ -105,10 +126,10 @@
         <div class="alert alert-danger">@_submitError</div>
     }
 
-    <div class="d-flex gap-2">
-        <button class="btn btn-outline-secondary" type="button" @onclick="PopulateSample">Populate fields</button>
-        <button class="btn btn-primary" type="submit" disabled="@_submitting">
-            @if (_submitting) { <span>Saving...</span> } else { <span>Create recipe</span> }
+    <div class="recipe-save-bar mt-4">
+        <button class="btn btn-outline-secondary" type="button" @onclick="PopulateSample">Fill sample</button>
+        <button class="btn btn-success btn-lg flex-fill" type="submit" disabled="@_submitting">
+            @if (_submitting) { <span>Saving...</span> } else { <span>Create Recipe</span> }
         </button>
     </div>
 </EditForm>
@@ -321,6 +342,15 @@
     private void AddIngredientRow()
     {
         _model.Ingredients.Add(new IngredientLine());
+    }
+
+    private void RemoveIngredientRow(Guid id)
+    {
+        var line = _model.Ingredients.FirstOrDefault(x => x.Id == id);
+        if (line is not null)
+        {
+            _model.Ingredients.Remove(line);
+        }
     }
 
     private void EnsureIngredientRow()
