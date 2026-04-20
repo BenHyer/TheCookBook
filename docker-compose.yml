@@ -1,4 +1,22 @@
 services:
+  postgres:
+    image: postgres:16
+    container_name: cookbook-postgres
+    environment:
+      POSTGRES_DB: ${PG_DB:-auditdb}
+      POSTGRES_USER: ${PG_USER:-audituser}
+      POSTGRES_PASSWORD: ${PG_PASSWORD:-ChangeThisPassword_123!}
+    ports:
+      - "${PG_PORT:-5432}:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PG_USER:-audituser} -d ${PG_DB:-auditdb}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
   db:
     image: mcr.microsoft.com/mssql/server:2022-latest
     container_name: cookbook-db
@@ -26,11 +44,14 @@ services:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       ASPNETCORE_HTTP_PORTS: "8080"
       ConnectionStrings__sqldb: Server=db,1433;Database=${DB_NAME:-sqldb};User Id=sa;Password=${DB_PASSWORD:-ChangeThisPassword_123!};TrustServerCertificate=True;Encrypt=False;
+      ConnectionStrings__pgdb: Host=postgres;Database=${PG_DB:-auditdb};Username=${PG_USER:-audituser};Password=${PG_PASSWORD:-ChangeThisPassword_123!}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
     ports:
       - "${API_PORT:-8080}:8080"
     depends_on:
       db:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
       otel-collector:
         condition: service_started
@@ -123,3 +144,4 @@ services:
 
 volumes:
   db_data:
+  pg_data:

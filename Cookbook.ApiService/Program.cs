@@ -47,6 +47,15 @@ if (string.IsNullOrWhiteSpace(connectionString))
 builder.Services.AddDbContext<CookbookDbContext>(options =>
     options.UseSqlServer(connectionString, sql => sql.EnableRetryOnFailure()));
 
+var pgConnectionString = builder.Configuration.GetConnectionString("pgdb");
+if (string.IsNullOrWhiteSpace(pgConnectionString))
+{
+    throw new InvalidOperationException("Connection string 'pgdb' is not configured.");
+}
+
+builder.Services.AddDbContext<AuditDbContext>(options =>
+    options.UseNpgsql(pgConnectionString));
+
 var storageConnectionString = builder.Configuration["AZURE_STORAGE_CONNECTION_STRING"];
 var storageContainerName = builder.Configuration["AZURE_STORAGE_CONTAINER_NAME"] ?? "profile-pictures";
 if (!string.IsNullOrWhiteSpace(storageConnectionString))
@@ -59,6 +68,7 @@ if (!string.IsNullOrWhiteSpace(storageConnectionString))
 var app = builder.Build();
 
 await ApplyDatabaseMigrationsAsync(app);
+await EnsureAuditDatabaseAsync(app);
 
 // Configure the HTTP request pipeline.
 app.UseExceptionHandler();
@@ -274,7 +284,7 @@ else
     app.Logger.LogInformation("Feature flag disabled: bulk add board recipes endpoint.");
 }
 
-app.MapPost("/api/v1/boards", async (CreateBoardRequest request, CookbookDbContext dbContext) =>
+app.MapPost("/api/v1/boards", async (CreateBoardRequest request, CookbookDbContext dbContext, AuditDbContext auditDb) =>
 {
     CookbookMetrics.TrackUploadAttempt();
 
@@ -325,6 +335,17 @@ app.MapPost("/api/v1/boards", async (CreateBoardRequest request, CookbookDbConte
     }
 
     CookbookMetrics.TrackUploadSuccess();
+
+    auditDb.AuditLogs.Add(new AuditLogEntry
+    {
+        Action = "Created",
+        EntityType = "Board",
+        EntityId = board.Id.ToString(),
+        UserId = board.OwnerUserId,
+        TimestampUtc = utcNow,
+        Details = board.Name
+    });
+    await auditDb.SaveChangesAsync();
 
     return Results.Created($"/api/v1/boards/{board.Id}", new BoardDto(
         board.Id,
@@ -580,7 +601,7 @@ app.MapGet("/api/v1/recipes/owner/{ownerUserId}", async (string ownerUserId, Coo
 })
 .WithName("GetRecipesByOwner");
 
-app.MapPost("/api/v1/recipes", async (CreateRecipeRequest request, CookbookDbContext dbContext) =>
+app.MapPost("/api/v1/recipes", async (CreateRecipeRequest request, CookbookDbContext dbContext, AuditDbContext auditDb) =>
 {
     if (string.IsNullOrWhiteSpace(request.Title))
     {
@@ -619,6 +640,17 @@ app.MapPost("/api/v1/recipes", async (CreateRecipeRequest request, CookbookDbCon
     dbContext.Recipes.Add(recipe);
     await dbContext.SaveChangesAsync();
 
+    auditDb.AuditLogs.Add(new AuditLogEntry
+    {
+        Action = "Created",
+        EntityType = "Recipe",
+        EntityId = recipe.Id.ToString(),
+        UserId = recipe.OwnerUserId,
+        TimestampUtc = DateTime.UtcNow,
+        Details = recipe.Title
+    });
+    await auditDb.SaveChangesAsync();
+
     return Results.Created($"/api/v1/recipes/{recipe.Id}", new RecipeDto(
         recipe.Id, recipe.OwnerUserId, recipe.Title, recipe.Description, recipe.YieldServings, recipe.PrepTime,
         recipe.CookTime, recipe.TotalTime, recipe.Ingredients, recipe.Quantities,
@@ -630,7 +662,8 @@ app.MapPost("/api/v1/recipes", async (CreateRecipeRequest request, CookbookDbCon
 app.MapPut("/api/v1/recipes/{recipeId}", async (
     int recipeId,
     UpdateRecipeRequest request,
-    CookbookDbContext dbContext) =>
+    CookbookDbContext dbContext,
+    AuditDbContext auditDb) =>
 {
     if (string.IsNullOrWhiteSpace(request.Title))
     {
@@ -670,6 +703,17 @@ app.MapPut("/api/v1/recipes/{recipeId}", async (
     recipe.Instructions = request.Instructions ?? new List<string>();
 
     await dbContext.SaveChangesAsync();
+
+    auditDb.AuditLogs.Add(new AuditLogEntry
+    {
+        Action = "Updated",
+        EntityType = "Recipe",
+        EntityId = recipe.Id.ToString(),
+        UserId = recipe.OwnerUserId,
+        TimestampUtc = DateTime.UtcNow,
+        Details = recipe.Title
+    });
+    await auditDb.SaveChangesAsync();
 
     return Results.Ok(new RecipeDto(
         recipe.Id, recipe.OwnerUserId, recipe.Title, recipe.Description, recipe.YieldServings, recipe.PrepTime,
@@ -929,6 +973,13 @@ app.MapGet("/api/v1/boards/shared-with-me/{userId}", async (string userId, Cookb
 app.MapDefaultEndpoints();
 
 app.Run();
+
+static async Task EnsureAuditDatabaseAsync(WebApplication app)
+{
+    using var scope = app.Services.CreateScope();
+    var auditDb = scope.ServiceProvider.GetRequiredService<AuditDbContext>();
+    await auditDb.Database.EnsureCreatedAsync();
+}
 
 static async Task ApplyDatabaseMigrationsAsync(WebApplication app)
 {

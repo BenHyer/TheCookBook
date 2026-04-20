@@ -1,0 +1,81 @@
+name: PostgreSQL Backup
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: self-hosted
+
+    steps:
+      - name: Run pg_dump
+        id: dump
+        run: |
+          TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+          BACKUP_DIR="/opt/cookbook-backups"
+          BACKUP_FILE="${BACKUP_DIR}/auditdb_${TIMESTAMP}.sql.gz"
+
+          mkdir -p "$BACKUP_DIR"
+
+          docker exec cookbook-postgres pg_dump \
+            -U "${{ secrets.PG_USER }}" \
+            -d "${{ secrets.PG_DB }}" \
+            | gzip > "$BACKUP_FILE"
+
+          echo "backup_file=$BACKUP_FILE" >> "$GITHUB_OUTPUT"
+          echo "timestamp=$TIMESTAMP" >> "$GITHUB_OUTPUT"
+
+      - name: Verify backup
+        id: verify
+        run: |
+          FILE="${{ steps.dump.outputs.backup_file }}"
+
+          if [ ! -f "$FILE" ]; then
+            echo "Backup file not found: $FILE"
+            exit 1
+          fi
+
+          SIZE=$(stat -c%s "$FILE")
+          if [ "$SIZE" -lt 100 ]; then
+            echo "Backup file is suspiciously small ($SIZE bytes)"
+            exit 1
+          fi
+
+          TABLE_COUNT=$(zcat "$FILE" | grep -c "^CREATE TABLE" || true)
+          echo "Backup size: ${SIZE} bytes, tables found: ${TABLE_COUNT}"
+          echo "size=$SIZE" >> "$GITHUB_OUTPUT"
+          echo "table_count=$TABLE_COUNT" >> "$GITHUB_OUTPUT"
+
+      - name: Rotate — keep 4 most recent backups
+        run: |
+          BACKUP_DIR="/opt/cookbook-backups"
+          ls -t "${BACKUP_DIR}"/auditdb_*.sql.gz | tail -n +5 | xargs -r rm --
+
+      - name: Notify Discord — success
+        if: success()
+        run: |
+          curl -X POST "${{ secrets.DISCORD_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"embeds\": [{
+                \"title\": \"✅ Postgres Backup Succeeded\",
+                \"description\": \"**File:** \`$(basename ${{ steps.dump.outputs.backup_file }})\`\n**Size:** ${{ steps.verify.outputs.size }} bytes\n**Tables:** ${{ steps.verify.outputs.table_count }}\n**Time:** ${{ steps.dump.outputs.timestamp }}\",
+                \"color\": 3066993
+              }]
+            }"
+
+      - name: Notify Discord — failure
+        if: failure()
+        run: |
+          curl -X POST "${{ secrets.DISCORD_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"content\": \"❌ **Postgres Backup Failed**\",
+              \"embeds\": [{
+                \"title\": \"Backup Failed\",
+                \"description\": \"**Repository:** ${{ github.repository }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\",
+                \"color\": 15158332
+              }]
+            }"

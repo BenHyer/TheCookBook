@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -E \"\\\\.cs$\")",
+      "Bash(chmod +x \"c:/Users/marcs/code/School/Spring 2026/Telemetry/TheCookBook/setup.sh\")"
+    ]
+  }
+}
