@@ -18,6 +18,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Prepare NuGet cache directory
+        shell: pwsh
+        run: New-Item -ItemType Directory -Force -Path $env:NUGET_PACKAGES | Out-Null
+
       - name: Setup .NET 10 SDK
         uses: actions/setup-dotnet@v5
         with:
@@ -60,6 +64,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
+      - name: Prepare NuGet cache directory
+        shell: pwsh
+        run: New-Item -ItemType Directory -Force -Path $env:NUGET_PACKAGES | Out-Null
 
       - name: Setup .NET 10 SDK
         uses: actions/setup-dotnet@v5
@@ -136,6 +144,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
+      - name: Prepare NuGet cache directory
+        shell: pwsh
+        run: New-Item -ItemType Directory -Force -Path $env:NUGET_PACKAGES | Out-Null
 
       - name: Setup .NET 10 SDK
         uses: actions/setup-dotnet@v5
