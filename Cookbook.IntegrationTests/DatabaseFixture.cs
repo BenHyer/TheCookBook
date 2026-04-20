@@ -1,16 +1,24 @@
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 namespace Cookbook.IntegrationTests;
 
+/// <summary>
+/// Creates an isolated SQL Server / Azure SQL database for one test class and drops it on dispose.
+/// Each fixture instance gets a unique database name so test classes can run in parallel.
+///
+/// Set SQLCONNSTR to override the server connection (without a Database= segment):
+///   LocalDB (default): Server=(localdb)\mssqllocaldb;Trusted_Connection=True
+///   Azure SQL example: Server=tcp:myserver.database.windows.net,1433;User ID=user;Password=pass;Encrypt=True
+/// </summary>
 public class DatabaseFixture : IDisposable
 {
+    private readonly string _dbName = $"cookbook_test_{Guid.NewGuid():N}";
+
     public IntegrationTestDbContext CreateContext()
     {
-        var connectionString = Environment.GetEnvironmentVariable("PGCONNSTR")
-            ?? "Host=localhost;Database=cookbook_integration_test;Username=postgres;Password=testpass";
-
         var options = new DbContextOptionsBuilder<IntegrationTestDbContext>()
-            .UseNpgsql(connectionString)
+            .UseSqlServer(BuildConnectionString())
             .Options;
 
         var context = new IntegrationTestDbContext(options);
@@ -20,9 +28,19 @@ public class DatabaseFixture : IDisposable
 
     public void Dispose()
     {
-        // Drop the schema so the next run starts clean.
-        // This is also called by xunit when a test class fails partway through.
         using var context = CreateContext();
         context.Database.EnsureDeleted();
+    }
+
+    private string BuildConnectionString()
+    {
+        var serverConn = Environment.GetEnvironmentVariable("SQLCONNSTR")
+            ?? @"Server=(localdb)\mssqllocaldb;Trusted_Connection=True;MultipleActiveResultSets=True";
+
+        var builder = new SqlConnectionStringBuilder(serverConn)
+        {
+            InitialCatalog = _dbName
+        };
+        return builder.ConnectionString;
     }
 }
