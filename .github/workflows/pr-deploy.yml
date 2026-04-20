@@ -72,6 +72,7 @@ jobs:
           kubectl create secret generic cookbook-secrets \
             --namespace "$NS" \
             --from-literal=ConnectionStrings__sqldb="${{ secrets.DB_CONNECTION_STRING }}" \
+            --from-literal=ConnectionStrings__pgdb="${{ secrets.PG_CONNECTION_STRING }}" \
             --from-literal=AZURE_STORAGE_CONNECTION_STRING="${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
             --from-literal=AZURE_STORAGE_CONTAINER_NAME="${{ secrets.AZURE_STORAGE_CONTAINER_NAME }}" \
             --from-literal=AZURE_AD_TENANT_ID="${{ secrets.AZURE_AD_TENANT_ID }}" \
