@@ -69,6 +69,7 @@ builder.Services.AddScoped<ProfilePageViewModel>();
 builder.Services.AddScoped<BoardDetailsViewModel>();
 builder.Services.AddScoped<BoardsPageViewModel>();
 builder.Services.AddScoped<HomePageViewModel>();
+builder.Services.AddScoped<RecipeDetailsViewModel>();
 builder.Services.AddCascadingAuthenticationState();
 
 var apiBaseUrl = builder.Configuration["ApiService:BaseUrl"] ?? "http://localhost:5346";

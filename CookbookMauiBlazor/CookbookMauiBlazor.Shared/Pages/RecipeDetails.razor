@@ -1,29 +1,29 @@
 @page "/recipes/{RecipeId:int}"
+@using System.ComponentModel
 @using CookbookMauiBlazor.Shared.Models
-@using CookbookMauiBlazor.Shared.Services
+@using CookbookMauiBlazor.Shared.Viewmodels
 @using Microsoft.AspNetCore.Authorization
-@using Microsoft.AspNetCore.Components.Authorization
 @attribute [Authorize]
-@inject IRecipeService RecipeService
-@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject RecipeDetailsViewModel ViewModel
 @inject IJSRuntime JS
+@implements IDisposable
 
-<PageTitle>@(_recipe?.Title ?? "Recipe")</PageTitle>
+<PageTitle>@(ViewModel.Recipe?.Title ?? "Recipe")</PageTitle>
 
-@if (_loading)
+@if (ViewModel.Loading)
 {
     <p>Loading recipe...</p>
 }
-else if (_recipe is null)
+else if (ViewModel.Recipe is null)
 {
     <div class="alert alert-warning">Recipe not found.</div>
 }
-else if (_editing)
+else if (ViewModel.Editing)
 {
     <div class="mb-3">
-        <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="CancelEdit">&#8592; Cancel editing</button>
+        <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="ViewModel.CancelEdit">&#8592; Cancel editing</button>
     </div>
-    <EditRecipeForm Recipe="_recipe" OnSaved="HandleSaved" OnCanceled="CancelEdit" />
+    <EditRecipeForm Recipe="ViewModel.Recipe" OnSaved="ViewModel.HandleSaved" OnCanceled="ViewModel.CancelEdit" />
 }
 else
 {
@@ -31,54 +31,54 @@ else
 
         <div class="d-flex justify-content-between align-items-center gap-2">
             <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="GoBack">&#8592; Back</button>
-            @if (_isOwner)
+            @if (ViewModel.IsOwner)
             {
-                <button class="btn btn-outline-primary btn-sm" type="button" @onclick="() => _editing = true">Edit Recipe</button>
+                <button class="btn btn-outline-primary btn-sm" type="button" @onclick="ViewModel.StartEdit">Edit Recipe</button>
             }
         </div>
 
         <div>
-            <h1 class="mb-1">@_recipe.Title</h1>
-            @if (!string.IsNullOrWhiteSpace(_recipe.Description))
+            <h1 class="mb-1">@ViewModel.Recipe.Title</h1>
+            @if (!string.IsNullOrWhiteSpace(ViewModel.Recipe.Description))
             {
-                <p class="text-muted mb-0">@_recipe.Description</p>
+                <p class="text-muted mb-0">@ViewModel.Recipe.Description</p>
             }
         </div>
 
-        @if (!string.IsNullOrWhiteSpace(_recipe.ImageUrl))
+        @if (!string.IsNullOrWhiteSpace(ViewModel.Recipe.ImageUrl))
         {
-            <img src="@_recipe.ImageUrl" class="rounded" alt="@_recipe.Title"
+            <img src="@ViewModel.Recipe.ImageUrl" class="rounded" alt="@ViewModel.Recipe.Title"
                  style="max-height:360px;max-width:100%;object-fit:cover;" />
         }
 
-        @if (HasAnyTiming())
+        @if (ViewModel.HasAnyTiming())
         {
             <div class="d-flex flex-wrap gap-2">
-                @if (!string.IsNullOrWhiteSpace(_recipe.YieldServings))
+                @if (!string.IsNullOrWhiteSpace(ViewModel.Recipe.YieldServings))
                 {
-                    <span class="recipe-meta-pill">Serves: @_recipe.YieldServings</span>
+                    <span class="recipe-meta-pill">Serves: @ViewModel.Recipe.YieldServings</span>
                 }
-                @if (!string.IsNullOrWhiteSpace(_recipe.PrepTime))
+                @if (!string.IsNullOrWhiteSpace(ViewModel.Recipe.PrepTime))
                 {
-                    <span class="recipe-meta-pill">Prep: @_recipe.PrepTime</span>
+                    <span class="recipe-meta-pill">Prep: @ViewModel.Recipe.PrepTime</span>
                 }
-                @if (!string.IsNullOrWhiteSpace(_recipe.CookTime))
+                @if (!string.IsNullOrWhiteSpace(ViewModel.Recipe.CookTime))
                 {
-                    <span class="recipe-meta-pill">Cook: @_recipe.CookTime</span>
+                    <span class="recipe-meta-pill">Cook: @ViewModel.Recipe.CookTime</span>
                 }
-                @if (!string.IsNullOrWhiteSpace(_recipe.TotalTime))
+                @if (!string.IsNullOrWhiteSpace(ViewModel.Recipe.TotalTime))
                 {
-                    <span class="recipe-meta-pill">Total: @_recipe.TotalTime</span>
+                    <span class="recipe-meta-pill">Total: @ViewModel.Recipe.TotalTime</span>
                 }
-                @if (!string.IsNullOrWhiteSpace(_recipe.CookingTemperature))
+                @if (!string.IsNullOrWhiteSpace(ViewModel.Recipe.CookingTemperature))
                 {
-                    <span class="recipe-meta-pill">Temp: @_recipe.CookingTemperature</span>
+                    <span class="recipe-meta-pill">Temp: @ViewModel.Recipe.CookingTemperature</span>
                 }
             </div>
         }
 
         @{
-            var ingredients = BuildIngredients().ToList();
+            var ingredients = ViewModel.BuildIngredients().ToList();
         }
         @if (ingredients.Any())
         {
@@ -89,9 +89,9 @@ else
                     {
                         var idx = i;
                         var item = ingredients[idx];
-                        var isChecked = _checkedIngredients.Contains(idx);
+                        var isChecked = ViewModel.CheckedIngredients.Contains(idx);
                         <li class="ingredient-check-item @(isChecked ? "ingredient-checked" : "")"
-                            @onclick="() => ToggleIngredient(idx)">
+                            @onclick="() => ViewModel.ToggleIngredient(idx)">
                             <span class="ingredient-check-box">@(isChecked ? "&#10003;" : "")</span>
                             @if (!string.IsNullOrWhiteSpace(item.Quantity))
                             {
@@ -101,26 +101,26 @@ else
                         </li>
                     }
                 </ul>
-                @if (_checkedIngredients.Count > 0)
+                @if (ViewModel.CheckedIngredients.Count > 0)
                 {
-                    <button class="btn btn-outline-secondary btn-sm mt-2" type="button" @onclick="ClearChecked">
-                        Clear checked (@_checkedIngredients.Count)
+                    <button class="btn btn-outline-secondary btn-sm mt-2" type="button" @onclick="ViewModel.ClearChecked">
+                        Clear checked (@ViewModel.CheckedIngredients.Count)
                     </button>
                 }
             </section>
         }
 
-        @if (HasItems(_recipe.Equipment))
+        @if (RecipeDetailsViewModel.HasItems(ViewModel.Recipe.Equipment))
         {
             <section>
-                <button class="recipe-section-toggle" type="button" @onclick="() => _showEquipment = !_showEquipment">
+                <button class="recipe-section-toggle" type="button" @onclick="ViewModel.ToggleEquipment">
                     <h3 class="d-inline mb-0">Equipment</h3>
-                    <span class="toggle-chevron">@(_showEquipment ? "&#9650;" : "&#9660;")</span>
+                    <span class="toggle-chevron">@(ViewModel.ShowEquipment ? "&#9650;" : "&#9660;")</span>
                 </button>
-                @if (_showEquipment)
+                @if (ViewModel.ShowEquipment)
                 {
                     <ul class="mt-2">
-                        @foreach (var item in _recipe.Equipment.Where(HasText))
+                        @foreach (var item in ViewModel.Recipe.Equipment.Where(RecipeDetailsViewModel.HasText))
                         {
                             <li>@item</li>
                         }
@@ -129,13 +129,13 @@ else
             </section>
         }
 
-        @if (HasItems(_recipe.Instructions))
+        @if (RecipeDetailsViewModel.HasItems(ViewModel.Recipe.Instructions))
         {
             <section>
                 <h3 class="mb-3">Instructions</h3>
                 <div class="step-list">
                     @{
-                        var steps = _recipe.Instructions.Where(HasText).ToList();
+                        var steps = ViewModel.Recipe.Instructions.Where(RecipeDetailsViewModel.HasText).ToList();
                     }
                     @for (var i = 0; i < steps.Count; i++)
                     {
@@ -149,30 +149,30 @@ else
             </section>
         }
 
-        @if (!string.IsNullOrWhiteSpace(_recipe.NutritionFacts))
+        @if (!string.IsNullOrWhiteSpace(ViewModel.Recipe.NutritionFacts))
         {
             <section>
-                <button class="recipe-section-toggle" type="button" @onclick="() => _showNutrition = !_showNutrition">
+                <button class="recipe-section-toggle" type="button" @onclick="ViewModel.ToggleNutrition">
                     <h3 class="d-inline mb-0">Nutrition</h3>
-                    <span class="toggle-chevron">@(_showNutrition ? "&#9650;" : "&#9660;")</span>
+                    <span class="toggle-chevron">@(ViewModel.ShowNutrition ? "&#9650;" : "&#9660;")</span>
                 </button>
-                @if (_showNutrition)
+                @if (ViewModel.ShowNutrition)
                 {
-                    <p class="mt-2">@_recipe.NutritionFacts</p>
+                    <p class="mt-2">@ViewModel.Recipe.NutritionFacts</p>
                 }
             </section>
         }
 
-        @if (!string.IsNullOrWhiteSpace(_recipe.StorageInfo))
+        @if (!string.IsNullOrWhiteSpace(ViewModel.Recipe.StorageInfo))
         {
             <section>
-                <button class="recipe-section-toggle" type="button" @onclick="() => _showStorage = !_showStorage">
+                <button class="recipe-section-toggle" type="button" @onclick="ViewModel.ToggleStorage">
                     <h3 class="d-inline mb-0">Storage</h3>
-                    <span class="toggle-chevron">@(_showStorage ? "&#9650;" : "&#9660;")</span>
+                    <span class="toggle-chevron">@(ViewModel.ShowStorage ? "&#9650;" : "&#9660;")</span>
                 </button>
-                @if (_showStorage)
+                @if (ViewModel.ShowStorage)
                 {
-                    <p class="mt-2">@_recipe.StorageInfo</p>
+                    <p class="mt-2">@ViewModel.Recipe.StorageInfo</p>
                 }
             </section>
         }
@@ -184,94 +184,25 @@ else
     [Parameter]
     public int RecipeId { get; set; }
 
-    private Recipe? _recipe;
-    private bool _loading = true;
-    private bool _editing;
-    private bool _isOwner;
-    private bool _showEquipment = true;
-    private bool _showNutrition;
-    private bool _showStorage;
-    private HashSet<int> _checkedIngredients = new();
+    protected override async Task OnInitializedAsync()
+    {
+        ViewModel.PropertyChanged += OnViewModelChanged;
+    }
 
     protected override async Task OnParametersSetAsync()
     {
-        _loading = true;
-        _recipe = null;
-        _editing = false;
-        _checkedIngredients.Clear();
-
-        _recipe = await RecipeService.GetRecipeByIdAsync(RecipeId);
-
-        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User;
-        var userId =
-            user.FindFirst("oid")?.Value
-            ?? user.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value
-            ?? user.FindFirst("sub")?.Value
-            ?? string.Empty;
-
-        _isOwner = !string.IsNullOrWhiteSpace(userId) && userId == _recipe?.OwnerUserId;
-        _loading = false;
+        await ViewModel.LoadRecipeAsync(RecipeId);
     }
 
     private async Task GoBack() => await JS.InvokeVoidAsync("history.back");
 
-    private void CancelEdit() => _editing = false;
-
-    private void HandleSaved(Recipe updated)
+    private void OnViewModelChanged(object? sender, PropertyChangedEventArgs e)
     {
-        _recipe = updated;
-        _editing = false;
+        _ = InvokeAsync(StateHasChanged);
     }
 
-    private void ToggleIngredient(int index)
+    public void Dispose()
     {
-        if (!_checkedIngredients.Remove(index))
-            _checkedIngredients.Add(index);
-    }
-
-    private void ClearChecked() => _checkedIngredients.Clear();
-
-    private bool HasAnyTiming() =>
-        !string.IsNullOrWhiteSpace(_recipe?.YieldServings)
-        || !string.IsNullOrWhiteSpace(_recipe?.PrepTime)
-        || !string.IsNullOrWhiteSpace(_recipe?.CookTime)
-        || !string.IsNullOrWhiteSpace(_recipe?.TotalTime)
-        || !string.IsNullOrWhiteSpace(_recipe?.CookingTemperature);
-
-    private static bool HasText(string? value) => !string.IsNullOrWhiteSpace(value);
-
-    private static bool HasItems(IReadOnlyCollection<string>? items) =>
-        items is not null && items.Any(HasText);
-
-    private IEnumerable<(string? Quantity, string Ingredient)> BuildIngredients()
-    {
-        if (_recipe is null)
-        {
-            return Array.Empty<(string?, string)>();
-        }
-
-        var ingredientCount = _recipe.Ingredients?.Count ?? 0;
-        var quantityCount = _recipe.Quantities?.Count ?? 0;
-        var count = Math.Max(ingredientCount, quantityCount);
-        if (count == 0)
-        {
-            return Array.Empty<(string?, string)>();
-        }
-
-        var items = new List<(string?, string)>(count);
-        for (var i = 0; i < count; i++)
-        {
-            var ingredient = i < ingredientCount ? _recipe.Ingredients[i] : string.Empty;
-            var quantity = i < quantityCount ? _recipe.Quantities[i] : null;
-            if (string.IsNullOrWhiteSpace(ingredient) && string.IsNullOrWhiteSpace(quantity))
-            {
-                continue;
-            }
-
-            items.Add((quantity, ingredient));
-        }
-
-        return items;
+        ViewModel.PropertyChanged -= OnViewModelChanged;
     }
 }

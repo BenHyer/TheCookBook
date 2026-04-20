@@ -121,17 +121,14 @@ else
             <input class="form-control" placeholder="Search recipes..." @bind="_recipeSearch" @bind:event="oninput" />
         </div>
 
-        @{
-            var filtered = FilteredRecipes().ToList();
-        }
-        @if (filtered.Count == 0)
+        @if (!FilteredRecipes().Any())
         {
             <p class="text-muted">No recipes match "@_recipeSearch".</p>
         }
         else
         {
             <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-                @foreach (var recipe in filtered)
+                @foreach (var recipe in FilteredRecipes())
                 {
                     <div class="col">
                         <div class="card h-100 text-decoration-none" style="cursor:pointer;"
