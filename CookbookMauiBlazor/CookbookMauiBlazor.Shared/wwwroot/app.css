@@ -163,20 +163,20 @@ h1:focus {
 }
 
 .ingredient-input {
-    background: rgba(255, 255, 255, 0.07);
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    color: #ffffff;
+    background: #f0fafa;
+    border: 1px solid #b2d8d8;
+    color: #1e293b;
 }
 
 .ingredient-input::placeholder {
-    color: rgba(255, 255, 255, 0.45);
+    color: #94a3b8;
 }
 
 .ingredient-input:focus {
-    background: rgba(255, 255, 255, 0.11);
+    background: #ffffff;
     border-color: #0d9488;
-    box-shadow: 0 0 0 0.2rem rgba(13, 148, 136, 0.25);
-    color: #ffffff;
+    box-shadow: 0 0 0 0.2rem rgba(13, 148, 136, 0.2);
+    color: #1e293b;
 }
 
 .ingredient-remove {
@@ -252,11 +252,12 @@ h1:focus {
 
 /* ── Recipe detail page wrapper ── */
 .recipe-detail {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
     border-radius: 1rem;
     padding: 1.5rem;
     padding-bottom: 5rem;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
 }
 
 /* ── Recipe card image placeholder ── */
@@ -277,18 +278,18 @@ h1:focus {
 .recipe-meta-pill {
     display: inline-block;
     padding: 0.3rem 0.75rem;
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: #f0fafa;
+    border: 1px solid #b2d8d8;
     border-radius: 2rem;
     font-size: 0.8rem;
-    color: rgba(255, 255, 255, 0.8);
+    color: #0f6b65;
     white-space: nowrap;
 }
 
 /* ── Ingredient checklist (recipe detail) ── */
 .ingredient-checklist-hint {
     font-size: 0.72rem;
-    color: rgba(255, 255, 255, 0.38);
+    color: #94a3b8;
     margin-bottom: 0.4rem;
     letter-spacing: 0.02em;
 }
@@ -304,26 +305,27 @@ h1:focus {
     align-items: center;
     gap: 0.75rem;
     padding: 0.65rem 0.5rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    border-bottom: 1px solid #e2e8f0;
     cursor: pointer;
     border-radius: 0.375rem;
     transition: background 0.1s;
     user-select: none;
     -webkit-tap-highlight-color: transparent;
+    color: #1e293b;
 }
 
 .ingredient-check-item:hover {
-    background: rgba(255, 255, 255, 0.06);
+    background: #f0fafa;
 }
 
 .ingredient-check-item:active {
-    background: rgba(255, 255, 255, 0.12);
+    background: #ccefed;
 }
 
 .ingredient-check-box {
     width: 1.35rem;
     height: 1.35rem;
-    border: 2px solid rgba(255, 255, 255, 0.35);
+    border: 2px solid #b2d8d8;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -335,17 +337,17 @@ h1:focus {
 
 .ingredient-checked .ingredient-check-box {
     background: #0d9488;
-    border-color: #14b8a6;
+    border-color: #0d9488;
     color: #fff;
 }
 
 .ingredient-checked span:not(.ingredient-check-box) {
-    opacity: 0.4;
+    opacity: 0.45;
     text-decoration: line-through;
 }
 
 .ingredient-detail-qty {
-    color: rgba(255, 255, 255, 0.55);
+    color: #64748b;
     font-size: 0.875em;
     min-width: 3.5rem;
     flex-shrink: 0;
@@ -390,11 +392,11 @@ h1:focus {
 
 /* ── Collapsible section toggles ── */
 .recipe-section-toggle {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: #f0fafa;
+    border: 1px solid #b2d8d8;
     border-radius: 0.5rem;
     padding: 0.6rem 0.75rem;
-    color: inherit;
+    color: #1e293b;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -405,15 +407,15 @@ h1:focus {
 }
 
 .recipe-section-toggle:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: #ccefed;
 }
 
 .recipe-section-toggle:active {
-    background: rgba(255, 255, 255, 0.12);
+    background: #99ddd9;
 }
 
 .toggle-chevron {
     font-size: 0.7rem;
-    color: rgba(255, 255, 255, 0.5);
+    color: #64748b;
     margin-left: auto;
 }
