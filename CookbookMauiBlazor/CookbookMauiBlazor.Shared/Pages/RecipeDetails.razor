@@ -27,7 +27,7 @@ else if (ViewModel.Editing)
 }
 else
 {
-    <div class="d-flex flex-column gap-4">
+    <div class="recipe-detail d-flex flex-column gap-4">
 
         <div class="d-flex justify-content-between align-items-center gap-2">
             <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="GoBack">&#8592; Back</button>
@@ -84,6 +84,7 @@ else
         {
             <section>
                 <h3 class="mb-2">Ingredients</h3>
+                <p class="ingredient-checklist-hint">Tap an ingredient to check it off</p>
                 <ul class="ingredient-checklist">
                     @for (var i = 0; i < ingredients.Count; i++)
                     {
