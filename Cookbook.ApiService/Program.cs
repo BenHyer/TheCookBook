@@ -1,5 +1,6 @@
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
+using Azure.Storage.Sas;
 using Cookbook.ApiService.Data;
 using Cookbook.ApiService.Models;
 using Cookbook.ApiService.Telemetry;
@@ -520,7 +521,7 @@ if (enableUserProfiles && enableProfilePictures)
             HttpHeaders = new BlobHttpHeaders { ContentType = file.ContentType }
         });
 
-        var pictureUrl = blobClient.Uri.ToString();
+        var pictureUrl = GetBlobUrl(blobClient);
         var utcNow = DateTime.UtcNow;
 
         var profile = await dbContext.UserProfiles.FindAsync(userId);
@@ -780,7 +781,7 @@ if (enableRecipeImages)
             HttpHeaders = new BlobHttpHeaders { ContentType = file.ContentType }
         });
 
-        recipe.ImageUrl = blobClient.Uri.ToString();
+        recipe.ImageUrl = GetBlobUrl(blobClient);
         await dbContext.SaveChangesAsync();
 
         return Results.Ok(new { url = recipe.ImageUrl });
@@ -995,6 +996,22 @@ app.MapGet("/api/v1/boards/shared-with-me/{userId}", async (string userId, Cookb
 app.MapDefaultEndpoints();
 
 app.Run();
+
+static string GetBlobUrl(BlobClient blobClient)
+{
+    if (!blobClient.CanGenerateSasUri)
+        return blobClient.Uri.ToString();
+
+    var sasBuilder = new BlobSasBuilder
+    {
+        BlobContainerName = blobClient.BlobContainerName,
+        BlobName = blobClient.Name,
+        Resource = "b",
+        ExpiresOn = DateTimeOffset.UtcNow.AddYears(10)
+    };
+    sasBuilder.SetPermissions(BlobSasPermissions.Read);
+    return blobClient.GenerateSasUri(sasBuilder).ToString();
+}
 
 static async Task EnsureBlobContainerAsync(WebApplication app)
 {
