@@ -60,19 +60,6 @@ jobs:
           BACKUP_DIR="/opt/cookbook-backups"
           ls -t "${BACKUP_DIR}"/auditdb_*.sql.gz | tail -n +5 | xargs -r rm --
 
-      - name: Notify Discord — success
-        if: success()
-        run: |
-          curl -X POST "${{ secrets.DISCORD_WEBHOOK_URL }}" \
-            -H "Content-Type: application/json" \
-            -d "{
-              \"embeds\": [{
-                \"title\": \"✅ Postgres Backup Succeeded\",
-                \"description\": \"**File:** \`$(basename ${{ steps.dump.outputs.backup_file }})\`\n**Size:** ${{ steps.verify.outputs.size }} bytes\n**Tables:** ${{ steps.verify.outputs.table_count }}\n**Time:** ${{ steps.dump.outputs.timestamp }}\",
-                \"color\": 3066993
-              }]
-            }"
-
       - name: Notify Discord — failure
         if: failure()
         run: |
