@@ -5,7 +5,6 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject IUserProfileService ProfileService
 @inject IConfiguration Configuration
-@inject IAuthService AuthService
 
 <div class="nav-root">
     <div class="top-row ps-3 navbar navbar-dark">
@@ -81,7 +80,6 @@
                             <span class="nav-avatar-name">@_displayName</span>
                         }
                     </a>
-                    <button class="nav-signout-btn" @onclick="SignOutAsync">Sign out</button>
                 </div>
             }
         </nav>
@@ -123,5 +121,4 @@
         }
     }
 
-    private Task SignOutAsync() => AuthService.SignOutAsync();
 }

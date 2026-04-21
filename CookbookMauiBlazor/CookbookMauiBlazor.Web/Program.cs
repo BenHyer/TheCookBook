@@ -120,8 +120,8 @@ builder.Services
             },
             OnRedirectToIdentityProviderForSignOut = ctx =>
             {
-                if (ctx.Properties.Items.TryGetValue("logout_hint", out var hint) && !string.IsNullOrEmpty(hint))
-                    ctx.ProtocolMessage.Parameters["logout_hint"] = hint;
+                if (ctx.Properties.Items.TryGetValue("sid", out var sid) && !string.IsNullOrEmpty(sid))
+                    ctx.ProtocolMessage.Parameters["sid"] = sid;
                 return Task.CompletedTask;
             }
         };
@@ -200,14 +200,13 @@ app.MapGet("/signout", async (HttpContext context) =>
         return Results.BadRequest("Authentication is not configured.");
     }
 
-    var loginHint = context.User.FindFirst("preferred_username")?.Value
-        ?? context.User.FindFirst("upn")?.Value;
+    var sid = context.User.FindFirst("sid")?.Value;
 
     await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
 
     var props = new AuthenticationProperties { RedirectUri = "/" };
-    if (!string.IsNullOrEmpty(loginHint))
-        props.Items["logout_hint"] = loginHint;
+    if (!string.IsNullOrEmpty(sid))
+        props.Items["sid"] = sid;
 
     await context.SignOutAsync(OpenIdConnectDefaults.AuthenticationScheme, props);
 
