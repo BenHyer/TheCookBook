@@ -117,6 +117,12 @@ builder.Services
             {
                 CookbookWebMetrics.TrackLoginFailure();
                 return Task.CompletedTask;
+            },
+            OnRedirectToIdentityProviderForSignOut = ctx =>
+            {
+                if (ctx.Properties.Items.TryGetValue("logout_hint", out var hint) && !string.IsNullOrEmpty(hint))
+                    ctx.ProtocolMessage.Parameters["logout_hint"] = hint;
+                return Task.CompletedTask;
             }
         };
     });
@@ -194,9 +200,16 @@ app.MapGet("/signout", async (HttpContext context) =>
         return Results.BadRequest("Authentication is not configured.");
     }
 
+    var loginHint = context.User.FindFirst("preferred_username")?.Value
+        ?? context.User.FindFirst("upn")?.Value;
+
     await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-    await context.SignOutAsync(OpenIdConnectDefaults.AuthenticationScheme,
-        new AuthenticationProperties { RedirectUri = "/" });
+
+    var props = new AuthenticationProperties { RedirectUri = "/" };
+    if (!string.IsNullOrEmpty(loginHint))
+        props.Items["logout_hint"] = loginHint;
+
+    await context.SignOutAsync(OpenIdConnectDefaults.AuthenticationScheme, props);
 
     return Results.Empty;
 });

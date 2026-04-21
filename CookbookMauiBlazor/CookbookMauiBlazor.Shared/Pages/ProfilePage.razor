@@ -3,9 +3,11 @@
 @using System.ComponentModel
 @using Microsoft.AspNetCore.Components.Forms
 @using CookbookMauiBlazor.Shared.Viewmodels
+@using CookbookMauiBlazor.Shared.Services
 
 @attribute [Authorize]
 @inject ProfilePageViewModel ViewModel
+@inject IAuthService AuthService
 @implements IDisposable
 
 <PageTitle>Profile</PageTitle>
@@ -83,6 +85,10 @@
                 <span class="ms-3 text-danger">@ViewModel.SaveError</span>
             }
         </EditForm>
+
+        <div class="mt-4 pt-4" style="border-top: 1px solid #dee2e6;">
+            <button class="btn btn-outline-danger" @onclick="() => AuthService.SignOutAsync()">Sign out</button>
+        </div>
     }
 </div>
 
