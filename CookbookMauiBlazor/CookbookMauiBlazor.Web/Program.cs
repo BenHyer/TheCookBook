@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.Identity.Web;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.Identity.Web.UI;
@@ -107,7 +108,6 @@ builder.Services
         options.ResponseType = OpenIdConnectResponseType.Code;
         options.UsePkce = true;
         options.SaveTokens = true;
-        options.SignedOutRedirectUri = "/";
         options.Events = new OpenIdConnectEvents
         {
             OnTokenValidated = ctx =>
@@ -195,7 +195,7 @@ app.MapGet("/signin", async (HttpContext context, string? redirectUri) =>
     return Results.Empty;
 });
 
-app.MapGet("/signout", async (HttpContext context) =>
+app.MapGet("/signout", async (HttpContext context, IOptionsMonitor<OpenIdConnectOptions> oidcOptions) =>
 {
     if (!hasAzureAdAuth)
     {
@@ -207,13 +207,15 @@ app.MapGet("/signout", async (HttpContext context) =>
 
     await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
 
-    var props = new AuthenticationProperties { RedirectUri = "/" };
+    var options = oidcOptions.Get(OpenIdConnectDefaults.AuthenticationScheme);
+    var oidcConfig = await options.ConfigurationManager!.GetConfigurationAsync(CancellationToken.None);
+
+    var postLogoutUri = $"{context.Request.Scheme}://{context.Request.Host}/";
+    var logoutUrl = $"{oidcConfig.EndSessionEndpoint}?post_logout_redirect_uri={Uri.EscapeDataString(postLogoutUri)}";
     if (!string.IsNullOrEmpty(idToken))
-        props.Items["id_token_hint"] = idToken;
+        logoutUrl += $"&id_token_hint={Uri.EscapeDataString(idToken)}";
 
-    await context.SignOutAsync(OpenIdConnectDefaults.AuthenticationScheme, props);
-
-    return Results.Empty;
+    return Results.Redirect(logoutUrl);
 });
 
 app.MapRazorComponents<App>()
