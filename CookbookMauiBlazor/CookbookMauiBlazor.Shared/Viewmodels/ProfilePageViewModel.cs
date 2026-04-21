@@ -13,6 +13,7 @@ public partial class ProfilePageViewModel : ObservableObject
     private readonly AuthenticationStateProvider _authStateProvider;
     private readonly IUserProfileService _profileService;
     private readonly IConfiguration _configuration;
+    private readonly ProfileStateService _profileState;
     private string _userId = string.Empty;
 
     [ObservableProperty]
@@ -44,11 +45,13 @@ public partial class ProfilePageViewModel : ObservableObject
     public ProfilePageViewModel(
         AuthenticationStateProvider authStateProvider,
         IUserProfileService profileService,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        ProfileStateService profileState)
     {
         _authStateProvider = authStateProvider;
         _profileService = profileService;
         _configuration = configuration;
+        _profileState = profileState;
     }
 
     public async Task InitializeAsync()
@@ -79,6 +82,7 @@ public partial class ProfilePageViewModel : ObservableObject
                 ProfileModel.LastName = profile.LastName;
                 ProfileModel.DisplayName = profile.DisplayName;
                 PictureUrl = profile.ProfilePictureUrl;
+                _profileState.SetProfile(PictureUrl, profile.DisplayName);
             }
         }
 
@@ -101,6 +105,7 @@ public partial class ProfilePageViewModel : ObservableObject
         if (result is not null)
         {
             SaveSuccess = true;
+            _profileState.SetProfile(PictureUrl, ProfileModel.DisplayName);
         }
         else
         {
@@ -132,6 +137,7 @@ public partial class ProfilePageViewModel : ObservableObject
         if (url is not null)
         {
             PictureUrl = url;
+            _profileState.SetProfile(url, ProfileModel.DisplayName);
         }
         else
         {

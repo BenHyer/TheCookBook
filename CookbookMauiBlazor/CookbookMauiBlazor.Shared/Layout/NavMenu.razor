@@ -5,6 +5,8 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject IUserProfileService ProfileService
 @inject IConfiguration Configuration
+@inject ProfileStateService ProfileState
+@implements IDisposable
 
 <div class="nav-root">
     <div class="top-row ps-3 navbar navbar-dark">
@@ -93,6 +95,8 @@
 
     protected override async Task OnInitializedAsync()
     {
+        ProfileState.OnChange += OnProfileStateChanged;
+
         _profilesEnabled = Configuration.GetValue("FeatureFlags:EnableUserProfiles", true);
         if (!_profilesEnabled)
         {
@@ -119,6 +123,18 @@
             _pictureUrl = profile.ProfilePictureUrl;
             _displayName = string.IsNullOrEmpty(profile.DisplayName) ? null : profile.DisplayName;
         }
+    }
+
+    private void OnProfileStateChanged()
+    {
+        _pictureUrl = ProfileState.PictureUrl;
+        _displayName = string.IsNullOrEmpty(ProfileState.DisplayName) ? null : ProfileState.DisplayName;
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        ProfileState.OnChange -= OnProfileStateChanged;
     }
 
 }
