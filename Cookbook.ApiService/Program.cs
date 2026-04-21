@@ -1002,7 +1002,15 @@ static async Task EnsureBlobContainerAsync(WebApplication app)
     if (containerClient is null)
         return;
 
-    await containerClient.CreateIfNotExistsAsync(Azure.Storage.Blobs.Models.PublicAccessType.Blob);
+    try
+    {
+        await containerClient.CreateIfNotExistsAsync(Azure.Storage.Blobs.Models.PublicAccessType.Blob);
+    }
+    catch (Exception)
+    {
+        // Storage account may have public access disabled at the account level; fall back to private.
+        await containerClient.CreateIfNotExistsAsync();
+    }
 }
 
 static async Task EnsureAuditDatabaseAsync(WebApplication app)
