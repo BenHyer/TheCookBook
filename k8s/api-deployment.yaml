@@ -32,6 +32,11 @@ spec:
                 secretKeyRef:
                   name: cookbook-secrets
                   key: ConnectionStrings__sqldb
+            - name: ConnectionStrings__pgdb
+              valueFrom:
+                secretKeyRef:
+                  name: cookbook-secrets
+                  key: ConnectionStrings__pgdb
             - name: AZURE_STORAGE_CONNECTION_STRING
               valueFrom:
                 secretKeyRef:
