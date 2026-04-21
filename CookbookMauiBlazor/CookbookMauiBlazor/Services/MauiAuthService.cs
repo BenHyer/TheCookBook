@@ -19,5 +19,11 @@ namespace CookbookMauiBlazor.Services
                 throw new InvalidOperationException("Sign-in failed.");
             }
         }
+
+        public Task SignOutAsync()
+        {
+            _authProvider.SetAnonymous();
+            return Task.CompletedTask;
+        }
     }
 }

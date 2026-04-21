@@ -21,5 +21,11 @@ namespace CookbookMauiBlazor.Web.Services
             _navigation.NavigateTo(targetUri, forceLoad: true);
             return Task.CompletedTask;
         }
+
+        public Task SignOutAsync()
+        {
+            _navigation.NavigateTo("/signout", forceLoad: true);
+            return Task.CompletedTask;
+        }
     }
 }

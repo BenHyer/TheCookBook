@@ -187,6 +187,20 @@ app.MapGet("/signin", async (HttpContext context, string? redirectUri) =>
     return Results.Empty;
 });
 
+app.MapGet("/signout", async (HttpContext context) =>
+{
+    if (!hasAzureAdAuth)
+    {
+        return Results.BadRequest("Authentication is not configured.");
+    }
+
+    await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+    await context.SignOutAsync(OpenIdConnectDefaults.AuthenticationScheme,
+        new AuthenticationProperties { RedirectUri = "/" });
+
+    return Results.Empty;
+});
+
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
     .AddAdditionalAssemblies(
