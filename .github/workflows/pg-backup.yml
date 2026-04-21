@@ -22,9 +22,12 @@ jobs:
 
           mkdir -p "$BACKUP_DIR"
 
-          docker exec cookbook-postgres pg_dump \
+          PGPASSWORD="${{ secrets.PG_PASSWORD }}" pg_dump \
+            -h "${{ secrets.PG_HOST }}" \
+            -p "${{ secrets.PG_PORT }}" \
             -U "${{ secrets.PG_USER }}" \
             -d "${{ secrets.PG_DB }}" \
+            -n "${{ secrets.PG_SCHEMA }}" \
             | gzip > "$BACKUP_FILE"
 
           echo "backup_file=$BACKUP_FILE" >> "$GITHUB_OUTPUT"
