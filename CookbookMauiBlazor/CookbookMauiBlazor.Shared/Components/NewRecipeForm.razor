@@ -110,7 +110,6 @@
     <div class="mb-3">
         <label class="form-label">Recipe Image (optional)</label>
         <InputFile class="form-control" accept="image/jpeg,image/png,image/gif,image/webp" OnChange="OnImageSelected" />
-        <div class="text-muted small mt-1">Image upload is not saved yet.</div>
         @if (_imagePreviewUrl is not null)
         {
             <img src="@_imagePreviewUrl" alt="Preview" class="mt-2 rounded" style="max-height:200px;max-width:100%;object-fit:cover;" />
@@ -220,6 +219,14 @@
             {
                 _submitError = "Failed to save the recipe. Please try again.";
                 return;
+            }
+
+            if (_imageFile is not null)
+            {
+                using var stream = _imageFile.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+                var imageUrl = await RecipeService.UploadRecipeImageAsync(created.Id, stream, _imageFile.Name, _imageFile.ContentType);
+                if (imageUrl is not null)
+                    created.ImageUrl = imageUrl;
             }
 
             await OnCreated.InvokeAsync(created);

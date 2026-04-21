@@ -69,6 +69,7 @@ var app = builder.Build();
 
 await ApplyDatabaseMigrationsAsync(app);
 await EnsureAuditDatabaseAsync(app);
+await EnsureBlobContainerAsync(app);
 
 // Configure the HTTP request pipeline.
 app.UseExceptionHandler();
@@ -336,16 +337,23 @@ app.MapPost("/api/v1/boards", async (CreateBoardRequest request, CookbookDbConte
 
     CookbookMetrics.TrackUploadSuccess();
 
-    auditDb.AuditLogs.Add(new AuditLogEntry
+    try
     {
-        Action = "Created",
-        EntityType = "Board",
-        EntityId = board.Id.ToString(),
-        UserId = board.OwnerUserId,
-        TimestampUtc = utcNow,
-        Details = board.Name
-    });
-    await auditDb.SaveChangesAsync();
+        auditDb.AuditLogs.Add(new AuditLogEntry
+        {
+            Action = "Created",
+            EntityType = "Board",
+            EntityId = board.Id.ToString(),
+            UserId = board.OwnerUserId,
+            TimestampUtc = utcNow,
+            Details = board.Name
+        });
+        await auditDb.SaveChangesAsync();
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "Failed to write audit log for board creation.");
+    }
 
     return Results.Created($"/api/v1/boards/{board.Id}", new BoardDto(
         board.Id,
@@ -640,16 +648,23 @@ app.MapPost("/api/v1/recipes", async (CreateRecipeRequest request, CookbookDbCon
     dbContext.Recipes.Add(recipe);
     await dbContext.SaveChangesAsync();
 
-    auditDb.AuditLogs.Add(new AuditLogEntry
+    try
     {
-        Action = "Created",
-        EntityType = "Recipe",
-        EntityId = recipe.Id.ToString(),
-        UserId = recipe.OwnerUserId,
-        TimestampUtc = DateTime.UtcNow,
-        Details = recipe.Title
-    });
-    await auditDb.SaveChangesAsync();
+        auditDb.AuditLogs.Add(new AuditLogEntry
+        {
+            Action = "Created",
+            EntityType = "Recipe",
+            EntityId = recipe.Id.ToString(),
+            UserId = recipe.OwnerUserId,
+            TimestampUtc = DateTime.UtcNow,
+            Details = recipe.Title
+        });
+        await auditDb.SaveChangesAsync();
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "Failed to write audit log for recipe creation.");
+    }
 
     return Results.Created($"/api/v1/recipes/{recipe.Id}", new RecipeDto(
         recipe.Id, recipe.OwnerUserId, recipe.Title, recipe.Description, recipe.YieldServings, recipe.PrepTime,
@@ -704,16 +719,23 @@ app.MapPut("/api/v1/recipes/{recipeId}", async (
 
     await dbContext.SaveChangesAsync();
 
-    auditDb.AuditLogs.Add(new AuditLogEntry
+    try
     {
-        Action = "Updated",
-        EntityType = "Recipe",
-        EntityId = recipe.Id.ToString(),
-        UserId = recipe.OwnerUserId,
-        TimestampUtc = DateTime.UtcNow,
-        Details = recipe.Title
-    });
-    await auditDb.SaveChangesAsync();
+        auditDb.AuditLogs.Add(new AuditLogEntry
+        {
+            Action = "Updated",
+            EntityType = "Recipe",
+            EntityId = recipe.Id.ToString(),
+            UserId = recipe.OwnerUserId,
+            TimestampUtc = DateTime.UtcNow,
+            Details = recipe.Title
+        });
+        await auditDb.SaveChangesAsync();
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "Failed to write audit log for recipe update.");
+    }
 
     return Results.Ok(new RecipeDto(
         recipe.Id, recipe.OwnerUserId, recipe.Title, recipe.Description, recipe.YieldServings, recipe.PrepTime,
@@ -974,10 +996,43 @@ app.MapDefaultEndpoints();
 
 app.Run();
 
+static async Task EnsureBlobContainerAsync(WebApplication app)
+{
+    var containerClient = app.Services.GetService<BlobContainerClient>();
+    if (containerClient is null)
+        return;
+
+    await containerClient.CreateIfNotExistsAsync(Azure.Storage.Blobs.Models.PublicAccessType.Blob);
+}
+
 static async Task EnsureAuditDatabaseAsync(WebApplication app)
 {
     using var scope = app.Services.CreateScope();
+    var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("AuditDatabase");
     var auditDb = scope.ServiceProvider.GetRequiredService<AuditDbContext>();
+
+    const int maxAttempts = 10;
+
+    for (var attempt = 1; attempt <= maxAttempts; attempt++)
+    {
+        try
+        {
+            await auditDb.Database.EnsureCreatedAsync();
+            logger.LogInformation("Audit database schema ensured.");
+            return;
+        }
+        catch (Exception ex) when (attempt < maxAttempts)
+        {
+            var delay = TimeSpan.FromSeconds(Math.Min(30, attempt * 3));
+            logger.LogWarning(ex,
+                "Audit database setup attempt {Attempt}/{MaxAttempts} failed. Retrying in {DelaySeconds} seconds.",
+                attempt,
+                maxAttempts,
+                delay.TotalSeconds);
+            await Task.Delay(delay);
+        }
+    }
+
     await auditDb.Database.EnsureCreatedAsync();
 }
 
