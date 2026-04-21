@@ -122,6 +122,8 @@ builder.Services
             {
                 if (ctx.Properties.Items.TryGetValue("sid", out var sid) && !string.IsNullOrEmpty(sid))
                     ctx.ProtocolMessage.Parameters["sid"] = sid;
+                if (ctx.Properties.Items.TryGetValue("iss", out var iss) && !string.IsNullOrEmpty(iss))
+                    ctx.ProtocolMessage.Parameters["iss"] = iss;
                 return Task.CompletedTask;
             }
         };
@@ -201,12 +203,15 @@ app.MapGet("/signout", async (HttpContext context) =>
     }
 
     var sid = context.User.FindFirst("sid")?.Value;
+    var iss = context.User.FindFirst("iss")?.Value;
 
     await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
 
     var props = new AuthenticationProperties { RedirectUri = "/" };
     if (!string.IsNullOrEmpty(sid))
         props.Items["sid"] = sid;
+    if (!string.IsNullOrEmpty(iss))
+        props.Items["iss"] = iss;
 
     await context.SignOutAsync(OpenIdConnectDefaults.AuthenticationScheme, props);
 
