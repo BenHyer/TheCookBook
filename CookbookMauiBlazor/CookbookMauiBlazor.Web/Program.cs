@@ -107,6 +107,7 @@ builder.Services
         options.ResponseType = OpenIdConnectResponseType.Code;
         options.UsePkce = true;
         options.SaveTokens = true;
+        options.SignedOutRedirectUri = "/";
         options.Events = new OpenIdConnectEvents
         {
             OnTokenValidated = ctx =>
