@@ -106,6 +106,7 @@ builder.Services
         builder.Configuration.Bind("AzureAd", options);
         options.ResponseType = OpenIdConnectResponseType.Code;
         options.UsePkce = true;
+        options.SaveTokens = true;
         options.Events = new OpenIdConnectEvents
         {
             OnTokenValidated = ctx =>
@@ -120,10 +121,8 @@ builder.Services
             },
             OnRedirectToIdentityProviderForSignOut = ctx =>
             {
-                if (ctx.Properties.Items.TryGetValue("sid", out var sid) && !string.IsNullOrEmpty(sid))
-                    ctx.ProtocolMessage.Parameters["sid"] = sid;
-                if (ctx.Properties.Items.TryGetValue("iss", out var iss) && !string.IsNullOrEmpty(iss))
-                    ctx.ProtocolMessage.Parameters["iss"] = iss;
+                if (ctx.Properties.Items.TryGetValue("id_token_hint", out var idToken) && !string.IsNullOrEmpty(idToken))
+                    ctx.ProtocolMessage.IdTokenHint = idToken;
                 return Task.CompletedTask;
             }
         };
@@ -202,16 +201,14 @@ app.MapGet("/signout", async (HttpContext context) =>
         return Results.BadRequest("Authentication is not configured.");
     }
 
-    var sid = context.User.FindFirst("sid")?.Value;
-    var iss = context.User.FindFirst("iss")?.Value;
+    var authResult = await context.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+    var idToken = authResult.Properties?.GetTokenValue("id_token");
 
     await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
 
     var props = new AuthenticationProperties { RedirectUri = "/" };
-    if (!string.IsNullOrEmpty(sid))
-        props.Items["sid"] = sid;
-    if (!string.IsNullOrEmpty(iss))
-        props.Items["iss"] = iss;
+    if (!string.IsNullOrEmpty(idToken))
+        props.Items["id_token_hint"] = idToken;
 
     await context.SignOutAsync(OpenIdConnectDefaults.AuthenticationScheme, props);
 
