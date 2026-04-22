@@ -35,16 +35,17 @@ jobs:
           kubectl wait --for=delete pod -l app=cookbook-api -n cookbook --timeout=60s
           echo "API scaled to 0 — restore window open"
 
-      - name: Drop schema — backup SQL will recreate it
+      - name: Drop and recreate database — forces all connections closed
         run: |
           set -euo pipefail
           PGPASSWORD="${{ secrets.PG_PASSWORD }}" psql \
             -h "${{ secrets.PG_HOST }}" \
             -p "${{ secrets.PG_PORT }}" \
             -U "${{ secrets.PG_USER }}" \
-            -d "${{ secrets.PG_DB }}" \
-            -c "DROP SCHEMA IF EXISTS ${{ secrets.PG_SCHEMA }} CASCADE;"
-          echo "Schema dropped — pg_dump SQL will recreate it"
+            -d postgres \
+            -c "DROP DATABASE IF EXISTS ${{ secrets.PG_DB }} WITH (FORCE);" \
+            -c "CREATE DATABASE ${{ secrets.PG_DB }};"
+          echo "Database dropped and recreated"
 
       - name: Restore from backup
         run: |
@@ -60,18 +61,32 @@ jobs:
 
           echo "Restore complete from: $BACKUP_FILE"
 
-      - name: Verify restore — row count
+      - name: Verify restore — table and row counts
         id: verify
         run: |
           set -euo pipefail
-          ROW_COUNT=$(PGPASSWORD="${{ secrets.PG_PASSWORD }}" psql \
+          SCHEMA="${{ secrets.PG_SCHEMA }}"
+
+          TABLE_COUNT=$(PGPASSWORD="${{ secrets.PG_PASSWORD }}" psql \
             -h "${{ secrets.PG_HOST }}" \
             -p "${{ secrets.PG_PORT }}" \
             -U "${{ secrets.PG_USER }}" \
             -d "${{ secrets.PG_DB }}" \
-            -t -c "SELECT COUNT(*) FROM ${{ secrets.PG_SCHEMA }}.\"AuditLogEntries\";" | xargs)
-          echo "Rows in AuditLogEntries after restore: $ROW_COUNT"
-          echo "row_count=$ROW_COUNT" >> "$GITHUB_OUTPUT"
+            -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '${SCHEMA}';" | xargs)
+
+          ROW_COUNTS=$(PGPASSWORD="${{ secrets.PG_PASSWORD }}" psql \
+            -h "${{ secrets.PG_HOST }}" \
+            -p "${{ secrets.PG_PORT }}" \
+            -U "${{ secrets.PG_USER }}" \
+            -d "${{ secrets.PG_DB }}" \
+            -t -c "SELECT table_name, (xpath('/row/cnt/text()', query_to_xml(format('SELECT COUNT(*) AS cnt FROM %I.%I', table_schema, table_name), false, true, '')))[1]::text FROM information_schema.tables WHERE table_schema = '${SCHEMA}' ORDER BY table_name;")
+
+          echo "Tables in schema after restore: $TABLE_COUNT"
+          echo "$ROW_COUNTS"
+          echo "table_count=$TABLE_COUNT" >> "$GITHUB_OUTPUT"
+          echo "row_counts<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$ROW_COUNTS" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
 
       - name: Scale up API — end downtime
         id: scaleup
@@ -93,7 +108,7 @@ jobs:
             -d "{
               \"embeds\": [{
                 \"title\": \"✅ Postgres Restore Succeeded\",
-                \"description\": \"**Backup:** \`${{ steps.find.outputs.backup_name }}\`\n**Rows restored:** ${{ steps.verify.outputs.row_count }}\n**Downtime:** ${{ steps.scaleup.outputs.downtime_secs }}s\n**Triggered by:** ${{ github.actor }}\",
+                \"description\": \"**Backup:** \`${{ steps.find.outputs.backup_name }}\`\n**Tables restored:** ${{ steps.verify.outputs.table_count }}\n**Downtime:** ${{ steps.scaleup.outputs.downtime_secs }}s\n**Triggered by:** ${{ github.actor }}\",
                 \"color\": 3066993
               }]
             }"
