@@ -35,7 +35,7 @@ jobs:
           kubectl wait --for=delete pod -l app=cookbook-api -n cookbook --timeout=60s
           echo "API scaled to 0 — restore window open"
 
-      - name: Drop and recreate schema
+      - name: Drop schema — backup SQL will recreate it
         run: |
           set -euo pipefail
           PGPASSWORD="${{ secrets.PG_PASSWORD }}" psql \
@@ -43,8 +43,8 @@ jobs:
             -p "${{ secrets.PG_PORT }}" \
             -U "${{ secrets.PG_USER }}" \
             -d "${{ secrets.PG_DB }}" \
-            -c "DROP SCHEMA IF EXISTS ${{ secrets.PG_SCHEMA }} CASCADE; CREATE SCHEMA ${{ secrets.PG_SCHEMA }};"
-          echo "Schema dropped and recreated"
+            -c "DROP SCHEMA IF EXISTS ${{ secrets.PG_SCHEMA }} CASCADE;"
+          echo "Schema dropped — pg_dump SQL will recreate it"
 
       - name: Restore from backup
         run: |
