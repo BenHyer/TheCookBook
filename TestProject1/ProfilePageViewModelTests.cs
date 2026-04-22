@@ -7,6 +7,7 @@ namespace TestProject1;
 public class ProfilePageViewModelTests
 {
     private readonly Mock<IUserProfileService> _mockProfileService = new();
+    private readonly ProfileStateService _profileState = new();
 
     private static IConfiguration MockConfig(bool profilesEnabled)
     {
@@ -20,7 +21,7 @@ public class ProfilePageViewModelTests
     [Fact]
     public async Task InitializeAsync_WhenProfilesDisabled_SetsProfilesEnabledFalseAndStopsLoading()
     {
-        var vm = new ProfilePageViewModel(FakeAuthStateProvider.Authenticated("user1"), _mockProfileService.Object, MockConfig(false));
+        var vm = new ProfilePageViewModel(FakeAuthStateProvider.Authenticated("user1"), _mockProfileService.Object, MockConfig(false), _profileState);
 
         await vm.InitializeAsync();
 
@@ -34,7 +35,7 @@ public class ProfilePageViewModelTests
     {
         var profile = new UserProfileDto("user1", "John", "Doe", "JD", "http://pic.com/1.jpg");
         _mockProfileService.Setup(s => s.GetProfileAsync("user1", default)).ReturnsAsync(profile);
-        var vm = new ProfilePageViewModel(FakeAuthStateProvider.Authenticated("user1"), _mockProfileService.Object, MockConfig(true));
+        var vm = new ProfilePageViewModel(FakeAuthStateProvider.Authenticated("user1"), _mockProfileService.Object, MockConfig(true), _profileState);
 
         await vm.InitializeAsync();
 
@@ -49,7 +50,7 @@ public class ProfilePageViewModelTests
     public async Task InitializeAsync_WhenProfileNotFound_LeavesModelEmpty()
     {
         _mockProfileService.Setup(s => s.GetProfileAsync("user1", default)).ReturnsAsync((UserProfileDto?)null);
-        var vm = new ProfilePageViewModel(FakeAuthStateProvider.Authenticated("user1"), _mockProfileService.Object, MockConfig(true));
+        var vm = new ProfilePageViewModel(FakeAuthStateProvider.Authenticated("user1"), _mockProfileService.Object, MockConfig(true), _profileState);
 
         await vm.InitializeAsync();
 
@@ -65,7 +66,7 @@ public class ProfilePageViewModelTests
         _mockProfileService.Setup(s => s.GetProfileAsync("user1", default)).ReturnsAsync((UserProfileDto?)null);
         _mockProfileService.Setup(s => s.UpdateProfileAsync("user1", It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), default))
             .ReturnsAsync(profile);
-        var vm = new ProfilePageViewModel(FakeAuthStateProvider.Authenticated("user1"), _mockProfileService.Object, MockConfig(true));
+        var vm = new ProfilePageViewModel(FakeAuthStateProvider.Authenticated("user1"), _mockProfileService.Object, MockConfig(true), _profileState);
         await vm.InitializeAsync();
 
         await vm.SaveProfileAsync();
@@ -81,7 +82,7 @@ public class ProfilePageViewModelTests
         _mockProfileService.Setup(s => s.GetProfileAsync("user1", default)).ReturnsAsync((UserProfileDto?)null);
         _mockProfileService.Setup(s => s.UpdateProfileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), default))
             .ReturnsAsync((UserProfileDto?)null);
-        var vm = new ProfilePageViewModel(FakeAuthStateProvider.Authenticated("user1"), _mockProfileService.Object, MockConfig(true));
+        var vm = new ProfilePageViewModel(FakeAuthStateProvider.Authenticated("user1"), _mockProfileService.Object, MockConfig(true), _profileState);
         await vm.InitializeAsync();
 
         await vm.SaveProfileAsync();
