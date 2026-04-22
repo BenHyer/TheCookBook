@@ -62,12 +62,6 @@ spec:
                 configMapKeyRef:
                   name: cookbook-config
                   key: FeatureFlags__EnableUserProfiles
-          startupProbe:
-            httpGet:
-              path: /health
-              port: 8080
-            failureThreshold: 30
-            periodSeconds: 10
           readinessProbe:
             httpGet:
               path: /health

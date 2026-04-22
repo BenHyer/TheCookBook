@@ -97,14 +97,11 @@ jobs:
 
       - name: Apply deployments and services
         # Reuse the production manifests as-is; sed patches the hardcoded
-        # namespace, forces one replica for PR preview, and envsubst fills in IMAGE_TAG.
+        # namespace and envsubst fills in IMAGE_TAG.
         run: |
           for f in k8s/api-deployment.yaml k8s/api-service.yaml \
                     k8s/web-deployment.yaml k8s/web-service.yaml; do
-            sed \
-              -e "s/namespace: cookbook$/namespace: $NS/" \
-              -e "s/replicas: 2/replicas: 1/" \
-              "$f" \
+            sed "s/namespace: cookbook$/namespace: $NS/" "$f" \
               | envsubst '${IMAGE_TAG}' \
               | kubectl apply -f -
           done
