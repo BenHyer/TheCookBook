@@ -1,0 +1,119 @@
+name: PostgreSQL Restore
+
+on:
+  workflow_dispatch:
+
+jobs:
+  restore:
+    runs-on: self-hosted
+
+    steps:
+      - name: Find most recent backup
+        id: find
+        run: |
+          set -euo pipefail
+          BACKUP_DIR="/opt/cookbook-backups"
+          LATEST=$(ls -t "${BACKUP_DIR}"/auditdb_*.sql.gz 2>/dev/null | head -1)
+
+          if [ -z "$LATEST" ]; then
+            echo "No backup files found in ${BACKUP_DIR}"
+            exit 1
+          fi
+
+          echo "Found backup: $LATEST"
+          echo "backup_file=$LATEST" >> "$GITHUB_OUTPUT"
+          echo "backup_name=$(basename $LATEST)" >> "$GITHUB_OUTPUT"
+
+      - name: Scale down API — begin downtime
+        id: scaledown
+        run: |
+          set -euo pipefail
+          DOWNTIME_START=$(date +%s)
+          echo "downtime_start=$DOWNTIME_START" >> "$GITHUB_OUTPUT"
+
+          kubectl scale deployment/cookbook-api -n cookbook --replicas=0
+          kubectl wait --for=delete pod -l app=cookbook-api -n cookbook --timeout=60s
+          echo "API scaled to 0 — restore window open"
+
+      - name: Drop and recreate schema
+        run: |
+          set -euo pipefail
+          PGPASSWORD="${{ secrets.PG_PASSWORD }}" psql \
+            -h "${{ secrets.PG_HOST }}" \
+            -p "${{ secrets.PG_PORT }}" \
+            -U "${{ secrets.PG_USER }}" \
+            -d "${{ secrets.PG_DB }}" \
+            -c "DROP SCHEMA IF EXISTS ${{ secrets.PG_SCHEMA }} CASCADE; CREATE SCHEMA ${{ secrets.PG_SCHEMA }};"
+          echo "Schema dropped and recreated"
+
+      - name: Restore from backup
+        run: |
+          set -euo pipefail
+          BACKUP_FILE="${{ steps.find.outputs.backup_file }}"
+
+          zcat "$BACKUP_FILE" | PGPASSWORD="${{ secrets.PG_PASSWORD }}" psql \
+            -h "${{ secrets.PG_HOST }}" \
+            -p "${{ secrets.PG_PORT }}" \
+            -U "${{ secrets.PG_USER }}" \
+            -d "${{ secrets.PG_DB }}" \
+            -v ON_ERROR_STOP=1
+
+          echo "Restore complete from: $BACKUP_FILE"
+
+      - name: Verify restore — row count
+        id: verify
+        run: |
+          set -euo pipefail
+          ROW_COUNT=$(PGPASSWORD="${{ secrets.PG_PASSWORD }}" psql \
+            -h "${{ secrets.PG_HOST }}" \
+            -p "${{ secrets.PG_PORT }}" \
+            -U "${{ secrets.PG_USER }}" \
+            -d "${{ secrets.PG_DB }}" \
+            -t -c "SELECT COUNT(*) FROM ${{ secrets.PG_SCHEMA }}.\"AuditLogEntries\";" | xargs)
+          echo "Rows in AuditLogEntries after restore: $ROW_COUNT"
+          echo "row_count=$ROW_COUNT" >> "$GITHUB_OUTPUT"
+
+      - name: Scale up API — end downtime
+        id: scaleup
+        run: |
+          set -euo pipefail
+          kubectl scale deployment/cookbook-api -n cookbook --replicas=1
+          kubectl rollout status deployment/cookbook-api -n cookbook --timeout=120s
+
+          DOWNTIME_END=$(date +%s)
+          DOWNTIME_SECS=$(( DOWNTIME_END - ${{ steps.scaledown.outputs.downtime_start }} ))
+          echo "API back online — total downtime: ${DOWNTIME_SECS}s"
+          echo "downtime_secs=$DOWNTIME_SECS" >> "$GITHUB_OUTPUT"
+
+      - name: Notify Discord — success
+        if: success()
+        run: |
+          curl -X POST "${{ secrets.DISCORD_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"embeds\": [{
+                \"title\": \"✅ Postgres Restore Succeeded\",
+                \"description\": \"**Backup:** \`${{ steps.find.outputs.backup_name }}\`\n**Rows restored:** ${{ steps.verify.outputs.row_count }}\n**Downtime:** ${{ steps.scaleup.outputs.downtime_secs }}s\n**Triggered by:** ${{ github.actor }}\",
+                \"color\": 3066993
+              }]
+            }"
+
+      - name: Scale up API — emergency recovery on failure
+        if: failure()
+        run: |
+          kubectl scale deployment/cookbook-api -n cookbook --replicas=1 || true
+          kubectl rollout status deployment/cookbook-api -n cookbook --timeout=120s || true
+
+      - name: Notify Discord — failure
+        if: failure()
+        run: |
+          curl -X POST "${{ secrets.DISCORD_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"content\": \"❌ **Postgres Restore Failed**\",
+              \"embeds\": [{
+                \"title\": \"Restore Failed\",
+                \"description\": \"**Backup attempted:** \`${{ steps.find.outputs.backup_name }}\`\n**Triggered by:** ${{ github.actor }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\",
+                \"color\": 15158332
+              }]
+            }"
