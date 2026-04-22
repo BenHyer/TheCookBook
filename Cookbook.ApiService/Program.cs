@@ -1,3 +1,4 @@
+using Azure.Identity;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using Azure.Storage.Sas;
@@ -7,6 +8,7 @@ using Cookbook.ApiService.Telemetry;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Graph;
 using Microsoft.Identity.Web;
 using CookbookMauiBlazor.Shared.Boards;
 using Cookbook.Shared.Boards;
@@ -23,10 +25,21 @@ builder.Services.AddProblemDetails();
 
 builder.Services.AddAuthorization();
 var azureAdClientId = builder.Configuration["AzureAd:ClientId"];
+var azureAdTenantId = builder.Configuration["AzureAd:TenantId"];
+var azureAdClientSecret = builder.Configuration["AzureAd:ClientSecret"];
 if (!string.IsNullOrWhiteSpace(azureAdClientId))
 {
     builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
+}
+
+if (!string.IsNullOrWhiteSpace(azureAdClientId)
+    && !string.IsNullOrWhiteSpace(azureAdTenantId)
+    && !string.IsNullOrWhiteSpace(azureAdClientSecret))
+{
+    builder.Services.AddSingleton(new GraphServiceClient(
+        new ClientSecretCredential(azureAdTenantId, azureAdClientId, azureAdClientSecret),
+        new[] { "https://graph.microsoft.com/.default" }));
 }
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -484,6 +497,51 @@ if (enableUserProfiles)
             profile.ProfilePictureUrl));
     })
     .WithName("EnsureUserProfile");
+
+    app.MapGet("/api/v1/users/search", async (string? searchTerm, CookbookDbContext dbContext, [FromServices] GraphServiceClient? graphClient) =>
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm) || graphClient is null)
+        {
+            var query = dbContext.UserProfiles.AsQueryable();
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                var searchLower = searchTerm.Trim().ToLower();
+                query = query.Where(u =>
+                    u.DisplayName.ToLower().Contains(searchLower) ||
+                    u.FirstName.ToLower().Contains(searchLower) ||
+                    u.LastName.ToLower().Contains(searchLower));
+            }
+
+            var users = await query
+                .OrderBy(u => u.DisplayName)
+                .Select(u => new UserSummaryDto(u.UserId, u.DisplayName, u.FirstName, u.LastName, u.ProfilePictureUrl))
+                .Take(50)
+                .ToListAsync();
+
+            return Results.Ok(users);
+        }
+
+        var escapedSearchTerm = searchTerm.Replace("'", "''");
+        var graphUsers = await graphClient.Users.GetAsync(requestConfiguration =>
+        {
+            requestConfiguration.QueryParameters.Filter = $"startsWith(displayName,'{escapedSearchTerm}') or startsWith(mail,'{escapedSearchTerm}')";
+            requestConfiguration.QueryParameters.Select = new[] { "id", "displayName", "givenName", "surname", "mail" };
+            requestConfiguration.QueryParameters.Top = 10;
+        });
+
+        var results = graphUsers.Value?
+            .Select(u => new UserSummaryDto(
+                u.Id ?? string.Empty,
+                u.DisplayName ?? string.Empty,
+                u.GivenName ?? string.Empty,
+                u.Surname ?? string.Empty,
+                null))
+            .ToList() ?? new List<UserSummaryDto>();
+
+        return Results.Ok(results);
+    })
+    .RequireAuthorization()
+    .WithName("SearchUsers");
 }
 else
 {

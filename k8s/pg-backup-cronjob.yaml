@@ -1,0 +1,47 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pg-backup
+spec:
+  schedule: "0 2 * * *" # Runs daily at 2am
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: pg-backup
+              image: postgres:15
+              env:
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-secret
+                      key: password
+                - name: PGHOST
+                  value: <your-db-host>
+                - name: PGUSER
+                  value: <your-db-user>
+                - name: PGDATABASE
+                  value: <your-db-name>
+              command:
+                - /bin/bash
+                - -c
+                - |
+                  set -euo pipefail
+                  mkdir -p /backups
+                  BACKUP_FILE="/backups/pg_backup_$(date +%Y%m%d%H%M%S).sql"
+                  pg_dump -h "$PGHOST" -U "$PGUSER" "$PGDATABASE" > "$BACKUP_FILE"
+                  # Keep only the 4 most recent backups.
+                  shopt -s nullglob
+                  backups=(/backups/pg_backup_*.sql)
+                  if [ "${#backups[@]}" -gt 4 ]; then
+                    printf '%s\n' "${backups[@]}" | sort -r | tail -n +5 | xargs -r rm --
+                  fi
+              volumeMounts:
+                - name: backup-storage
+                  mountPath: /backups
+          restartPolicy: OnFailure
+          volumes:
+            - name: backup-storage
+              persistentVolumeClaim:
+                claimName: pg-backup-pvc
