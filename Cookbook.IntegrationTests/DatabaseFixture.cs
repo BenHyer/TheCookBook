@@ -11,7 +11,7 @@ public class DatabaseFixture : IAsyncLifetime
         .WithDatabase($"cookbook_test_{Guid.NewGuid():N}")
         .WithUsername("test")
         .WithPassword("test")
-        .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(5432))
+        .WithWaitStrategy(Wait.ForUnixContainer().UntilCommandIsCompleted("pg_isready -U test"))
         .Build();
 
     public IntegrationTestDbContext CreateContext()
