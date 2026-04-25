@@ -326,7 +326,7 @@ jobs:
           kubectl create secret generic cookbook-secrets \
             --namespace cookbook \
             --from-literal=ConnectionStrings__sqldb="${{ secrets.DB_CONNECTION_STRING }}" \
-            --from-literal=ConnectionStrings__pgdb="${{ secrets.PG_CONNECTION_STRING }}" \
+            --from-literal=ConnectionStrings__pgdb="Host=${{ secrets.PG_HOST }};Port=${{ secrets.PG_PORT }};Database=${{ secrets.PG_DB }};Username=${{ secrets.PG_USER }};Password=${{ secrets.PG_PASSWORD }}" \
             --from-literal=AZURE_AD_TENANT_ID="${{ secrets.AZURE_AD_TENANT_ID }}" \
             --from-literal=AZURE_AD_CLIENT_ID="${{ secrets.AZURE_AD_CLIENT_ID }}" \
             --from-literal=AZURE_AD_CLIENT_SECRET="${{ secrets.AZURE_AD_CLIENT_SECRET }}" \
