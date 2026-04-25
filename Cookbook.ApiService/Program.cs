@@ -529,7 +529,7 @@ if (enableUserProfiles)
             requestConfiguration.QueryParameters.Top = 10;
         });
 
-        var results = graphUsers.Value?
+        var results = graphUsers?.Value?
             .Select(u => new UserSummaryDto(
                 u.Id ?? string.Empty,
                 u.DisplayName ?? string.Empty,
