@@ -21,8 +21,7 @@
                         <div class="mb-3">
                             <label class="form-label">Search users</label>
                             <input type="text" class="form-control" placeholder="Search by name..."
-                                   @bind-value="_searchQuery" @bind-value:event="oninput"
-                                   @oninput="OnSearchChangedAsync" />
+                                   value="@_searchQuery" @oninput="OnSearchChangedAsync" />
                         </div>
 
                         @if (!string.IsNullOrWhiteSpace(_errorMessage))
