@@ -14,12 +14,18 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
     
-    # === NEW: Enable cert-manager + automatic redirect from HTTP to HTTPS ===
+    # HTTPS Redirect (important)
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
 spec:
   ingressClassName: nginx
   
+  # === TLS Section - This is what you were missing ===
+  tls:
+  - hosts:
+    - cookbook.bencampus.duckdns.org
+    - cookbook.benhhome.duckdns.org
+    secretName: thecookbook-tls
 
   rules:
   - host: cookbook.bencampus.duckdns.org

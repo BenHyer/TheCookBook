@@ -326,7 +326,7 @@ jobs:
           kubectl create secret generic cookbook-secrets \
             --namespace cookbook \
             --from-literal=ConnectionStrings__sqldb="${{ secrets.DB_CONNECTION_STRING }}" \
-            --from-literal=ConnectionStrings__pgdb="${{ secrets.PG_CONNECTION_STRING }}" \
+            --from-literal=ConnectionStrings__pgdb="Host=${{ secrets.PG_HOST }};Port=${{ secrets.PG_PORT }};Database=${{ secrets.PG_DB }};Username=${{ secrets.PG_USER }};Password=${{ secrets.PG_PASSWORD }}" \
             --from-literal=AZURE_AD_TENANT_ID="${{ secrets.AZURE_AD_TENANT_ID }}" \
             --from-literal=AZURE_AD_CLIENT_ID="${{ secrets.AZURE_AD_CLIENT_ID }}" \
             --from-literal=AZURE_AD_CLIENT_SECRET="${{ secrets.AZURE_AD_CLIENT_SECRET }}" \
@@ -378,15 +378,13 @@ jobs:
         run: |
           echo "=== Pod status ==="
           kubectl get pods -n cookbook -o wide
-          echo "=== Web crash logs (all web pods, current + previous) ==="
-          for pod in $(kubectl get pods -n cookbook -l app=cookbook-web -o jsonpath='{.items[*].metadata.name}'); do
+          echo "=== API errors (warn/fail/error only) ==="
+          for pod in $(kubectl get pods -n cookbook -l app=cookbook-api -o jsonpath='{.items[*].metadata.name}'); do
             echo "--- $pod current ---"
-            kubectl logs -n cookbook "$pod" --tail=60 2>&1 || true
+            kubectl logs -n cookbook "$pod" --tail=150 2>&1 | grep -iE '(warn|fail|error|crit|fatal|exception)' | tail -30 || true
             echo "--- $pod previous ---"
-            kubectl logs -n cookbook "$pod" --previous --tail=60 2>&1 || true
+            kubectl logs -n cookbook "$pod" --previous --tail=150 2>&1 | grep -iE '(warn|fail|error|crit|fatal|exception)' | tail -30 || true
           done
-          echo "=== Web events ==="
-          kubectl describe pods -n cookbook -l app=cookbook-web | grep -A 20 "^Events:"
           echo "=== API events ==="
           kubectl describe pods -n cookbook -l app=cookbook-api | grep -A 10 "^Events:"
 

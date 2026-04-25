@@ -72,7 +72,7 @@ jobs:
           kubectl create secret generic cookbook-secrets \
             --namespace "$NS" \
             --from-literal=ConnectionStrings__sqldb="${{ secrets.DB_CONNECTION_STRING }}" \
-            --from-literal=ConnectionStrings__pgdb="${{ secrets.PG_CONNECTION_STRING }}" \
+            --from-literal=ConnectionStrings__pgdb="Host=${{ secrets.PG_HOST }};Port=${{ secrets.PG_PORT }};Database=${{ secrets.PG_DB }};Username=${{ secrets.PG_USER }};Password=${{ secrets.PG_PASSWORD }}" \
             --from-literal=AZURE_STORAGE_CONNECTION_STRING="${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
             --from-literal=AZURE_STORAGE_CONTAINER_NAME="${{ secrets.AZURE_STORAGE_CONTAINER_NAME }}" \
             --from-literal=AZURE_AD_TENANT_ID="${{ secrets.AZURE_AD_TENANT_ID }}" \
@@ -89,11 +89,20 @@ jobs:
             -e "s|http://otel-collector:|http://otel-collector.cookbook:|" \
             k8s/configmap.yaml | kubectl apply -f -
 
-      - name: Configure feature flags
+      - name: Configure feature flags and schema
         run: |
           FEATURE_ENABLE_USER_PROFILES=${FEATURE_ENABLE_USER_PROFILES:-true}
           kubectl patch configmap cookbook-config -n "$NS" --type merge \
-            -p "{\"data\":{\"FeatureFlags__EnableUserProfiles\":\"$FEATURE_ENABLE_USER_PROFILES\"}}"
+            -p "{\"data\":{\"FeatureFlags__EnableUserProfiles\":\"$FEATURE_ENABLE_USER_PROFILES\",\"AuditDb__Schema\":\"pr_${{ github.event.number }}\"}}"
+
+      - name: Ensure audit schema exists
+        run: |
+          PGPASSWORD="${{ secrets.PG_PASSWORD }}" psql \
+            -h "${{ secrets.PG_HOST }}" \
+            -p "${{ secrets.PG_PORT }}" \
+            -U "${{ secrets.PG_USER }}" \
+            -d "${{ secrets.PG_DB }}" \
+            -c "CREATE SCHEMA IF NOT EXISTS \"pr_${{ github.event.number }}\";"
 
       - name: Apply deployments and services
         # Reuse the production manifests as-is; sed patches the hardcoded
@@ -262,6 +271,15 @@ jobs:
       - name: Delete PR namespace
         run: |
           kubectl delete namespace "cookbook-pr-${{ github.event.number }}" --ignore-not-found=true
+
+      - name: Drop audit schema
+        run: |
+          PGPASSWORD="${{ secrets.PG_PASSWORD }}" psql \
+            -h "${{ secrets.PG_HOST }}" \
+            -p "${{ secrets.PG_PORT }}" \
+            -U "${{ secrets.PG_USER }}" \
+            -d "${{ secrets.PG_DB }}" \
+            -c "DROP SCHEMA IF EXISTS \"pr_${{ github.event.number }}\" CASCADE;"
 
       - name: Remove redirect URIs from Azure
         run: |

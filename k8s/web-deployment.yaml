@@ -27,6 +27,8 @@ spec:
           env:
             - name: ASPNETCORE_URLS
               value: http://+:8080
+            - name: DOTNET_hostBuilder__reloadConfigOnChange
+              value: "false"
             - name: ASPNETCORE_ENVIRONMENT
               valueFrom:
                 configMapKeyRef:
