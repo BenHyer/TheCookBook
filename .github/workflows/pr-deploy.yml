@@ -185,12 +185,15 @@ jobs:
         run: |
           echo "=== Pod status ==="
           kubectl get pods -n "$NS" -o wide
-          echo "=== API logs ==="
-          kubectl logs -n "$NS" -l app=cookbook-api --tail=60 2>&1 || true
-          echo "=== Web logs ==="
-          kubectl logs -n "$NS" -l app=cookbook-web --tail=60 2>&1 || true
+          echo "=== API logs (unique errors) ==="
+          kubectl logs -n "$NS" -l app=cookbook-api --tail=80 2>&1 \
+            | grep -E "^(fail|crit|error):" | sort -u | head -20 || true
+          echo "=== Web logs (unique errors) ==="
+          kubectl logs -n "$NS" -l app=cookbook-web --tail=80 2>&1 \
+            | grep -E "^(fail|crit|error):" | sort -u | head -20 || true
           echo "=== Events ==="
-          kubectl get events -n "$NS" --sort-by='.lastTimestamp' | tail -20
+          kubectl get events -n "$NS" --sort-by='.lastTimestamp' \
+            | grep -v "^<invalid>" | grep Warning | tail -10
 
   # ── Post / update a comment with the preview URLs ─────────────────────────
   comment-pr:
