@@ -42,11 +42,11 @@ public class UserServiceTests
     }
 
     [Fact]
-    public async Task SearchAsync_WithQuery_AppendsSearchParam()
+    public async Task SearchAsync_WithQuery_UsesSearchUsersEndpoint()
     {
         var (svc, handler) = Create();
         var users = new List<UserSummary> { new("u2", "Bob", "Bob", "Jones", null) };
-        handler.When("/api/v1/users?search=bob").Respond(HttpStatusCode.OK, JsonContent.Create(users));
+        handler.When("/api/v1/users/search?searchTerm=bob").Respond(HttpStatusCode.OK, JsonContent.Create(users));
 
         var result = await svc.SearchAsync("bob");
 
@@ -59,7 +59,7 @@ public class UserServiceTests
     {
         var (svc, handler) = Create();
         var escaped = Uri.EscapeDataString("alice & bob");
-        handler.When($"/api/v1/users?search={escaped}")
+        handler.When($"/api/v1/users/search?searchTerm={escaped}")
             .Respond(HttpStatusCode.OK, JsonContent.Create(new List<UserSummary>()));
 
         var result = await svc.SearchAsync("alice & bob");

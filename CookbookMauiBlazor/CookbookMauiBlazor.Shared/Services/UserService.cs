@@ -15,9 +15,12 @@ public sealed class UserService : IUserService
     {
         try
         {
-            var query = string.IsNullOrWhiteSpace(searchQuery) ? string.Empty : $"?search={Uri.EscapeDataString(searchQuery)}";
+            var path = string.IsNullOrWhiteSpace(searchQuery)
+                ? "/api/v1/users"
+                : $"/api/v1/users/search?searchTerm={Uri.EscapeDataString(searchQuery)}";
+
             var users = await _httpClient.GetFromJsonAsync<List<UserSummary>>(
-                $"/api/v1/users{query}",
+                path,
                 cancellationToken);
             return users ?? [];
         }
