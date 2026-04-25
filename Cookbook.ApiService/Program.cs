@@ -817,7 +817,7 @@ app.MapGet("/api/v1/users", async (string? search, CookbookDbContext dbContext) 
 
     return Results.Ok(users);
 })
-.WithName("SearchUsers");
+.WithName("GetUsers");
 
 app.MapGet("/api/v1/boards/{boardId:guid}/collaborators", async (Guid boardId, CookbookDbContext dbContext) =>
 {
