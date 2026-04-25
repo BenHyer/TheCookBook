@@ -95,6 +95,10 @@ jobs:
           kubectl patch configmap cookbook-config -n "$NS" --type merge \
             -p "{\"data\":{\"FeatureFlags__EnableUserProfiles\":\"$FEATURE_ENABLE_USER_PROFILES\"}}"
 
+      - name: Ensure audit database exists
+        run: |
+          psql "postgresql://${{ secrets.PG_USER }}:${{ secrets.PG_PASSWORD }}@${{ secrets.PG_HOST }}:${{ secrets.PG_PORT }}/postgres" -c "CREATE DATABASE db25_ben_h;" || true
+
       - name: Apply deployments and services
         # Reuse the production manifests as-is; sed patches the hardcoded
         # namespace and envsubst fills in IMAGE_TAG.
@@ -259,6 +263,10 @@ jobs:
       - name: Delete PR namespace
         run: |
           kubectl delete namespace "cookbook-pr-${{ github.event.number }}" --ignore-not-found=true
+
+      - name: Drop audit database
+        run: |
+          psql "postgresql://${{ secrets.PG_USER }}:${{ secrets.PG_PASSWORD }}@${{ secrets.PG_HOST }}:${{ secrets.PG_PORT }}/postgres" -c "DROP DATABASE IF EXISTS db25_ben_h;" || true
 
       - name: Remove redirect URIs from Azure
         run: |
