@@ -21,7 +21,7 @@
                         <div class="mb-3">
                             <label class="form-label">Search users</label>
                             <input type="text" class="form-control" placeholder="Search by name..."
-                                   @bind="_searchQuery" @oninput="OnSearchChangedAsync" />
+                                   value="@_searchQuery" @oninput="OnSearchChangedAsync" />
                         </div>
 
                         @if (!string.IsNullOrWhiteSpace(_errorMessage))
@@ -175,7 +175,7 @@
         }
     }
 
-    private async Task LoadUsersAsync()
+    private async Task LoadUsersAsync(CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(_searchQuery))
         {
@@ -183,16 +183,23 @@
             return;
         }
 
+        _errorMessage = string.Empty;
+
         try
         {
-            var allUsers = (await UserService.SearchAsync(_searchQuery)).ToList();
+            var allUsers = (await UserService.SearchAsync(_searchQuery, cancellationToken)).ToList();
             var existingUserIds = _collaborators.Select(c => c.UserId).ToHashSet();
             _availableUsers = allUsers
                 .Where(u => !existingUserIds.Contains(u.UserId) && u.UserId != CurrentUserId)
                 .ToList();
         }
+        catch (OperationCanceledException)
+        {
+            // Search was cancelled by a new keystroke.
+        }
         catch
         {
+            _availableUsers = [];
             _errorMessage = "Failed to search users. Please try again.";
         }
     }
@@ -210,7 +217,7 @@
         try
         {
             await Task.Delay(300, token);
-            await LoadUsersAsync();
+            await LoadUsersAsync(token);
             StateHasChanged();
         }
         catch (OperationCanceledException) { }
@@ -264,6 +271,7 @@
     {
         _searchQuery = string.Empty;
         _selectedUserIds.Clear();
+        _availableUsers.Clear();
         _selectedRole = "Viewer";
         _errorMessage = string.Empty;
         _searchCts?.Cancel();
