@@ -334,6 +334,10 @@ jobs:
             --from-literal=AZURE_STORAGE_CONTAINER_NAME="${{ secrets.AZURE_STORAGE_CONTAINER_NAME }}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
+      - name: Ensure audit database exists
+        run: |
+          psql "postgresql://${{ secrets.PG_USER }}:${{ secrets.PG_PASSWORD }}@${{ secrets.PG_HOST }}:${{ secrets.PG_PORT }}/postgres" -c "CREATE DATABASE db25_ben_h;" || true
+
       - name: Apply Kubernetes manifests
         env:
           IMAGE_TAG: ${{ github.sha }}
