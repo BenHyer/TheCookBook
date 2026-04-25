@@ -266,8 +266,8 @@
 
         for (var i = 0; i < count; i++)
         {
-            var name = i < (recipe.Ingredients?.Count ?? 0) ? recipe.Ingredients[i] : null;
-            var quantity = i < (recipe.Quantities?.Count ?? 0) ? recipe.Quantities[i] : null;
+            var name = i < (recipe.Ingredients?.Count ?? 0) ? recipe.Ingredients![i] : null;
+            var quantity = i < (recipe.Quantities?.Count ?? 0) ? recipe.Quantities![i] : null;
             ingredientLines.Add(new IngredientLine { Name = name, Custom = quantity });
         }
 
