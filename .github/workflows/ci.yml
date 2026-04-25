@@ -385,6 +385,13 @@ jobs:
             echo "--- $pod previous ---"
             kubectl logs -n cookbook "$pod" --previous --tail=60 2>&1 || true
           done
+          echo "=== API crash logs (all API pods, current + previous) ==="
+          for pod in $(kubectl get pods -n cookbook -l app=cookbook-api -o jsonpath='{.items[*].metadata.name}'); do
+            echo "--- $pod current ---"
+            kubectl logs -n cookbook "$pod" --tail=80 2>&1 || true
+            echo "--- $pod previous ---"
+            kubectl logs -n cookbook "$pod" --previous --tail=80 2>&1 || true
+          done
           echo "=== Web events ==="
           kubectl describe pods -n cookbook -l app=cookbook-web | grep -A 20 "^Events:"
           echo "=== API events ==="
