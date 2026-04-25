@@ -804,6 +804,7 @@ app.MapGet("/api/v1/users", async (string? search, CookbookDbContext dbContext) 
     {
         var searchLower = search.Trim().ToLower();
         query = query.Where(u =>
+            u.UserId.ToLower().Contains(searchLower) ||
             u.DisplayName.ToLower().Contains(searchLower) ||
             u.FirstName.ToLower().Contains(searchLower) ||
             u.LastName.ToLower().Contains(searchLower));
