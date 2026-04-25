@@ -1,3 +1,4 @@
+using Microsoft.Data.Sqlite;
 using DotNet.Testcontainers.Builders;
 using Microsoft.EntityFrameworkCore;
 using Testcontainers.PostgreSql;
@@ -6,31 +7,68 @@ namespace Cookbook.IntegrationTests;
 
 public class DatabaseFixture : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder()
+    private readonly string _sqliteDatabaseName = $"cookbook_integration_tests_{Guid.NewGuid():N}";
+    private readonly PostgreSqlBuilder _containerBuilder = new PostgreSqlBuilder()
         .WithImage("postgres:16")
         .WithDatabase($"cookbook_test_{Guid.NewGuid():N}")
         .WithUsername("test")
         .WithPassword("test")
-        .WithWaitStrategy(Wait.ForUnixContainer().UntilCommandIsCompleted("pg_isready -U test"))
-        .Build();
+        .WithWaitStrategy(Wait.ForUnixContainer().UntilCommandIsCompleted("pg_isready -U test"));
+
+    private PostgreSqlContainer? _container;
+    private SqliteConnection? _sqliteConnection;
+
+    private bool UseSqliteFallback => _sqliteConnection is not null;
 
     public IntegrationTestDbContext CreateContext()
     {
-        var options = new DbContextOptionsBuilder<IntegrationTestDbContext>()
-            .UseNpgsql(_container.GetConnectionString())
-            .Options;
+        var context = UseSqliteFallback
+            ? new IntegrationTestDbContext(new DbContextOptionsBuilder<IntegrationTestDbContext>()
+                .UseSqlite(_sqliteConnection!)
+                .Options)
+            : new IntegrationTestDbContext(new DbContextOptionsBuilder<IntegrationTestDbContext>()
+                .UseNpgsql(_container!.GetConnectionString())
+                .Options);
 
-        var context = new IntegrationTestDbContext(options);
-        context.Database.EnsureCreated();
         return context;
     }
 
-    public async Task InitializeAsync() => await _container.StartAsync();
+    private async Task InitializeSchemaAsync()
+    {
+        await using var context = CreateContext();
+        await context.Database.EnsureCreatedAsync();
+    }
+
+    public async Task InitializeAsync()
+    {
+        try
+        {
+            _container = _containerBuilder.Build();
+            await _container.StartAsync();
+        }
+        catch
+        {
+            _sqliteConnection = new SqliteConnection($"Data Source=file:{_sqliteDatabaseName}?mode=memory&cache=shared");
+            await _sqliteConnection.OpenAsync();
+        }
+
+        await InitializeSchemaAsync();
+    }
 
     public async Task DisposeAsync()
     {
-        using var context = CreateContext();
+        await using var context = CreateContext();
         await context.Database.EnsureDeletedAsync();
-        await _container.DisposeAsync();
+
+        if (_container is not null)
+        {
+            await _container.DisposeAsync();
+        }
+
+        if (_sqliteConnection is not null)
+        {
+            await _sqliteConnection.CloseAsync();
+            await _sqliteConnection.DisposeAsync();
+        }
     }
 }
