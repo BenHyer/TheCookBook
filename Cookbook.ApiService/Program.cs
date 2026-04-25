@@ -807,7 +807,9 @@ app.MapGet("/api/v1/users", async (string? search, CookbookDbContext dbContext) 
             u.UserId.ToLower().Contains(searchLower) ||
             u.DisplayName.ToLower().Contains(searchLower) ||
             u.FirstName.ToLower().Contains(searchLower) ||
-            u.LastName.ToLower().Contains(searchLower));
+            u.LastName.ToLower().Contains(searchLower) ||
+            (u.FirstName + " " + u.LastName).ToLower().Contains(searchLower) ||
+            (u.LastName + " " + u.FirstName).ToLower().Contains(searchLower));
     }
 
     var users = await query
