@@ -595,7 +595,7 @@ data:
             {
               "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
               "editorMode": "code",
-              "expr": "probe_success{instance=\"http://cookbook-web/\"}",
+              "expr": "probe_success{job="blackbox"}",
               "legendFormat": "Status",
               "range": false,
               "instant": true,
@@ -632,7 +632,7 @@ data:
             {
               "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
               "editorMode": "code",
-              "expr": "avg_over_time(probe_success{instance=\"http://cookbook-web/\"}[1h])",
+              "expr": "avg_over_time(probe_success{job="blackbox"}[1h])",
               "legendFormat": "Uptime (1h)",
               "range": false,
               "instant": true,
@@ -686,7 +686,7 @@ data:
             {
               "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
               "editorMode": "code",
-              "expr": "probe_success{instance=\"http://cookbook-web/\"}",
+              "expr": "probe_success{job="blackbox"}",
               "legendFormat": "Up (1) / Down (0)",
               "range": true,
               "refId": "A"
@@ -737,7 +737,7 @@ data:
             {
               "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
               "editorMode": "code",
-              "expr": "probe_duration_seconds{instance=\"http://cookbook-web/\"}",
+              "expr": "probe_duration_seconds{job="blackbox"}",
               "legendFormat": "Response Time",
               "range": true,
               "refId": "A"
