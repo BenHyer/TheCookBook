@@ -12,3 +12,4 @@ data:
   AzureAd__CallbackPath: "/signin-oidc"
   AzureAd__SignedOutCallbackPath: "/signout-oidc"
   FeatureFlags__EnableUserProfiles: "true"
+  AuditDb__Schema: "public"

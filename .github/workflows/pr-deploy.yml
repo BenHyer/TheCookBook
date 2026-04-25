@@ -89,15 +89,20 @@ jobs:
             -e "s|http://otel-collector:|http://otel-collector.cookbook:|" \
             k8s/configmap.yaml | kubectl apply -f -
 
-      - name: Configure feature flags
+      - name: Configure feature flags and schema
         run: |
           FEATURE_ENABLE_USER_PROFILES=${FEATURE_ENABLE_USER_PROFILES:-true}
           kubectl patch configmap cookbook-config -n "$NS" --type merge \
-            -p "{\"data\":{\"FeatureFlags__EnableUserProfiles\":\"$FEATURE_ENABLE_USER_PROFILES\"}}"
+            -p "{\"data\":{\"FeatureFlags__EnableUserProfiles\":\"$FEATURE_ENABLE_USER_PROFILES\",\"AuditDb__Schema\":\"pr_${{ github.event.number }}\"}}"
 
-      - name: Ensure audit database exists
+      - name: Ensure audit schema exists
         run: |
-          psql "postgresql://${{ secrets.PG_USER }}:${{ secrets.PG_PASSWORD }}@${{ secrets.PG_HOST }}:${{ secrets.PG_PORT }}/postgres" -c "CREATE DATABASE db25_ben_h;" || true
+          PGPASSWORD="${{ secrets.PG_PASSWORD }}" psql \
+            -h "${{ secrets.PG_HOST }}" \
+            -p "${{ secrets.PG_PORT }}" \
+            -U "${{ secrets.PG_USER }}" \
+            -d "${{ secrets.PG_DB }}" \
+            -c "CREATE SCHEMA IF NOT EXISTS \"pr_${{ github.event.number }}\";"
 
       - name: Apply deployments and services
         # Reuse the production manifests as-is; sed patches the hardcoded
@@ -264,9 +269,14 @@ jobs:
         run: |
           kubectl delete namespace "cookbook-pr-${{ github.event.number }}" --ignore-not-found=true
 
-      - name: Drop audit database
+      - name: Drop audit schema
         run: |
-          psql "postgresql://${{ secrets.PG_USER }}:${{ secrets.PG_PASSWORD }}@${{ secrets.PG_HOST }}:${{ secrets.PG_PORT }}/postgres" -c "DROP DATABASE IF EXISTS db25_ben_h;" || true
+          PGPASSWORD="${{ secrets.PG_PASSWORD }}" psql \
+            -h "${{ secrets.PG_HOST }}" \
+            -p "${{ secrets.PG_PORT }}" \
+            -U "${{ secrets.PG_USER }}" \
+            -d "${{ secrets.PG_DB }}" \
+            -c "DROP SCHEMA IF EXISTS \"pr_${{ github.event.number }}\" CASCADE;"
 
       - name: Remove redirect URIs from Azure
         run: |

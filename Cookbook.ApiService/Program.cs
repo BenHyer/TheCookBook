@@ -1034,7 +1034,9 @@ static async Task EnsureAuditDatabaseAsync(WebApplication app)
 {
     using var scope = app.Services.CreateScope();
     var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("AuditDatabase");
+    var config = scope.ServiceProvider.GetRequiredService<IConfiguration>();
     var auditDb = scope.ServiceProvider.GetRequiredService<AuditDbContext>();
+    var schema = config["AuditDb:Schema"] ?? "public";
 
     const int maxAttempts = 10;
 
@@ -1042,8 +1044,11 @@ static async Task EnsureAuditDatabaseAsync(WebApplication app)
     {
         try
         {
+#pragma warning disable EF1002 // Schema identifiers cannot be parameterized
+            await auditDb.Database.ExecuteSqlRawAsync($"CREATE SCHEMA IF NOT EXISTS \"{schema}\"");
+#pragma warning restore EF1002
             await auditDb.Database.EnsureCreatedAsync();
-            logger.LogInformation("Audit database schema ensured.");
+            logger.LogInformation("Audit database schema ensured (schema: {Schema}).", schema);
             return;
         }
         catch (Exception ex) when (attempt < maxAttempts)
@@ -1058,6 +1063,9 @@ static async Task EnsureAuditDatabaseAsync(WebApplication app)
         }
     }
 
+#pragma warning disable EF1002
+    await auditDb.Database.ExecuteSqlRawAsync($"CREATE SCHEMA IF NOT EXISTS \"{schema}\"");
+#pragma warning restore EF1002
     await auditDb.Database.EnsureCreatedAsync();
 }
 

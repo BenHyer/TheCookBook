@@ -27,6 +27,6 @@ public class AuditDbContextFactory : IDesignTimeDbContextFactory<AuditDbContext>
         var optionsBuilder = new DbContextOptionsBuilder<AuditDbContext>();
         optionsBuilder.UseNpgsql(connectionString);
 
-        return new AuditDbContext(optionsBuilder.Options);
+        return new AuditDbContext(optionsBuilder.Options, configuration);
     }
 }
