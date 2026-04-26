@@ -225,13 +225,13 @@
         {
           "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
           "editorMode": "code",
-          "expr": "sum(rate(cookbook_api_request_duration_milliseconds_count{status_code=~\"[45]..\"}[5m])) / sum(rate(cookbook_api_request_duration_milliseconds_count[5m])) * 100",
+          "expr": "sum(rate(cookbook_api_request_duration_milliseconds_count{status_code=~\"5..\"}[5m])) / sum(rate(cookbook_api_request_duration_milliseconds_count[5m])) * 100",
           "legendFormat": "Error %",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "API Error %",
+      "title": "API 5xx %",
       "type": "timeseries"
     },
     {
