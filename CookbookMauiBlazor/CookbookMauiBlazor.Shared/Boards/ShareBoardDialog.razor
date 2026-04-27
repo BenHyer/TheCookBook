@@ -1,5 +1,6 @@
 @using global::Cookbook.Shared.Boards
 @using CookbookMauiBlazor.Shared.Services
+@using Microsoft.Extensions.Logging
 @using System.Collections.Generic
 
 @if (IsOpen)
@@ -115,6 +116,9 @@
     [Inject]
     private IUserService UserService { get; set; } = default!;
 
+    [Inject]
+    private ILogger<ShareBoardDialog> Logger { get; set; } = default!;
+
     [Parameter, EditorRequired]
     public Guid BoardId { get; set; }
 
@@ -177,9 +181,12 @@
 
     private async Task LoadUsersAsync(CancellationToken cancellationToken = default)
     {
+        Logger.LogInformation("Loading share-board user search results for board {BoardId} and query '{SearchQuery}'.", BoardId, _searchQuery);
+
         if (string.IsNullOrWhiteSpace(_searchQuery))
         {
             _availableUsers = [];
+            Logger.LogInformation("Share-board user search cleared for board {BoardId}.", BoardId);
             return;
         }
 
@@ -192,6 +199,12 @@
             _availableUsers = allUsers
                 .Where(u => !existingUserIds.Contains(u.UserId) && u.UserId != CurrentUserId)
                 .ToList();
+
+            Logger.LogInformation(
+                "Share-board search for board {BoardId} returned {ApiCount} users and {FilteredCount} selectable users after filtering collaborators/current user.",
+                BoardId,
+                allUsers.Count,
+                _availableUsers.Count);
         }
         catch (OperationCanceledException)
         {

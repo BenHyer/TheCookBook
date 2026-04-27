@@ -500,6 +500,11 @@ if (enableUserProfiles)
 
     app.MapGet("/api/v1/users/search", async (string? searchTerm, CookbookDbContext dbContext, [FromServices] GraphServiceClient? graphClient) =>
     {
+        app.Logger.LogInformation(
+            "User search requested. SearchTerm={SearchTerm}, GraphClientConfigured={GraphClientConfigured}.",
+            string.IsNullOrWhiteSpace(searchTerm) ? "<empty>" : searchTerm.Trim(),
+            graphClient is not null);
+
         if (string.IsNullOrWhiteSpace(searchTerm) || graphClient is null)
         {
             var query = dbContext.UserProfiles.AsQueryable();
@@ -517,6 +522,10 @@ if (enableUserProfiles)
                 .Select(u => new UserSummaryDto(u.UserId, u.DisplayName, u.FirstName, u.LastName, u.ProfilePictureUrl))
                 .Take(50)
                 .ToListAsync();
+
+            app.Logger.LogInformation(
+                "User search returned {ResultCount} users from the local profile store.",
+                users.Count);
 
             return Results.Ok(users);
         }
@@ -537,6 +546,10 @@ if (enableUserProfiles)
                 u.Surname ?? string.Empty,
                 null))
             .ToList() ?? new List<UserSummaryDto>();
+
+        app.Logger.LogInformation(
+            "User search returned {ResultCount} users from Microsoft Graph.",
+            results.Count);
 
         return Results.Ok(results);
     })

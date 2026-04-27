@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using CookbookMauiBlazor.Shared.Services;
+using Microsoft.Extensions.Logging.Abstractions;
 using RichardSzalay.MockHttp;
 
 namespace TestProject1;
@@ -12,7 +13,7 @@ public class UserServiceTests
         var handler = new MockHttpMessageHandler();
         var client = handler.ToHttpClient();
         client.BaseAddress = new Uri("http://localhost");
-        return (new UserService(client), handler);
+        return (new UserService(client, NullLogger<UserService>.Instance), handler);
     }
 
     // --- SearchAsync ---

@@ -1,31 +1,50 @@
 using System.Net.Http.Json;
+using Microsoft.Extensions.Logging;
 
 namespace CookbookMauiBlazor.Shared.Services;
 
 public sealed class UserService : IUserService
 {
     private readonly HttpClient _httpClient;
+    private readonly ILogger<UserService> _logger;
 
-    public UserService(HttpClient httpClient)
+    public UserService(HttpClient httpClient, ILogger<UserService> logger)
     {
         _httpClient = httpClient;
+        _logger = logger;
     }
 
     public async Task<IReadOnlyList<UserSummary>> SearchAsync(string? searchQuery = null, CancellationToken cancellationToken = default)
     {
+        var path = string.IsNullOrWhiteSpace(searchQuery)
+            ? "/api/v1/users"
+            : $"/api/v1/users/search?searchTerm={Uri.EscapeDataString(searchQuery)}";
+
+        _logger.LogInformation("Searching users via {Path}.", path);
+
         try
         {
-            var path = string.IsNullOrWhiteSpace(searchQuery)
-                ? "/api/v1/users"
-                : $"/api/v1/users/search?searchTerm={Uri.EscapeDataString(searchQuery)}";
-
-            var users = await _httpClient.GetFromJsonAsync<List<UserSummary>>(
+            var response = await _httpClient.GetAsync(
                 path,
                 cancellationToken);
-            return users ?? [];
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning(
+                    "User search request to {Path} failed with status code {StatusCode}.",
+                    path,
+                    (int)response.StatusCode);
+                return [];
+            }
+
+            var users = await response.Content.ReadFromJsonAsync<List<UserSummary>>(cancellationToken: cancellationToken);
+            var results = users ?? [];
+            _logger.LogInformation("User search via {Path} returned {ResultCount} users.", path, results.Count);
+            return results;
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogError(ex, "User search via {Path} failed.", path);
             return [];
         }
     }

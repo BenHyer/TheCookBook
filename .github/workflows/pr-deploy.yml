@@ -223,6 +223,7 @@ jobs:
             const sha = '${{ github.sha }}'.slice(0, 7);
             const bencampus = `https://pr-${prNumber}.bencampus.duckdns.org`;
             const benhhome  = `https://pr-${prNumber}.benhhome.duckdns.org`;
+            const grafana = 'https://cookbook.bencampus.duckdns.org/grafana/d/cookbook-v2/thecookbook?orgId=1&viewPanel=12';
 
             const body = [
               marker,
@@ -232,6 +233,8 @@ jobs:
               '|---------|-----|',
               `| Campus  | ${bencampus} |`,
               `| Home    | ${benhhome}  |`,
+              '',
+              `Share-board search logs: ${grafana}`,
               '',
               `Deployed from commit \`${sha}\` — updates automatically on each push.`,
             ].join('\n');
