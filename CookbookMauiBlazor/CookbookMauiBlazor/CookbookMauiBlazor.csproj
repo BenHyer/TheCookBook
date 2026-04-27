@@ -68,6 +68,7 @@
 
   <ItemGroup>
     <PackageReference Include="Auth0.ManagementApi" Version="8.1.0" />
+    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="9.0.9" />
     <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.51" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="10.0.51" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.5" />

@@ -123,6 +123,27 @@ jobs:
             echo "No API/Web-related changes detected; skipping format check."
           fi
 
+  test:
+    runs-on: ubuntu-latest
+    needs: build-lint-test
+    env:
+      NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            **/Directory.Packages.props
+            **/NuGet.config
+            **/global.json
+
       - name: Detect test projects
         id: detect_tests
         shell: bash
@@ -133,6 +154,14 @@ jobs:
           else
             echo "has_tests=false" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Restore test projects
+        if: steps.detect_tests.outputs.has_tests == 'true'
+        shell: bash
+        run: |
+          while IFS= read -r proj; do
+            dotnet restore "$proj"
+          done < <(find . -type f \( -name '*Tests.csproj' -o -name '*Test.csproj' \))
 
       - name: Test
         if: steps.detect_tests.outputs.has_tests == 'true'
@@ -210,7 +239,7 @@ jobs:
 
   integration-tests:
     runs-on: ubuntu-latest
-    needs: [build-lint-test, test-testproject]
+    needs: build-lint-test
     env:
       NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
 
@@ -236,7 +265,7 @@ jobs:
         run: dotnet test Cookbook.IntegrationTests/Cookbook.IntegrationTests.csproj --configuration Release --nologo --no-restore --verbosity minimal
 
   push-api:
-    needs: [build-lint-test, test-testproject, integration-tests]
+    needs: [build-lint-test, test, test-testproject, integration-tests]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
 
@@ -264,7 +293,7 @@ jobs:
           cache-to: type=registry,ref=benhyer/cookbook-api:cache,mode=max
 
   push-web:
-    needs: [build-lint-test, test-testproject, integration-tests]
+    needs: [build-lint-test, test, test-testproject, integration-tests]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
 
