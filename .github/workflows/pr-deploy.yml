@@ -34,7 +34,9 @@ jobs:
           context: .
           file: Cookbook.ApiService/Dockerfile
           push: true
-          tags: benhyer/cookbook-api:pr-${{ github.event.number }}
+          tags: |
+            benhyer/cookbook-api:pr-${{ github.event.number }}
+            benhyer/cookbook-api:pr-${{ github.event.number }}-${{ github.sha }}
           cache-from: type=registry,ref=benhyer/cookbook-api:cache
           cache-to: type=registry,ref=benhyer/cookbook-api:cache,mode=min
 
@@ -44,7 +46,9 @@ jobs:
           context: .
           file: CookbookMauiBlazor/CookbookMauiBlazor.Web/Dockerfile
           push: true
-          tags: benhyer/cookbook-web:pr-${{ github.event.number }}
+          tags: |
+            benhyer/cookbook-web:pr-${{ github.event.number }}
+            benhyer/cookbook-web:pr-${{ github.event.number }}-${{ github.sha }}
           cache-from: type=registry,ref=benhyer/cookbook-web:cache
           cache-to: type=registry,ref=benhyer/cookbook-web:cache,mode=min
 
@@ -54,7 +58,7 @@ jobs:
     runs-on: self-hosted
     env:
       NS: cookbook-pr-${{ github.event.number }}
-      IMAGE_TAG: pr-${{ github.event.number }}
+      IMAGE_TAG: pr-${{ github.event.number }}-${{ github.sha }}
       BENCAMPUS_HOST: pr-${{ github.event.number }}.bencampus.duckdns.org
       BENHHOME_HOST: pr-${{ github.event.number }}.benhhome.duckdns.org
       FEATURE_ENABLE_USER_PROFILES: ${{ vars.FEATURE_ENABLE_USER_PROFILES }}
