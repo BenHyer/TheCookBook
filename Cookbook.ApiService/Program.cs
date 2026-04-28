@@ -1012,7 +1012,7 @@ app.MapPost("/api/v1/boards/{boardId:guid}/share", async (
         }
 
         logger.LogInformation("ShareBoard: Adding permission - UserId={UserId}, Role={Role}", userId, role);
-        
+
         dbContext.BoardPermissions.Add(new BoardPermission
         {
             BoardId = boardId,
