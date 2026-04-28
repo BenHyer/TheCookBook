@@ -36,7 +36,7 @@ jobs:
           push: true
           tags: benhyer/cookbook-api:pr-${{ github.event.number }}
           cache-from: type=registry,ref=benhyer/cookbook-api:cache
-          cache-to: type=registry,ref=benhyer/cookbook-api:cache,mode=max
+          cache-to: type=registry,ref=benhyer/cookbook-api:cache,mode=min
 
       - name: Build and push Web image
         uses: docker/build-push-action@v6
@@ -46,7 +46,7 @@ jobs:
           push: true
           tags: benhyer/cookbook-web:pr-${{ github.event.number }}
           cache-from: type=registry,ref=benhyer/cookbook-web:cache
-          cache-to: type=registry,ref=benhyer/cookbook-web:cache,mode=max
+          cache-to: type=registry,ref=benhyer/cookbook-web:cache,mode=min
 
   # ── Deploy isolated namespace into the cluster ────────────────────────────
   deploy-pr:
