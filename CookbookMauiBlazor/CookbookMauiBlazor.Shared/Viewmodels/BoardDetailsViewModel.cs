@@ -13,15 +13,18 @@ namespace CookbookMauiBlazor.Shared.Viewmodels
     {
         private readonly BoardViewModel _boardViewModel;
         private readonly IRecipeService _recipeService;
+        private readonly IUserService _userService;
         private readonly AuthenticationStateProvider _authStateProvider;
 
         public BoardDetailsViewModel(
             BoardViewModel boardViewModel,
             IRecipeService recipeService,
+            IUserService userService,
             AuthenticationStateProvider authStateProvider)
         {
             _boardViewModel = boardViewModel;
             _recipeService = recipeService;
+            _userService = userService;
             _authStateProvider = authStateProvider;
         }
 
@@ -56,6 +59,9 @@ namespace CookbookMauiBlazor.Shared.Viewmodels
         private string ownerUserId = string.Empty;
 
         [ObservableProperty]
+        private bool canManageSharing;
+
+        [ObservableProperty]
         private HashSet<int> selectedRecipeIds = new();
 
         [ObservableProperty]
@@ -80,11 +86,18 @@ namespace CookbookMauiBlazor.Shared.Viewmodels
                 ?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value
                 ?? string.Empty;
 
+            CanManageSharing = false;
+
             BoardDetails = await _boardViewModel.LoadBoardDetailsAsync(BoardId);
             if (BoardDetails is not null)
             {
                 BoardRecipes = (await _boardViewModel.LoadBoardRecipesAsync(BoardId)).ToList();
                 BoardRecipeIds = BoardRecipes.Select(r => r.Id).ToHashSet();
+
+                var collaborators = await _userService.GetBoardCollaboratorsAsync(BoardId);
+                CanManageSharing = string.Equals(OwnerUserId, BoardDetails.OwnerUserId, StringComparison.OrdinalIgnoreCase)
+                    || collaborators.Any(c => string.Equals(c.UserId, OwnerUserId, StringComparison.OrdinalIgnoreCase)
+                        && IsShareManagerRole(c.Role));
             }
 
             Loading = false;
@@ -168,5 +181,7 @@ namespace CookbookMauiBlazor.Shared.Viewmodels
             SelectedRecipeIds = new HashSet<int>();
             AddError = null;
         }
+
+        private static bool IsShareManagerRole(string role) => role is "Manager" or "Admin";
     }
 }

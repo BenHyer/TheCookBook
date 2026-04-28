@@ -49,7 +49,7 @@
                                                 <div>@collaborator.DisplayName</div>
                                                 <small class="text-muted">@collaborator.Role</small>
                                             </div>
-                                            @if (collaborator.UserId != _boardOwnerId && _isCurrentUserAdmin)
+                                            @if (collaborator.UserId != _boardOwnerId && _canManageSharing)
                                             {
                                                 <button class="btn btn-sm btn-outline-danger"
                                                         @onclick="() => RemoveCollaboratorAsync(collaborator.UserId)">
@@ -100,7 +100,7 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" @onclick="CloseAsync">Close</button>
                     <button type="button" class="btn btn-primary" @onclick="ShareAsync"
-                            disabled="@(_selectedUserIds.Count == 0 || _isSaving)">
+                            disabled="@(_selectedUserIds.Count == 0 || _isSaving || !_canManageSharing)">
                         @(_isSaving ? "Sharing..." : "Share")
                     </button>
                 </div>
@@ -142,8 +142,8 @@
     private bool _isLoading;
     private bool _isSaving;
     private string _errorMessage = string.Empty;
-    private bool _isCurrentUserAdmin;
     private string _boardOwnerId = string.Empty;
+    private bool _canManageSharing;
     private CancellationTokenSource? _searchCts;
 
     protected override async Task OnParametersSetAsync()
@@ -160,16 +160,19 @@
         _isLoading = true;
         _selectedUserIds.Clear();
         _errorMessage = string.Empty;
+        _boardOwnerId = BoardOwnerId;
 
         try
         {
             _collaborators = (await UserService.GetBoardCollaboratorsAsync(BoardId)).ToList();
-            _boardOwnerId = _collaborators.FirstOrDefault(c => c.Role == "Admin")?.UserId ?? string.Empty;
-            _isCurrentUserAdmin = _collaborators.Any(c => c.UserId == CurrentUserId && c.Role == "Admin");
+            _canManageSharing = string.Equals(CurrentUserId, BoardOwnerId, StringComparison.OrdinalIgnoreCase)
+                || _collaborators.Any(c => string.Equals(c.UserId, CurrentUserId, StringComparison.OrdinalIgnoreCase)
+                    && IsShareManagerRole(c.Role));
         }
         catch
         {
             _errorMessage = "Failed to load collaborators. Please try again.";
+            _canManageSharing = string.Equals(CurrentUserId, BoardOwnerId, StringComparison.OrdinalIgnoreCase);
         }
         finally
         {
@@ -238,6 +241,11 @@
     private async Task ShareAsync()
     {
         if (_selectedUserIds.Count == 0) return;
+        if (!_canManageSharing)
+        {
+            _errorMessage = "You do not have permission to share this board.";
+            return;
+        }
 
         _isSaving = true;
         _errorMessage = string.Empty;
@@ -260,6 +268,12 @@
 
     private async Task RemoveCollaboratorAsync(string userId)
     {
+        if (!_canManageSharing)
+        {
+            _errorMessage = "You do not have permission to modify collaborators.";
+            return;
+        }
+
         try
         {
             await UserService.RemovePermissionAsync(BoardId, userId);
@@ -283,4 +297,6 @@
         _searchCts = null;
         await OnClose.InvokeAsync();
     }
+
+    private static bool IsShareManagerRole(string role) => role is "Manager" or "Admin";
 }

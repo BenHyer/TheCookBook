@@ -333,7 +333,7 @@ app.MapPost("/api/v1/boards", async (CreateBoardRequest request, CookbookDbConte
     {
         BoardId = board.Id,
         UserId = board.OwnerUserId,
-        Role = BoardRoles.Admin,
+        Role = BoardRoles.Manager,
         CreatedUtc = utcNow
     };
 
@@ -957,9 +957,8 @@ app.MapPost("/api/v1/boards/{boardId:guid}/share", async (
         return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
 
-    // Check if current user is Admin
     var userPermission = board.Permissions.FirstOrDefault(p => p.UserId == currentUserId);
-    if (userPermission?.Role != BoardRoles.Admin)
+    if (!CanManageBoardSharing(board, currentUserId, userPermission))
     {
         return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
@@ -1031,9 +1030,8 @@ app.MapDelete("/api/v1/boards/{boardId:guid}/permissions/{userId}", async (
         return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
 
-    // Check if current user is Admin
     var currentUserPermission = board.Permissions.FirstOrDefault(p => p.UserId == currentUserId);
-    if (currentUserPermission?.Role != BoardRoles.Admin)
+    if (!CanManageBoardSharing(board, currentUserId, currentUserPermission))
     {
         return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
@@ -1087,6 +1085,16 @@ app.MapGet("/api/v1/boards/shared-with-me/{userId}", async (string userId, Cookb
 app.MapDefaultEndpoints();
 
 app.Run();
+
+static bool CanManageBoardSharing(Board board, string currentUserId, BoardPermission? permission)
+{
+    if (string.Equals(board.OwnerUserId, currentUserId, StringComparison.OrdinalIgnoreCase))
+    {
+        return true;
+    }
+
+    return permission?.Role is BoardRoles.Manager or BoardRoles.Admin;
+}
 
 static string GetBlobUrl(BlobClient blobClient)
 {
