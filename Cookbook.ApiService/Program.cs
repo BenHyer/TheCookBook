@@ -23,7 +23,6 @@ builder.AddServiceDefaults();
 // Add services to the container.
 builder.Services.AddProblemDetails();
 
-builder.Services.AddAuthorization();
 var azureAdClientId = builder.Configuration["AzureAd:ClientId"];
 var azureAdTenantId = builder.Configuration["AzureAd:TenantId"];
 var azureAdClientSecret = builder.Configuration["AzureAd:ClientSecret"];
@@ -31,6 +30,7 @@ if (!string.IsNullOrWhiteSpace(azureAdClientId))
 {
     builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
+    builder.Services.AddAuthorization();
 }
 
 if (!string.IsNullOrWhiteSpace(azureAdClientId)
@@ -142,8 +142,8 @@ app.Use(async (context, next) =>
 if (!string.IsNullOrWhiteSpace(azureAdClientId))
 {
     app.UseAuthentication();
+    app.UseAuthorization();
 }
-app.UseAuthorization();
 
 if (app.Environment.IsDevelopment())
 {
