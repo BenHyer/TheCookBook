@@ -18,10 +18,6 @@ spec:
       labels:
         app: cookbook-web
     spec:
-      securityContext:
-        sysctls:
-          - name: fs.inotify.max_user_instances
-            value: "8192"
       containers:
         - name: cookbook-web
           image: benhyer/cookbook-web:${IMAGE_TAG}

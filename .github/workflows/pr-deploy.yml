@@ -186,8 +186,8 @@ jobs:
 
       - name: Wait for rollouts
         run: |
-          kubectl rollout status deployment/cookbook-api -n "$NS" --timeout=120s
-          kubectl rollout status deployment/cookbook-web -n "$NS" --timeout=120s
+          kubectl wait --for=condition=available deployment/cookbook-api -n "$NS" --timeout=120s
+          kubectl wait --for=condition=available deployment/cookbook-web -n "$NS" --timeout=120s
 
       - name: Debug failed rollout
         if: failure()
