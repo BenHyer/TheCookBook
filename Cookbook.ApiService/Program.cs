@@ -937,16 +937,23 @@ app.MapPost("/api/v1/boards/{boardId:guid}/share", async (
     Guid boardId,
     ShareBoardRequest request,
     ClaimsPrincipal user,
-    CookbookDbContext dbContext) =>
+    CookbookDbContext dbContext,
+    ILogger<Program> logger) =>
 {
+    logger.LogInformation("ShareBoard: Incoming request - BoardId={BoardId}, UserIds count={UserIdCount}, Role={Role}", boardId, request.UserIds.Count, request.Role);
+
     var board = await dbContext.Boards
         .Include(b => b.Permissions)
         .FirstOrDefaultAsync(b => b.Id == boardId);
 
     if (board is null)
     {
+        logger.LogWarning("ShareBoard: Board not found - BoardId={BoardId}", boardId);
         return Results.NotFound();
     }
+
+    logger.LogInformation("ShareBoard: Board found - BoardId={BoardId}, BoardName={BoardName}, OwnerUserId={OwnerUserId}, PermissionCount={PermissionCount}", 
+        boardId, board.Name, board.OwnerUserId, board.Permissions.Count);
 
     var currentUserId = user.FindFirst("oid")?.Value ??
         user.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value ??
@@ -954,12 +961,19 @@ app.MapPost("/api/v1/boards/{boardId:guid}/share", async (
 
     if (currentUserId is null)
     {
+        logger.LogWarning("ShareBoard: Could not extract currentUserId from claims");
         return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
 
+    logger.LogInformation("ShareBoard: CurrentUserId extracted - CurrentUserId={CurrentUserId}", currentUserId);
+
     var userPermission = board.Permissions.FirstOrDefault(p => p.UserId == currentUserId);
+    logger.LogInformation("ShareBoard: User permission check - CurrentUserId={CurrentUserId}, UserPermission={Permission}, IsOwner={IsOwner}", 
+        currentUserId, userPermission?.Role ?? "None", board.OwnerUserId == currentUserId);
+
     if (!CanManageBoardSharing(board, currentUserId, userPermission))
     {
+        logger.LogWarning("ShareBoard: User does not have permission to manage sharing - CurrentUserId={CurrentUserId}, BoardId={BoardId}", currentUserId, boardId);
         return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
 
@@ -967,11 +981,19 @@ app.MapPost("/api/v1/boards/{boardId:guid}/share", async (
     var utcNow = DateTime.UtcNow;
     var existingPermissionUserIds = board.Permissions.Select(p => p.UserId).ToHashSet();
 
+    logger.LogInformation("ShareBoard: Starting permission additions - RequestedRole={Role}, ExistingUserCount={Count}", role, existingPermissionUserIds.Count);
+
+    var addedCount = 0;
+    var skippedCount = 0;
+
     foreach (var userId in request.UserIds)
     {
         // Skip if user already has permission or if it's the current user
         if (existingPermissionUserIds.Contains(userId) || userId == currentUserId)
         {
+            logger.LogDebug("ShareBoard: Skipping user - UserId={UserId}, AlreadyExists={AlreadyExists}, IsCurrentUser={IsCurrentUser}", 
+                userId, existingPermissionUserIds.Contains(userId), userId == currentUserId);
+            skippedCount++;
             continue;
         }
 
@@ -979,9 +1001,13 @@ app.MapPost("/api/v1/boards/{boardId:guid}/share", async (
         var userExists = await dbContext.UserProfiles.AnyAsync(u => u.UserId == userId);
         if (!userExists)
         {
+            logger.LogWarning("ShareBoard: User profile not found - UserId={UserId}", userId);
+            skippedCount++;
             continue;
         }
 
+        logger.LogInformation("ShareBoard: Adding permission - UserId={UserId}, Role={Role}", userId, role);
+        
         dbContext.BoardPermissions.Add(new BoardPermission
         {
             BoardId = boardId,
@@ -989,8 +1015,10 @@ app.MapPost("/api/v1/boards/{boardId:guid}/share", async (
             Role = role,
             CreatedUtc = utcNow
         });
+        addedCount++;
     }
 
+    logger.LogInformation("ShareBoard: Saving permissions - AddedCount={Added}, SkippedCount={Skipped}", addedCount, skippedCount);
     await dbContext.SaveChangesAsync();
 
     // Return updated collaborators
@@ -1002,6 +1030,7 @@ app.MapPost("/api/v1/boards/{boardId:guid}/share", async (
             (bp, up) => new BoardCollaborator(up.UserId, up.DisplayName, up.FirstName, up.LastName, up.ProfilePictureUrl, bp.Role))
         .ToListAsync();
 
+    logger.LogInformation("ShareBoard: Success - BoardId={BoardId}, TotalCollaborators={Count}", boardId, collaborators.Count);
     return Results.Ok(collaborators);
 })
 .WithName("ShareBoard");
