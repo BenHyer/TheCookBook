@@ -18,7 +18,7 @@ public sealed class UserService : IUserService
     {
         var path = string.IsNullOrWhiteSpace(searchQuery)
             ? "/api/v1/users"
-            : $"/api/v1/users/search?searchTerm={Uri.EscapeDataString(searchQuery)}";
+            : $"/api/v1/users?search={Uri.EscapeDataString(searchQuery)}";
 
         _logger.LogInformation("Searching users via {Path}.", path);
 
