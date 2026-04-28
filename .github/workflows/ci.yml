@@ -402,7 +402,6 @@ jobs:
     needs:
       [
         build-lint-test,
-        test-testproject,
         integration-tests,
         container-validate,
         push-api,
