@@ -237,7 +237,7 @@ if (enableBulkAddBoardRecipes)
         var ownerUserId = request.OwnerUserId.Trim();
         if (!string.Equals(board.OwnerUserId, ownerUserId, StringComparison.Ordinal))
         {
-            return Results.Forbid();
+            return Results.StatusCode(StatusCodes.Status403Forbidden);
         }
 
         var distinctRecipeIds = request.RecipeIds
@@ -792,7 +792,7 @@ app.MapPut("/api/v1/recipes/{recipeId}", async (
         return Results.NotFound();
 
     if (!string.Equals(recipe.OwnerUserId, request.OwnerUserId.Trim(), StringComparison.Ordinal))
-        return Results.Forbid();
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
 
     recipe.Title = request.Title.Trim();
     recipe.Description = TrimToNull(request.Description);
@@ -954,14 +954,14 @@ app.MapPost("/api/v1/boards/{boardId:guid}/share", async (
 
     if (currentUserId is null)
     {
-        return Results.Forbid();
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
 
     // Check if current user is Admin
     var userPermission = board.Permissions.FirstOrDefault(p => p.UserId == currentUserId);
     if (userPermission?.Role != BoardRoles.Admin)
     {
-        return Results.Forbid();
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
 
     var role = request.Role is BoardRoles.Viewer or BoardRoles.Editor ? request.Role : BoardRoles.Viewer;
@@ -1028,14 +1028,14 @@ app.MapDelete("/api/v1/boards/{boardId:guid}/permissions/{userId}", async (
 
     if (currentUserId is null)
     {
-        return Results.Forbid();
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
 
     // Check if current user is Admin
     var currentUserPermission = board.Permissions.FirstOrDefault(p => p.UserId == currentUserId);
     if (currentUserPermission?.Role != BoardRoles.Admin)
     {
-        return Results.Forbid();
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
 
     // Prevent removing owner's Admin role
