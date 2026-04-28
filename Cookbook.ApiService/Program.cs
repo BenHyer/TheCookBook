@@ -498,16 +498,17 @@ if (enableUserProfiles)
     })
     .WithName("EnsureUserProfile");
 
-    app.MapGet("/api/v1/users/search", async (string? searchTerm, CookbookDbContext dbContext, [FromServices] GraphServiceClient? graphClient) =>
+    app.MapGet("/api/v1/users/search", async (ClaimsPrincipal caller, string? searchTerm, CookbookDbContext dbContext, [FromServices] GraphServiceClient? graphClient) =>
     {
         app.Logger.LogInformation(
             "User search requested. SearchTerm={SearchTerm}, GraphClientConfigured={GraphClientConfigured}.",
             string.IsNullOrWhiteSpace(searchTerm) ? "<empty>" : searchTerm.Trim(),
             graphClient is not null);
-
+        // Prefer local profile store when Graph is not configured or no search term provided.
         if (string.IsNullOrWhiteSpace(searchTerm) || graphClient is null)
         {
             var query = dbContext.UserProfiles.AsQueryable();
+
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
                 var searchLower = searchTerm.Trim().ToLower();
@@ -517,10 +518,18 @@ if (enableUserProfiles)
                     u.LastName.ToLower().Contains(searchLower));
             }
 
+            var callerUserId = caller.FindFirst("oid")?.Value ??
+                caller.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value ??
+                caller.FindFirst("sub")?.Value;
+
+            if (!string.IsNullOrWhiteSpace(callerUserId))
+            {
+                query = query.Where(u => u.UserId != callerUserId);
+            }
+
             var users = await query
                 .OrderBy(u => u.DisplayName)
                 .Select(u => new UserSummaryDto(u.UserId, u.DisplayName, u.FirstName, u.LastName, u.ProfilePictureUrl))
-                .Take(50)
                 .ToListAsync();
 
             app.Logger.LogInformation(
@@ -546,6 +555,16 @@ if (enableUserProfiles)
                 u.Surname ?? string.Empty,
                 null))
             .ToList() ?? new List<UserSummaryDto>();
+
+        // Exclude the caller from graph results when possible
+        var callerUserIdForGraph = caller.FindFirst("oid")?.Value ??
+            caller.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value ??
+            caller.FindFirst("sub")?.Value;
+
+        if (!string.IsNullOrWhiteSpace(callerUserIdForGraph))
+        {
+            results = results.Where(r => !string.Equals(r.UserId, callerUserIdForGraph, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
 
         app.Logger.LogInformation(
             "User search returned {ResultCount} users from Microsoft Graph.",
