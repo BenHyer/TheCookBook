@@ -952,7 +952,8 @@ app.MapPost("/api/v1/boards/{boardId:guid}/share", async (
         return Results.NotFound();
     }
 
-    logger.LogInformation("ShareBoard: Board found - BoardId={BoardId}, BoardName={BoardName}, OwnerUserId={OwnerUserId}, PermissionCount={PermissionCount}", 
+    logger.LogInformation(
+        "ShareBoard: Board found - BoardId={BoardId}, BoardName={BoardName}, OwnerUserId={OwnerUserId}, PermissionCount={PermissionCount}",
         boardId, board.Name, board.OwnerUserId, board.Permissions.Count);
 
     var currentUserId = user.FindFirst("oid")?.Value ??
@@ -968,12 +969,15 @@ app.MapPost("/api/v1/boards/{boardId:guid}/share", async (
     logger.LogInformation("ShareBoard: CurrentUserId extracted - CurrentUserId={CurrentUserId}", currentUserId);
 
     var userPermission = board.Permissions.FirstOrDefault(p => p.UserId == currentUserId);
-    logger.LogInformation("ShareBoard: User permission check - CurrentUserId={CurrentUserId}, UserPermission={Permission}, IsOwner={IsOwner}", 
+    logger.LogInformation(
+        "ShareBoard: User permission check - CurrentUserId={CurrentUserId}, UserPermission={Permission}, IsOwner={IsOwner}",
         currentUserId, userPermission?.Role ?? "None", board.OwnerUserId == currentUserId);
 
     if (!CanManageBoardSharing(board, currentUserId, userPermission))
     {
-        logger.LogWarning("ShareBoard: User does not have permission to manage sharing - CurrentUserId={CurrentUserId}, BoardId={BoardId}", currentUserId, boardId);
+        logger.LogWarning(
+            "ShareBoard: User does not have permission to manage sharing - CurrentUserId={CurrentUserId}, BoardId={BoardId}",
+            currentUserId, boardId);
         return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
 
@@ -991,7 +995,8 @@ app.MapPost("/api/v1/boards/{boardId:guid}/share", async (
         // Skip if user already has permission or if it's the current user
         if (existingPermissionUserIds.Contains(userId) || userId == currentUserId)
         {
-            logger.LogDebug("ShareBoard: Skipping user - UserId={UserId}, AlreadyExists={AlreadyExists}, IsCurrentUser={IsCurrentUser}", 
+            logger.LogDebug(
+                "ShareBoard: Skipping user - UserId={UserId}, AlreadyExists={AlreadyExists}, IsCurrentUser={IsCurrentUser}",
                 userId, existingPermissionUserIds.Contains(userId), userId == currentUserId);
             skippedCount++;
             continue;
