@@ -99,15 +99,38 @@ app.Use(async (context, next) =>
     var pathSegments = context.Request.Path.Value?.Split('/');
     var version = pathSegments?.Length > 2 ? pathSegments[2] : "unknown";
 
+    long requestBodyBytes = 0;
     if (context.Request.ContentLength.HasValue)
     {
+        requestBodyBytes = context.Request.ContentLength.Value;
+    }
+    else if (context.Request.Body.CanRead)
+    {
+        context.Request.EnableBuffering();
+
+        var buffer = new byte[8192];
+        int bytesRead;
+        while ((bytesRead = await context.Request.Body.ReadAsync(buffer.AsMemory(0, buffer.Length))) > 0)
+        {
+            requestBodyBytes += bytesRead;
+        }
+
+        context.Request.Body.Position = 0;
+    }
+
+    if (requestBodyBytes > 0 || context.Request.ContentLength == 0)
+    {
         CookbookMetrics.RequestBodySize.Record(
-            context.Request.ContentLength.Value,
+            requestBodyBytes,
             new KeyValuePair<string, object?>("method", context.Request.Method),
             new KeyValuePair<string, object?>("route", context.Request.Path.Value ?? "unknown"));
     }
 
     var timer = Stopwatch.StartNew();
+    var originalResponseBody = context.Response.Body;
+    await using var countingBody = new ResponseBodyCountingStream(originalResponseBody);
+    context.Response.Body = countingBody;
+
     try
     {
         await next();
@@ -117,13 +140,12 @@ app.Use(async (context, next) =>
         timer.Stop();
         var statusCode = context.Response.StatusCode;
 
-        if (context.Response.ContentLength.HasValue)
-        {
-            CookbookMetrics.ResponseBodySize.Record(
-                context.Response.ContentLength.Value,
-                new KeyValuePair<string, object?>("method", context.Request.Method),
-                new KeyValuePair<string, object?>("route", context.Request.Path.Value ?? "unknown"));
-        }
+        context.Response.Body = originalResponseBody;
+
+        CookbookMetrics.ResponseBodySize.Record(
+            countingBody.BytesWritten,
+            new KeyValuePair<string, object?>("method", context.Request.Method),
+            new KeyValuePair<string, object?>("route", context.Request.Path.Value ?? "unknown"));
 
         CookbookMetrics.ApiRequestDuration.Record(
             timer.Elapsed.TotalMilliseconds,
@@ -138,6 +160,7 @@ app.Use(async (context, next) =>
         }
     }
 });
+
 
 if (!string.IsNullOrWhiteSpace(azureAdClientId))
 {
