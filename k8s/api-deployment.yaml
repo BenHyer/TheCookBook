@@ -18,6 +18,41 @@ spec:
       labels:
         app: cookbook-api
     spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:16
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              conn="${PG_CONN:-}"
+              if [ -z "$conn" ]; then
+                echo "PG_CONN is not set"
+                exit 1
+              fi
+              host=$(printf '%s' "$conn" | awk -F';' '{for(i=1;i<=NF;i++){if($i ~ /^Host=/){sub(/^Host=/,"",$i);print $i}}}')
+              port=$(printf '%s' "$conn" | awk -F';' '{for(i=1;i<=NF;i++){if($i ~ /^Port=/){sub(/^Port=/,"",$i);print $i}}}')
+              db=$(printf '%s' "$conn" | awk -F';' '{for(i=1;i<=NF;i++){if($i ~ /^Database=/){sub(/^Database=/,"",$i);print $i}}}')
+              user=$(printf '%s' "$conn" | awk -F';' '{for(i=1;i<=NF;i++){if($i ~ /^Username=/){sub(/^Username=/,"",$i);print $i}}}')
+              pass=$(printf '%s' "$conn" | awk -F';' '{for(i=1;i<=NF;i++){if($i ~ /^Password=/){sub(/^Password=/,"",$i);print $i}}}')
+              if [ -z "$host" ] || [ -z "$port" ] || [ -z "$db" ] || [ -z "$user" ] || [ -z "$pass" ]; then
+                echo "Invalid PG_CONN; expected Host/Port/Database/Username/Password"
+                exit 1
+              fi
+              export PGPASSWORD="$pass"
+              echo "Waiting for Postgres at $host:$port/$db"
+              while ! pg_isready -h "$host" -p "$port" -U "$user" -d "$db"; do
+                echo "$(date) Postgres is not ready yet"
+                sleep 5
+              done
+              echo "Postgres is ready"
+          env:
+            - name: PG_CONN
+              valueFrom:
+                secretKeyRef:
+                  name: cookbook-secrets
+                  key: ConnectionStrings__pgdb
       containers:
         - name: cookbook-api
           image: benhyer/cookbook-api:${IMAGE_TAG}
