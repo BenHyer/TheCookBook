@@ -264,7 +264,7 @@ jobs:
           push: true
           tags: benhyer/cookbook-api:${{ github.sha }}
           cache-from: type=registry,ref=benhyer/cookbook-api:cache
-          cache-to: type=registry,ref=benhyer/cookbook-api:cache,mode=max
+          cache-to: type=registry,ref=benhyer/cookbook-api:cache,mode=min
 
   push-web:
     needs: [build-lint-test, test, integration-tests]
@@ -292,7 +292,7 @@ jobs:
           push: true
           tags: benhyer/cookbook-web:${{ github.sha }}
           cache-from: type=registry,ref=benhyer/cookbook-web:cache
-          cache-to: type=registry,ref=benhyer/cookbook-web:cache,mode=max
+          cache-to: type=registry,ref=benhyer/cookbook-web:cache,mode=min
 
   deploy:
     needs: [push-api, push-web]
