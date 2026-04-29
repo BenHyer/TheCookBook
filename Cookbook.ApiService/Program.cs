@@ -8,6 +8,8 @@ using Cookbook.ApiService.Telemetry;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Graph;
 using Microsoft.Identity.Web;
 using CookbookMauiBlazor.Shared.Boards;
@@ -23,7 +25,6 @@ builder.AddServiceDefaults();
 // Add services to the container.
 builder.Services.AddProblemDetails();
 
-builder.Services.AddAuthorization();
 var azureAdClientId = builder.Configuration["AzureAd:ClientId"];
 var azureAdTenantId = builder.Configuration["AzureAd:TenantId"];
 var azureAdClientSecret = builder.Configuration["AzureAd:ClientSecret"];
@@ -31,6 +32,7 @@ if (!string.IsNullOrWhiteSpace(azureAdClientId))
 {
     builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
+    builder.Services.AddAuthorization();
 }
 
 if (!string.IsNullOrWhiteSpace(azureAdClientId)
@@ -165,8 +167,8 @@ app.Use(async (context, next) =>
 if (!string.IsNullOrWhiteSpace(azureAdClientId))
 {
     app.UseAuthentication();
+    app.UseAuthorization();
 }
-app.UseAuthorization();
 
 if (app.Environment.IsDevelopment())
 {
@@ -260,7 +262,7 @@ if (enableBulkAddBoardRecipes)
         var ownerUserId = request.OwnerUserId.Trim();
         if (!string.Equals(board.OwnerUserId, ownerUserId, StringComparison.Ordinal))
         {
-            return Results.Forbid();
+            return Results.StatusCode(StatusCodes.Status403Forbidden);
         }
 
         var distinctRecipeIds = request.RecipeIds
@@ -356,7 +358,7 @@ app.MapPost("/api/v1/boards", async (CreateBoardRequest request, CookbookDbConte
     {
         BoardId = board.Id,
         UserId = board.OwnerUserId,
-        Role = BoardRoles.Admin,
+        Role = BoardRoles.Manager,
         CreatedUtc = utcNow
     };
 
@@ -521,11 +523,17 @@ if (enableUserProfiles)
     })
     .WithName("EnsureUserProfile");
 
-    app.MapGet("/api/v1/users/search", async (string? searchTerm, CookbookDbContext dbContext, [FromServices] GraphServiceClient? graphClient) =>
+    app.MapGet("/api/v1/users/search", async (ClaimsPrincipal caller, string? searchTerm, CookbookDbContext dbContext, [FromServices] GraphServiceClient? graphClient) =>
     {
+        app.Logger.LogInformation(
+            "User search requested. SearchTerm={SearchTerm}, GraphClientConfigured={GraphClientConfigured}.",
+            string.IsNullOrWhiteSpace(searchTerm) ? "<empty>" : searchTerm.Trim(),
+            graphClient is not null);
+        // Prefer local profile store when Graph is not configured or no search term provided.
         if (string.IsNullOrWhiteSpace(searchTerm) || graphClient is null)
         {
             var query = dbContext.UserProfiles.AsQueryable();
+
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
                 var searchLower = searchTerm.Trim().ToLower();
@@ -535,11 +543,23 @@ if (enableUserProfiles)
                     u.LastName.ToLower().Contains(searchLower));
             }
 
+            var callerUserId = caller.FindFirst("oid")?.Value ??
+                caller.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value ??
+                caller.FindFirst("sub")?.Value;
+
+            if (!string.IsNullOrWhiteSpace(callerUserId))
+            {
+                query = query.Where(u => u.UserId != callerUserId);
+            }
+
             var users = await query
                 .OrderBy(u => u.DisplayName)
                 .Select(u => new UserSummaryDto(u.UserId, u.DisplayName, u.FirstName, u.LastName, u.ProfilePictureUrl))
-                .Take(50)
                 .ToListAsync();
+
+            app.Logger.LogInformation(
+                "User search returned {ResultCount} users from the local profile store.",
+                users.Count);
 
             return Results.Ok(users);
         }
@@ -560,6 +580,20 @@ if (enableUserProfiles)
                 u.Surname ?? string.Empty,
                 null))
             .ToList() ?? new List<UserSummaryDto>();
+
+        // Exclude the caller from graph results when possible
+        var callerUserIdForGraph = caller.FindFirst("oid")?.Value ??
+            caller.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value ??
+            caller.FindFirst("sub")?.Value;
+
+        if (!string.IsNullOrWhiteSpace(callerUserIdForGraph))
+        {
+            results = results.Where(r => !string.Equals(r.UserId, callerUserIdForGraph, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+
+        app.Logger.LogInformation(
+            "User search returned {ResultCount} users from Microsoft Graph.",
+            results.Count);
 
         return Results.Ok(results);
     })
@@ -783,7 +817,7 @@ app.MapPut("/api/v1/recipes/{recipeId}", async (
         return Results.NotFound();
 
     if (!string.Equals(recipe.OwnerUserId, request.OwnerUserId.Trim(), StringComparison.Ordinal))
-        return Results.Forbid();
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
 
     recipe.Title = request.Title.Trim();
     recipe.Description = TrimToNull(request.Description);
@@ -927,43 +961,66 @@ app.MapGet("/api/v1/boards/{boardId:guid}/collaborators", async (Guid boardId, C
 app.MapPost("/api/v1/boards/{boardId:guid}/share", async (
     Guid boardId,
     ShareBoardRequest request,
-    ClaimsPrincipal user,
-    CookbookDbContext dbContext) =>
+    CookbookDbContext dbContext,
+    ILogger<Program> logger) =>
 {
+    logger.LogInformation("ShareBoard: Incoming request - BoardId={BoardId}, UserIds count={UserIdCount}, Role={Role}, CallerUserId={CallerUserId}", boardId, request.UserIds.Count, request.Role, request.CallerUserId);
+
     var board = await dbContext.Boards
         .Include(b => b.Permissions)
         .FirstOrDefaultAsync(b => b.Id == boardId);
 
     if (board is null)
     {
+        logger.LogWarning("ShareBoard: Board not found - BoardId={BoardId}", boardId);
         return Results.NotFound();
     }
 
-    var currentUserId = user.FindFirst("oid")?.Value ??
-        user.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value ??
-        user.FindFirst("sub")?.Value;
+    logger.LogInformation(
+        "ShareBoard: Board found - BoardId={BoardId}, BoardName={BoardName}, OwnerUserId={OwnerUserId}, PermissionCount={PermissionCount}",
+        boardId, board.Name, board.OwnerUserId, board.Permissions.Count);
 
-    if (currentUserId is null)
+    var currentUserId = request.CallerUserId;
+
+    if (string.IsNullOrWhiteSpace(currentUserId))
     {
-        return Results.Forbid();
+        logger.LogWarning("ShareBoard: CallerUserId missing from request body");
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
 
-    // Check if current user is Admin
+    logger.LogInformation("ShareBoard: CallerUserId resolved - CurrentUserId={CurrentUserId}", currentUserId);
+
     var userPermission = board.Permissions.FirstOrDefault(p => p.UserId == currentUserId);
-    if (userPermission?.Role != BoardRoles.Admin)
+    logger.LogInformation(
+        "ShareBoard: User permission check - CurrentUserId={CurrentUserId}, UserPermission={Permission}, IsOwner={IsOwner}",
+        currentUserId, userPermission?.Role ?? "None", board.OwnerUserId == currentUserId);
+
+    if (!CanManageBoardSharing(board, currentUserId, userPermission))
     {
-        return Results.Forbid();
+        logger.LogWarning(
+            "ShareBoard: User does not have permission to manage sharing - CurrentUserId={CurrentUserId}, BoardId={BoardId}",
+            currentUserId, boardId);
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
 
     var role = request.Role is BoardRoles.Viewer or BoardRoles.Editor ? request.Role : BoardRoles.Viewer;
     var utcNow = DateTime.UtcNow;
     var existingPermissionUserIds = board.Permissions.Select(p => p.UserId).ToHashSet();
 
+    logger.LogInformation("ShareBoard: Starting permission additions - RequestedRole={Role}, ExistingUserCount={Count}", role, existingPermissionUserIds.Count);
+
+    var addedCount = 0;
+    var skippedCount = 0;
+
     foreach (var userId in request.UserIds)
     {
         // Skip if user already has permission or if it's the current user
         if (existingPermissionUserIds.Contains(userId) || userId == currentUserId)
         {
+            logger.LogDebug(
+                "ShareBoard: Skipping user - UserId={UserId}, AlreadyExists={AlreadyExists}, IsCurrentUser={IsCurrentUser}",
+                userId, existingPermissionUserIds.Contains(userId), userId == currentUserId);
+            skippedCount++;
             continue;
         }
 
@@ -971,8 +1028,12 @@ app.MapPost("/api/v1/boards/{boardId:guid}/share", async (
         var userExists = await dbContext.UserProfiles.AnyAsync(u => u.UserId == userId);
         if (!userExists)
         {
+            logger.LogWarning("ShareBoard: User profile not found - UserId={UserId}", userId);
+            skippedCount++;
             continue;
         }
+
+        logger.LogInformation("ShareBoard: Adding permission - UserId={UserId}, Role={Role}", userId, role);
 
         dbContext.BoardPermissions.Add(new BoardPermission
         {
@@ -981,8 +1042,10 @@ app.MapPost("/api/v1/boards/{boardId:guid}/share", async (
             Role = role,
             CreatedUtc = utcNow
         });
+        addedCount++;
     }
 
+    logger.LogInformation("ShareBoard: Saving permissions - AddedCount={Added}, SkippedCount={Skipped}", addedCount, skippedCount);
     await dbContext.SaveChangesAsync();
 
     // Return updated collaborators
@@ -994,6 +1057,7 @@ app.MapPost("/api/v1/boards/{boardId:guid}/share", async (
             (bp, up) => new BoardCollaborator(up.UserId, up.DisplayName, up.FirstName, up.LastName, up.ProfilePictureUrl, bp.Role))
         .ToListAsync();
 
+    logger.LogInformation("ShareBoard: Success - BoardId={BoardId}, TotalCollaborators={Count}", boardId, collaborators.Count);
     return Results.Ok(collaborators);
 })
 .WithName("ShareBoard");
@@ -1019,14 +1083,13 @@ app.MapDelete("/api/v1/boards/{boardId:guid}/permissions/{userId}", async (
 
     if (currentUserId is null)
     {
-        return Results.Forbid();
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
 
-    // Check if current user is Admin
     var currentUserPermission = board.Permissions.FirstOrDefault(p => p.UserId == currentUserId);
-    if (currentUserPermission?.Role != BoardRoles.Admin)
+    if (!CanManageBoardSharing(board, currentUserId, currentUserPermission))
     {
-        return Results.Forbid();
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
 
     // Prevent removing owner's Admin role
@@ -1079,6 +1142,16 @@ app.MapDefaultEndpoints();
 
 app.Run();
 
+static bool CanManageBoardSharing(Board board, string currentUserId, BoardPermission? permission)
+{
+    if (string.Equals(board.OwnerUserId, currentUserId, StringComparison.OrdinalIgnoreCase))
+    {
+        return true;
+    }
+
+    return permission?.Role is BoardRoles.Manager or BoardRoles.Admin;
+}
+
 static string GetBlobUrl(BlobClient blobClient)
 {
     if (!blobClient.CanGenerateSasUri)
@@ -1129,7 +1202,9 @@ static async Task EnsureAuditDatabaseAsync(WebApplication app)
 #pragma warning disable EF1002 // Schema identifiers cannot be parameterized
             await auditDb.Database.ExecuteSqlRawAsync($"CREATE SCHEMA IF NOT EXISTS \"{schema}\"");
 #pragma warning restore EF1002
-            await auditDb.Database.EnsureCreatedAsync();
+            var creator = auditDb.Database.GetService<IRelationalDatabaseCreator>();
+            if (!await creator.HasTablesAsync())
+                await creator.CreateTablesAsync();
             logger.LogInformation("Audit database schema ensured (schema: {Schema}).", schema);
             return;
         }
@@ -1148,7 +1223,9 @@ static async Task EnsureAuditDatabaseAsync(WebApplication app)
 #pragma warning disable EF1002
     await auditDb.Database.ExecuteSqlRawAsync($"CREATE SCHEMA IF NOT EXISTS \"{schema}\"");
 #pragma warning restore EF1002
-    await auditDb.Database.EnsureCreatedAsync();
+    var finalCreator = auditDb.Database.GetService<IRelationalDatabaseCreator>();
+    if (!await finalCreator.HasTablesAsync())
+        await finalCreator.CreateTablesAsync();
 }
 
 static async Task ApplyDatabaseMigrationsAsync(WebApplication app)
@@ -1251,7 +1328,7 @@ record RecipeDto(
 // Board Sharing DTOs
 record UserSummaryDto(string UserId, string DisplayName, string FirstName, string LastName, string? ProfilePictureUrl);
 
-record ShareBoardRequest(List<string> UserIds, string? Role);
+record ShareBoardRequest(List<string> UserIds, string? Role, string? CallerUserId);
 
 record BoardCollaborator(string UserId, string DisplayName, string FirstName, string LastName, string? ProfilePictureUrl, string Role);
 

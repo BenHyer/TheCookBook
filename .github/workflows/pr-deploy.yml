@@ -34,9 +34,11 @@ jobs:
           context: .
           file: Cookbook.ApiService/Dockerfile
           push: true
-          tags: benhyer/cookbook-api:pr-${{ github.event.number }}
+          tags: |
+            benhyer/cookbook-api:pr-${{ github.event.number }}
+            benhyer/cookbook-api:pr-${{ github.event.number }}-${{ github.sha }}
           cache-from: type=registry,ref=benhyer/cookbook-api:cache
-          cache-to: type=registry,ref=benhyer/cookbook-api:cache,mode=max
+          cache-to: type=registry,ref=benhyer/cookbook-api:cache,mode=min
 
       - name: Build and push Web image
         uses: docker/build-push-action@v6
@@ -44,9 +46,11 @@ jobs:
           context: .
           file: CookbookMauiBlazor/CookbookMauiBlazor.Web/Dockerfile
           push: true
-          tags: benhyer/cookbook-web:pr-${{ github.event.number }}
+          tags: |
+            benhyer/cookbook-web:pr-${{ github.event.number }}
+            benhyer/cookbook-web:pr-${{ github.event.number }}-${{ github.sha }}
           cache-from: type=registry,ref=benhyer/cookbook-web:cache
-          cache-to: type=registry,ref=benhyer/cookbook-web:cache,mode=max
+          cache-to: type=registry,ref=benhyer/cookbook-web:cache,mode=min
 
   # ── Deploy isolated namespace into the cluster ────────────────────────────
   deploy-pr:
@@ -54,7 +58,7 @@ jobs:
     runs-on: self-hosted
     env:
       NS: cookbook-pr-${{ github.event.number }}
-      IMAGE_TAG: pr-${{ github.event.number }}
+      IMAGE_TAG: pr-${{ github.event.number }}-${{ github.sha }}
       BENCAMPUS_HOST: pr-${{ github.event.number }}.bencampus.duckdns.org
       BENHHOME_HOST: pr-${{ github.event.number }}.benhhome.duckdns.org
       FEATURE_ENABLE_USER_PROFILES: ${{ vars.FEATURE_ENABLE_USER_PROFILES }}
@@ -125,6 +129,8 @@ jobs:
             namespace: $NS
             annotations:
               nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+              nginx.ingress.kubernetes.io/proxy-buffer-size: "16k"
+              nginx.ingress.kubernetes.io/proxy-buffers-number: "4"
               nginx.ingress.kubernetes.io/affinity: "cookie"
               nginx.ingress.kubernetes.io/session-cookie-name: "blazor-affinity"
               nginx.ingress.kubernetes.io/session-cookie-expires: "172800"
@@ -186,8 +192,8 @@ jobs:
 
       - name: Wait for rollouts
         run: |
-          kubectl rollout status deployment/cookbook-api -n "$NS" --timeout=120s
-          kubectl rollout status deployment/cookbook-web -n "$NS" --timeout=120s
+          kubectl wait --for=condition=available deployment/cookbook-api -n "$NS" --timeout=150s
+          kubectl wait --for=condition=available deployment/cookbook-web -n "$NS" --timeout=150s
 
       - name: Debug failed rollout
         if: failure()
@@ -223,6 +229,7 @@ jobs:
             const sha = '${{ github.sha }}'.slice(0, 7);
             const bencampus = `https://pr-${prNumber}.bencampus.duckdns.org`;
             const benhhome  = `https://pr-${prNumber}.benhhome.duckdns.org`;
+            const grafana = 'https://cookbook.bencampus.duckdns.org/grafana/d/cookbook-v2/thecookbook?orgId=1&viewPanel=12';
 
             const body = [
               marker,
@@ -232,6 +239,8 @@ jobs:
               '|---------|-----|',
               `| Campus  | ${bencampus} |`,
               `| Home    | ${benhhome}  |`,
+              '',
+              `Share-board search logs: ${grafana}`,
               '',
               `Deployed from commit \`${sha}\` — updates automatically on each push.`,
             ].join('\n');

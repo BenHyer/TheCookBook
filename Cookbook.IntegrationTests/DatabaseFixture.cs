@@ -36,7 +36,28 @@ public class DatabaseFixture : IAsyncLifetime
     private async Task InitializeSchemaAsync()
     {
         await using var context = CreateContext();
-        await context.Database.EnsureCreatedAsync();
+
+        // Retry EnsureCreatedAsync a few times to handle transient container startup / connection resets
+        const int maxAttempts = 8;
+        Exception? lastEx = null;
+        for (int attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            try
+            {
+                await context.Database.EnsureCreatedAsync();
+                lastEx = null;
+                break;
+            }
+            catch (Exception ex)
+            {
+                lastEx = ex;
+                var delayMs = 500 * attempt; // linear backoff
+                await Task.Delay(delayMs);
+            }
+        }
+
+        if (lastEx is not null)
+            throw lastEx;
     }
 
     public async Task InitializeAsync()
