@@ -13,6 +13,7 @@ using Microsoft.Graph;
 using Microsoft.Identity.Web;
 using CookbookMauiBlazor.Shared.Boards;
 using Cookbook.Shared.Boards;
+using Microsoft.AspNetCore.Routing;
 using System.Diagnostics;
 using System.Security.Claims;
 
@@ -119,14 +120,6 @@ app.Use(async (context, next) =>
         context.Request.Body.Position = 0;
     }
 
-    if (requestBodyBytes > 0 || context.Request.ContentLength == 0)
-    {
-        CookbookMetrics.RequestBodySize.Record(
-            requestBodyBytes,
-            new KeyValuePair<string, object?>("method", context.Request.Method),
-            new KeyValuePair<string, object?>("route", context.Request.Path.Value ?? "unknown"));
-    }
-
     var timer = Stopwatch.StartNew();
     var originalResponseBody = context.Response.Body;
     await using var countingBody = new ResponseBodyCountingStream(originalResponseBody);
@@ -143,15 +136,30 @@ app.Use(async (context, next) =>
 
         context.Response.Body = originalResponseBody;
 
+        var routeLabel = context.Request.Path.Value ?? "unknown";
+        if (context.GetEndpoint() is RouteEndpoint routeEndpoint
+            && !string.IsNullOrWhiteSpace(routeEndpoint.RoutePattern.RawText))
+        {
+            routeLabel = routeEndpoint.RoutePattern.RawText;
+        }
+
+        if (requestBodyBytes > 0 || context.Request.ContentLength == 0)
+        {
+            CookbookMetrics.RequestBodySize.Record(
+                requestBodyBytes,
+                new KeyValuePair<string, object?>("method", context.Request.Method),
+                new KeyValuePair<string, object?>("route", routeLabel));
+        }
+
         CookbookMetrics.ResponseBodySize.Record(
             countingBody.BytesWritten,
             new KeyValuePair<string, object?>("method", context.Request.Method),
-            new KeyValuePair<string, object?>("route", context.Request.Path.Value ?? "unknown"));
+            new KeyValuePair<string, object?>("route", routeLabel));
 
         CookbookMetrics.ApiRequestDuration.Record(
             timer.Elapsed.TotalMilliseconds,
             new KeyValuePair<string, object?>("method", context.Request.Method),
-            new KeyValuePair<string, object?>("route", context.Request.Path.Value ?? "unknown"),
+            new KeyValuePair<string, object?>("route", routeLabel),
             new KeyValuePair<string, object?>("status_code", statusCode),
             new KeyValuePair<string, object?>("version", version));
 
