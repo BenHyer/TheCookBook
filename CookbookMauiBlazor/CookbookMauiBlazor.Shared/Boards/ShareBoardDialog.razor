@@ -21,8 +21,8 @@
                     {
                         <div class="mb-3">
                             <label class="form-label">Search users</label>
-                            <input type="text" class="form-control" placeholder="Search by name..."
-                                   value="@_searchQuery" @oninput="OnSearchChangedAsync" />
+                            <input type="text" class="form-control" placeholder="Search by name..." value="@_searchQuery"
+                                   @oninput="OnSearchChangedAsync" />
                         </div>
 
                         @if (!string.IsNullOrWhiteSpace(_errorMessage))
@@ -182,7 +182,8 @@
 
     private async Task LoadUsersAsync(CancellationToken cancellationToken = default)
     {
-        Logger.LogInformation("Loading share-board user search results for board {BoardId} and query '{SearchQuery}'.", BoardId, _searchQuery);
+        Logger.LogInformation("Loading share-board user search results for board {BoardId} and query '{SearchQuery}'.", BoardId,
+_searchQuery);
 
         _errorMessage = string.Empty;
 
@@ -276,7 +277,7 @@
 
         try
         {
-            await UserService.RemovePermissionAsync(BoardId, userId);
+            await UserService.RemovePermissionAsync(BoardId, userId, CurrentUserId);
             await LoadCollaboratorsAsync();
         }
         catch
