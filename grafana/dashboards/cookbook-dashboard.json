@@ -735,7 +735,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "sum by (route) (rate(label_replace(label_replace(label_replace(label_replace(cookbook_api_request_duration_milliseconds_sum, \"route\", \"$1/*$2\", \"route\", \"^(.*)/[^/]+(/.*)$\"), \"route\", \"$1*\", \"route\", \"^(.*)/[^/]+$\"), \"route\", \"$1/*$2\", \"route\", \"^(.*)/[^/]+(/.*)$\"), \"route\", \"$1*\", \"route\", \"^(.*)/[^/]+$\")[5m])) / sum by (route) (rate(label_replace(label_replace(label_replace(label_replace(cookbook_api_request_duration_milliseconds_count, \"route\", \"$1/*$2\", \"route\", \"^(.*)/[^/]+(/.*)$\"), \"route\", \"$1*\", \"route\", \"^(.*)/[^/]+$\"), \"route\", \"$1/*$2\", \"route\", \"^(.*)/[^/]+(/.*)$\"), \"route\", \"$1*\", \"route\", \"^(.*)/[^/]+$\")[5m]))",
+          "expr": "sum by (route) (label_replace(label_replace(label_replace(label_replace(rate(cookbook_api_request_duration_milliseconds_sum[5m]), \"route\", \"$1/*$2\", \"route\", \"^(.*)/[^/]+(/.*)$\"), \"route\", \"$1*\", \"route\", \"^(.*)/[^/]+$\"), \"route\", \"$1/*$2\", \"route\", \"^(.*)/[^/]+(/.*)$\"), \"route\", \"$1*\", \"route\", \"^(.*)/[^/]+$\")) / sum by (route) (label_replace(label_replace(label_replace(label_replace(rate(cookbook_api_request_duration_milliseconds_count[5m]), \"route\", \"$1/*$2\", \"route\", \"^(.*)/[^/]+(/.*)$\"), \"route\", \"$1*\", \"route\", \"^(.*)/[^/]+$\"), \"route\", \"$1/*$2\", \"route\", \"^(.*)/[^/]+(/.*)$\"), \"route\", \"$1*\", \"route\", \"^(.*)/[^/]+$\"))",
           "legendFormat": "{{route}}",
           "range": true,
           "refId": "A"
