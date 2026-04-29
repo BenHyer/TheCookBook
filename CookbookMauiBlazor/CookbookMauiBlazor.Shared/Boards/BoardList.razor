@@ -10,7 +10,9 @@ else
         @foreach (var board in _boards)
         {
             <li class="list-group-item d-flex justify-content-between align-items-center">
-                <span>@board.Name</span>
+                <NavLink class="flex-grow-1 text-decoration-none text-reset" href="@($"/boards/{board.Id}")">
+                    <span>@board.Name</span>
+                </NavLink>
                 <div class="d-flex gap-2">
                     @if (OnShare.HasDelegate)
                     {
