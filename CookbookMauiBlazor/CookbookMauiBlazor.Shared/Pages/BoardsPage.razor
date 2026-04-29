@@ -36,12 +36,14 @@
             @foreach (var board in ViewModel.SharedBoards)
             {
                 <li class="list-group-item d-flex justify-content-between align-items-center">
-                    <div>
-                        <span>@board.Name</span>
-                        <small class="text-muted d-block">by @_boardOwners.GetValueOrDefault(board.OwnerUserId,
-                                            board.OwnerUserId)</small>
-                        </div>
-                        <NavLink class="btn btn-sm btn-outline-secondary" href="@($"/boards/{board.Id}")">
+                    <NavLink class="flex-grow-1 text-decoration-none text-reset" href="@($"/boards/{board.Id}")">
+                        <div>
+                            <span>@board.Name</span>
+                            <small class="text-muted d-block">by @_boardOwners.GetValueOrDefault(board.OwnerUserId,
+                                                    board.OwnerUserId)</small>
+                            </div>
+                        </NavLink>
+                        <NavLink class="btn btn-sm btn-outline-secondary ms-3" href="@($"/boards/{board.Id}")">
                             Open
                         </NavLink>
                     </li>
