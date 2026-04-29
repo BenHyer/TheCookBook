@@ -64,11 +64,11 @@ public sealed class UserService : IUserService
         }
     }
 
-    public async Task ShareBoardAsync(Guid boardId, IReadOnlyCollection<string> userIds, string role = "Viewer", CancellationToken cancellationToken = default)
+    public async Task ShareBoardAsync(Guid boardId, IReadOnlyCollection<string> userIds, string callerUserId, string role = "Viewer", CancellationToken cancellationToken = default)
     {
         if (userIds.Count == 0) return;
 
-        var request = new { userIds = userIds.ToList(), role };
+        var request = new { userIds = userIds.ToList(), role, callerUserId };
         var response = await _httpClient.PostAsJsonAsync(
             $"/api/v1/boards/{boardId}/share",
             request,

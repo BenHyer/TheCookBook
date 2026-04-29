@@ -8,6 +8,8 @@ using Cookbook.ApiService.Telemetry;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Graph;
 using Microsoft.Identity.Web;
 using CookbookMauiBlazor.Shared.Boards;
@@ -936,11 +938,10 @@ app.MapGet("/api/v1/boards/{boardId:guid}/collaborators", async (Guid boardId, C
 app.MapPost("/api/v1/boards/{boardId:guid}/share", async (
     Guid boardId,
     ShareBoardRequest request,
-    ClaimsPrincipal user,
     CookbookDbContext dbContext,
     ILogger<Program> logger) =>
 {
-    logger.LogInformation("ShareBoard: Incoming request - BoardId={BoardId}, UserIds count={UserIdCount}, Role={Role}", boardId, request.UserIds.Count, request.Role);
+    logger.LogInformation("ShareBoard: Incoming request - BoardId={BoardId}, UserIds count={UserIdCount}, Role={Role}, CallerUserId={CallerUserId}", boardId, request.UserIds.Count, request.Role, request.CallerUserId);
 
     var board = await dbContext.Boards
         .Include(b => b.Permissions)
@@ -956,17 +957,15 @@ app.MapPost("/api/v1/boards/{boardId:guid}/share", async (
         "ShareBoard: Board found - BoardId={BoardId}, BoardName={BoardName}, OwnerUserId={OwnerUserId}, PermissionCount={PermissionCount}",
         boardId, board.Name, board.OwnerUserId, board.Permissions.Count);
 
-    var currentUserId = user.FindFirst("oid")?.Value ??
-        user.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value ??
-        user.FindFirst("sub")?.Value;
+    var currentUserId = request.CallerUserId;
 
-    if (currentUserId is null)
+    if (string.IsNullOrWhiteSpace(currentUserId))
     {
-        logger.LogWarning("ShareBoard: Could not extract currentUserId from claims");
+        logger.LogWarning("ShareBoard: CallerUserId missing from request body");
         return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
 
-    logger.LogInformation("ShareBoard: CurrentUserId extracted - CurrentUserId={CurrentUserId}", currentUserId);
+    logger.LogInformation("ShareBoard: CallerUserId resolved - CurrentUserId={CurrentUserId}", currentUserId);
 
     var userPermission = board.Permissions.FirstOrDefault(p => p.UserId == currentUserId);
     logger.LogInformation(
@@ -1180,7 +1179,9 @@ static async Task EnsureAuditDatabaseAsync(WebApplication app)
 #pragma warning disable EF1002 // Schema identifiers cannot be parameterized
             await auditDb.Database.ExecuteSqlRawAsync($"CREATE SCHEMA IF NOT EXISTS \"{schema}\"");
 #pragma warning restore EF1002
-            await auditDb.Database.EnsureCreatedAsync();
+            var creator = auditDb.Database.GetService<IRelationalDatabaseCreator>();
+            if (!await creator.HasTablesAsync())
+                await creator.CreateTablesAsync();
             logger.LogInformation("Audit database schema ensured (schema: {Schema}).", schema);
             return;
         }
@@ -1199,7 +1200,9 @@ static async Task EnsureAuditDatabaseAsync(WebApplication app)
 #pragma warning disable EF1002
     await auditDb.Database.ExecuteSqlRawAsync($"CREATE SCHEMA IF NOT EXISTS \"{schema}\"");
 #pragma warning restore EF1002
-    await auditDb.Database.EnsureCreatedAsync();
+    var finalCreator = auditDb.Database.GetService<IRelationalDatabaseCreator>();
+    if (!await finalCreator.HasTablesAsync())
+        await finalCreator.CreateTablesAsync();
 }
 
 static async Task ApplyDatabaseMigrationsAsync(WebApplication app)
@@ -1302,7 +1305,7 @@ record RecipeDto(
 // Board Sharing DTOs
 record UserSummaryDto(string UserId, string DisplayName, string FirstName, string LastName, string? ProfilePictureUrl);
 
-record ShareBoardRequest(List<string> UserIds, string? Role);
+record ShareBoardRequest(List<string> UserIds, string? Role, string? CallerUserId);
 
 record BoardCollaborator(string UserId, string DisplayName, string FirstName, string LastName, string? ProfilePictureUrl, string Role);
 

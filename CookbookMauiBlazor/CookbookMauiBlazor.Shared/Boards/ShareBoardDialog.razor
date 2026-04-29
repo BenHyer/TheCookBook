@@ -252,7 +252,7 @@
 
         try
         {
-            await UserService.ShareBoardAsync(BoardId, _selectedUserIds, _selectedRole);
+            await UserService.ShareBoardAsync(BoardId, _selectedUserIds, CurrentUserId, _selectedRole);
             await OnShared.InvokeAsync();
             await CloseAsync();
         }
