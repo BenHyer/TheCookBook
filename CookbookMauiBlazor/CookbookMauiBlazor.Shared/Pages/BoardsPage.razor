@@ -9,6 +9,7 @@
 @attribute [Authorize]
 @inject BoardsPageViewModel ViewModel
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IUserService UserService
 @implements IDisposable
 
 <PageTitle>Boards</PageTitle>
@@ -37,20 +38,20 @@
                 <li class="list-group-item d-flex justify-content-between align-items-center">
                     <div>
                         <span>@board.Name</span>
-                        <small class="text-muted d-block">by @_boardOwners.GetValueOrDefault(board.OwnerUserId, "Unknown User")</small>
-                    </div>
-                    <NavLink class="btn btn-sm btn-outline-secondary" href="@($"/boards/{board.Id}")">
-                        Open
-                    </NavLink>
-                </li>
-            }
-        </ul>
+                        <small class="text-muted d-block">by @_boardOwners.GetValueOrDefault(board.OwnerUserId,
+                                            board.OwnerUserId)</small>
+                        </div>
+                        <NavLink class="btn btn-sm btn-outline-secondary" href="@($"/boards/{board.Id}")">
+                            Open
+                        </NavLink>
+                    </li>
+                }
+            </ul>
+        }
     }
-}
 
-<ShareBoardDialog BoardId="@_shareDialogBoardId" BoardOwnerId="@_shareDialogOwner"
-                  CurrentUserId="@_currentUserId" IsOpen="@_shareDialogOpen"
-                  OnClose="CloseShareDialog" OnShared="OnBoardShared" />
+<ShareBoardDialog BoardId="@_shareDialogBoardId" BoardOwnerId="@_shareDialogOwner" CurrentUserId="@_currentUserId"
+                  IsOpen="@_shareDialogOpen" OnClose="CloseShareDialog" OnShared="OnBoardShared" />
 
 @code {
     private bool _shareDialogOpen;
@@ -73,19 +74,36 @@
 
     private async Task LoadBoardOwnersAsync()
     {
-        // For now, we'll just use the owner ID as the display name
-        // In a full implementation, we'd fetch user profiles
-        foreach (var board in ViewModel.SharedBoards)
+        _boardOwners.Clear();
+        var ownerIds = ViewModel.SharedBoards
+            .Select(b => b.OwnerUserId)
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var ownerId in ownerIds)
         {
-            if (!_boardOwners.ContainsKey(board.OwnerUserId))
+            try
             {
-                _boardOwners[board.OwnerUserId] = board.OwnerUserId;
+                var users = await UserService.SearchAsync(ownerId);
+                var found = users.FirstOrDefault(u => string.Equals(u.UserId, ownerId, StringComparison.OrdinalIgnoreCase));
+                _boardOwners[ownerId] = found?.DisplayName ?? ownerId;
+            }
+            catch
+            {
+                _boardOwners[ownerId] = ownerId;
             }
         }
+
+        await InvokeAsync(StateHasChanged);
     }
 
     private void OnViewModelChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(ViewModel.SharedBoards))
+        {
+            _ = LoadBoardOwnersAsync();
+        }
+
         _ = InvokeAsync(StateHasChanged);
     }
 
