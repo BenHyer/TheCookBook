@@ -76,13 +76,17 @@ public sealed class UserService : IUserService
         response.EnsureSuccessStatusCode();
     }
 
-    public async Task RemovePermissionAsync(Guid boardId, string userId, CancellationToken cancellationToken = default)
+    public async Task RemovePermissionAsync(Guid boardId, string userId, string? callerUserId = null, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(userId)) return;
 
-        var response = await _httpClient.DeleteAsync(
-            $"/api/v1/boards/{boardId}/permissions/{userId}",
-            cancellationToken);
+        var path = $"/api/v1/boards/{boardId}/permissions/{userId}";
+        if (!string.IsNullOrWhiteSpace(callerUserId))
+        {
+            path += $"?callerUserId={Uri.EscapeDataString(callerUserId)}";
+        }
+
+        var response = await _httpClient.DeleteAsync(path, cancellationToken);
         response.EnsureSuccessStatusCode();
     }
 }

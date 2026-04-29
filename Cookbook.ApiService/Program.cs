@@ -1069,7 +1069,8 @@ app.MapDelete("/api/v1/boards/{boardId:guid}/permissions/{userId}", async (
     Guid boardId,
     string userId,
     ClaimsPrincipal user,
-    CookbookDbContext dbContext) =>
+    CookbookDbContext dbContext,
+    string? callerUserId) =>
 {
     var board = await dbContext.Boards
         .Include(b => b.Permissions)
@@ -1082,7 +1083,8 @@ app.MapDelete("/api/v1/boards/{boardId:guid}/permissions/{userId}", async (
 
     var currentUserId = user.FindFirst("oid")?.Value ??
         user.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value ??
-        user.FindFirst("sub")?.Value;
+        user.FindFirst("sub")?.Value ??
+        callerUserId;
 
     if (currentUserId is null)
     {
