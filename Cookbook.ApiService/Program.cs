@@ -16,6 +16,7 @@ using Cookbook.Shared.Boards;
 using Microsoft.AspNetCore.Routing;
 using System.Diagnostics;
 using System.Security.Claims;
+using System.Text.RegularExpressions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -143,6 +144,8 @@ app.Use(async (context, next) =>
             routeLabel = routeEndpoint.RoutePattern.RawText;
         }
 
+        routeLabel = NormalizeRouteLabel(routeLabel);
+
         if (requestBodyBytes > 0 || context.Request.ContentLength == 0)
         {
             CookbookMetrics.RequestBodySize.Record(
@@ -162,6 +165,20 @@ app.Use(async (context, next) =>
             new KeyValuePair<string, object?>("route", routeLabel),
             new KeyValuePair<string, object?>("status_code", statusCode),
             new KeyValuePair<string, object?>("version", version));
+
+        static string NormalizeRouteLabel(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return "unknown";
+            }
+
+            // Convert route patterns like '{userId}' to '*' and normalize raw IDs.
+            value = Regex.Replace(value, @"\{[^}]+\}", "*");
+            value = Regex.Replace(value, @"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}", "*");
+            value = Regex.Replace(value, @"\b\d+\b", "*");
+            return value;
+        }
 
         if (statusCode >= 400)
         {
