@@ -9,12 +9,13 @@ public class BoardDetailsViewModelTests
 {
     private readonly Mock<IBoardService> _mockBoardService = new();
     private readonly Mock<IRecipeService> _mockRecipeService = new();
+    private readonly Mock<IUserService> _mockUserService = new();
     private readonly Guid _boardId = Guid.NewGuid();
 
     private BoardDetailsViewModel CreateVm(string userId = "user1")
     {
         var boardViewModel = new BoardViewModel(_mockBoardService.Object);
-        return new BoardDetailsViewModel(boardViewModel, _mockRecipeService.Object, FakeAuthStateProvider.Authenticated(userId));
+        return new BoardDetailsViewModel(boardViewModel, _mockRecipeService.Object, _mockUserService.Object, FakeAuthStateProvider.Authenticated(userId));
     }
 
     private BoardDetails MakeBoardDetails() =>
@@ -58,6 +59,42 @@ public class BoardDetailsViewModelTests
         await vm.LoadBoardAsync(_boardId);
 
         Assert.Equal("user99", vm.OwnerUserId);
+    }
+
+    [Fact]
+    public async Task LoadBoardAsync_AllowsEditorCollaboratorToAddRecipes()
+    {
+        var details = MakeBoardDetails();
+        _mockBoardService.Setup(s => s.GetDetailsAsync(_boardId, default)).ReturnsAsync(details);
+        _mockBoardService.Setup(s => s.GetRecipesAsync(_boardId, default)).ReturnsAsync(Array.Empty<BoardRecipeSummary>());
+        _mockUserService.Setup(s => s.GetBoardCollaboratorsAsync(_boardId, default))
+            .ReturnsAsync(new List<BoardCollaborator>
+            {
+                new("user2", "Alice", "Alice", "Smith", null, "Editor")
+            });
+
+        var vm = CreateVm("user2");
+        await vm.LoadBoardAsync(_boardId);
+
+        Assert.True(vm.CanAddRecipes);
+    }
+
+    [Fact]
+    public async Task LoadBoardAsync_PreventsViewerCollaboratorFromAddingRecipes()
+    {
+        var details = MakeBoardDetails();
+        _mockBoardService.Setup(s => s.GetDetailsAsync(_boardId, default)).ReturnsAsync(details);
+        _mockBoardService.Setup(s => s.GetRecipesAsync(_boardId, default)).ReturnsAsync(Array.Empty<BoardRecipeSummary>());
+        _mockUserService.Setup(s => s.GetBoardCollaboratorsAsync(_boardId, default))
+            .ReturnsAsync(new List<BoardCollaborator>
+            {
+                new("user2", "Bob", "Bob", "Jones", null, "Viewer")
+            });
+
+        var vm = CreateVm("user2");
+        await vm.LoadBoardAsync(_boardId);
+
+        Assert.False(vm.CanAddRecipes);
     }
 
     [Fact]

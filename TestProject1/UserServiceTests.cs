@@ -120,7 +120,7 @@ public class UserServiceTests
         var (svc, handler) = Create();
         handler.Fallback.Throw(new Exception("Should not call API"));
 
-        await svc.ShareBoardAsync(Guid.NewGuid(), []);
+        await svc.ShareBoardAsync(Guid.NewGuid(), [], "caller1");
     }
 
     [Fact]
@@ -131,7 +131,7 @@ public class UserServiceTests
         var request = handler.Expect(HttpMethod.Post, $"/api/v1/boards/{boardId}/share")
             .Respond(HttpStatusCode.OK);
 
-        await svc.ShareBoardAsync(boardId, ["u1", "u2"]);
+        await svc.ShareBoardAsync(boardId, ["u1", "u2"], "caller1");
 
         handler.VerifyNoOutstandingExpectation();
     }
