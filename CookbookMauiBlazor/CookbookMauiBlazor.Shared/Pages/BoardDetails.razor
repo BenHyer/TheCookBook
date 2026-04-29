@@ -34,7 +34,10 @@ else
             <div class="text-muted small">@ViewModel.BoardDetails.RecipeCount recipe(s)</div>
         </div>
         <div class="d-flex gap-2 flex-wrap">
-            <button class="btn btn-primary" @onclick="ViewModel.ToggleAddPanelAsync">Add recipes</button>
+            @if (ViewModel.CanAddRecipes)
+            {
+                <button class="btn btn-primary" @onclick="ViewModel.ToggleAddPanelAsync">Add recipes</button>
+            }
             @if (ViewModel.CanManageSharing)
             {
                 <button class="btn btn-outline-primary" @onclick="OpenShareDialog">Share</button>

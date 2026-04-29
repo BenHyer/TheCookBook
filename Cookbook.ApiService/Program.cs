@@ -253,14 +253,17 @@ if (enableBulkAddBoardRecipes)
             });
         }
 
-        var board = await dbContext.Boards.FindAsync(boardId);
+        var board = await dbContext.Boards
+            .Include(b => b.Permissions)
+            .FirstOrDefaultAsync(b => b.Id == boardId);
         if (board is null)
         {
             return Results.NotFound();
         }
 
         var ownerUserId = request.OwnerUserId.Trim();
-        if (!string.Equals(board.OwnerUserId, ownerUserId, StringComparison.Ordinal))
+        var userPermission = board.Permissions.FirstOrDefault(p => p.UserId == ownerUserId);
+        if (!CanAddBoardRecipes(board, ownerUserId, userPermission))
         {
             return Results.StatusCode(StatusCodes.Status403Forbidden);
         }
@@ -1141,6 +1144,16 @@ app.MapGet("/api/v1/boards/shared-with-me/{userId}", async (string userId, Cookb
 app.MapDefaultEndpoints();
 
 app.Run();
+
+static bool CanAddBoardRecipes(Board board, string currentUserId, BoardPermission? permission)
+{
+    if (string.Equals(board.OwnerUserId, currentUserId, StringComparison.OrdinalIgnoreCase))
+    {
+        return true;
+    }
+
+    return permission?.Role is BoardRoles.Editor or BoardRoles.Manager or BoardRoles.Admin;
+}
 
 static bool CanManageBoardSharing(Board board, string currentUserId, BoardPermission? permission)
 {

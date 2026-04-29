@@ -62,6 +62,9 @@ namespace CookbookMauiBlazor.Shared.Viewmodels
         private bool canManageSharing;
 
         [ObservableProperty]
+        private bool canAddRecipes;
+
+        [ObservableProperty]
         private HashSet<int> selectedRecipeIds = new();
 
         [ObservableProperty]
@@ -98,6 +101,10 @@ namespace CookbookMauiBlazor.Shared.Viewmodels
                 CanManageSharing = string.Equals(OwnerUserId, BoardDetails.OwnerUserId, StringComparison.OrdinalIgnoreCase)
                     || collaborators.Any(c => string.Equals(c.UserId, OwnerUserId, StringComparison.OrdinalIgnoreCase)
                         && IsShareManagerRole(c.Role));
+
+                CanAddRecipes = string.Equals(OwnerUserId, BoardDetails.OwnerUserId, StringComparison.OrdinalIgnoreCase)
+                    || collaborators.Any(c => string.Equals(c.UserId, OwnerUserId, StringComparison.OrdinalIgnoreCase)
+                        && IsAddRecipesRole(c.Role));
             }
 
             Loading = false;
@@ -183,5 +190,7 @@ namespace CookbookMauiBlazor.Shared.Viewmodels
         }
 
         private static bool IsShareManagerRole(string role) => role is "Manager" or "Admin";
+
+        private static bool IsAddRecipesRole(string role) => role is "Editor" or "Manager" or "Admin";
     }
 }
