@@ -735,7 +735,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "sum by (route) (label_replace(label_replace(label_replace(label_replace(rate(cookbook_api_request_duration_milliseconds_sum[5m]), \"route\", \"$1/*$2\", \"route\", \"^(.*)/[^/]+(/.*)$\"), \"route\", \"$1*\", \"route\", \"^(.*)/[^/]+$\"), \"route\", \"$1/*$2\", \"route\", \"^(.*)/[^/]+(/.*)$\"), \"route\", \"$1*\", \"route\", \"^(.*)/[^/]+$\")) / sum by (route) (label_replace(label_replace(label_replace(label_replace(rate(cookbook_api_request_duration_milliseconds_count[5m]), \"route\", \"$1/*$2\", \"route\", \"^(.*)/[^/]+(/.*)$\"), \"route\", \"$1*\", \"route\", \"^(.*)/[^/]+$\"), \"route\", \"$1/*$2\", \"route\", \"^(.*)/[^/]+(/.*)$\"), \"route\", \"$1*\", \"route\", \"^(.*)/[^/]+$\"))",
+          "expr": "sum by (route) (\n  label_replace(\n    label_replace(\n      rate(cookbook_api_request_duration_milliseconds_sum[5m]),\n      \"route\", \"$1/*$2\", \"route\", \"^(.*?)/[0-9a-fA-F-]{36}(.*)$\"\n    ),\n    \"route\", \"$1/*$2\", \"route\", \"^(.*?)/[0-9]+(.*)$\"\n  )\n) / sum by (route) (\n  label_replace(\n    label_replace(\n      rate(cookbook_api_request_duration_milliseconds_count[5m]),\n      \"route\", \"$1/*$2\", \"route\", \"^(.*?)/[0-9a-fA-F-]{36}(.*)$\"\n    ),\n    \"route\", \"$1/*$2\", \"route\", \"^(.*?)/[0-9]+(.*)$\"\n  )\n)",
           "legendFormat": "{{route}}",
           "range": true,
           "refId": "A"
