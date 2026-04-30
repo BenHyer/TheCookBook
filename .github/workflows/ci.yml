@@ -335,20 +335,20 @@ jobs:
             --from-literal=AZURE_AD_CLIENT_SECRET="${{ secrets.AZURE_AD_CLIENT_SECRET }}" \
             --from-literal=AZURE_STORAGE_CONNECTION_STRING="${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
             --from-literal=AZURE_STORAGE_CONTAINER_NAME="${{ secrets.AZURE_STORAGE_CONTAINER_NAME }}" \
-            --from-literal=PG_HOST="${{ secrets.PG_HOST }}" \
-            --from-literal=PG_PORT="${{ secrets.PG_PORT }}" \
-            --from-literal=PG_USER="${{ secrets.PG_USER }}" \
-            --from-literal=PG_DB="${{ secrets.PG_DB }}" \
             --from-literal=PG_PASSWORD="${{ secrets.PG_PASSWORD }}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Apply Kubernetes manifests
         env:
           IMAGE_TAG: ${{ github.sha }}
+          PG_HOST: ${{ secrets.PG_HOST }}
+          PG_PORT: ${{ secrets.PG_PORT }}
+          PG_USER: ${{ secrets.PG_USER }}
+          PG_DB: ${{ secrets.PG_DB }}
         run: |
           for f in k8s/*.yaml; do
             [ "$(basename $f)" = "secret.yaml" ] && continue
-            envsubst '${IMAGE_TAG}' < "$f" | kubectl apply -f -
+            envsubst '${IMAGE_TAG} ${PG_HOST} ${PG_PORT} ${PG_USER} ${PG_DB}' < "$f" | kubectl apply -f -
           done
 
       - name: Reload observability config
