@@ -18,6 +18,11 @@ public static class CookbookMetrics
         unit: "{upload}",
         description: "Total number of successfully created boards.");
 
+    public static Counter<long> BoardUploadFailures { get; } = Meter.CreateCounter<long>(
+        name: "cookbook.board_upload_failures",
+        unit: "{failure}",
+        description: "Total number of failed board upload attempts.");
+
     public static Counter<long> ApiErrors { get; } = Meter.CreateCounter<long>(
         name: "cookbook.api_errors",
         unit: "{error}",
@@ -53,6 +58,9 @@ public static class CookbookMetrics
 
     public static void TrackUploadSuccess() =>
         BoardUploadSuccesses.Add(1);
+
+    public static void TrackUploadFailure() =>
+        BoardUploadFailures.Add(1);
 
     public static void TrackApiError(string version, int statusCode) =>
         ApiErrors.Add(1,
