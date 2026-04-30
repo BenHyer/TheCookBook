@@ -53,6 +53,11 @@ public static class CookbookMetrics
         unit: "{view}",
         description: "Total times the Grafana dashboard was loaded.");
 
+    public static Counter<long> LoginAttempts { get; } = Meter.CreateCounter<long>(
+        name: "cookbook.login_attempts",
+        unit: "{attempt}",
+        description: "Total JWT token validation attempts, tagged by result (success/failure).");
+
     public static void TrackUploadAttempt() =>
         BoardUploadAttempts.Add(1);
 
@@ -72,4 +77,7 @@ public static class CookbookMetrics
 
     public static void TrackDashboardView() =>
         DashboardViews.Add(1);
+
+    public static void TrackLoginAttempt(string result) =>
+        LoginAttempts.Add(1, new KeyValuePair<string, object?>("result", result));
 }
