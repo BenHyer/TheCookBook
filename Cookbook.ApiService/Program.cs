@@ -358,7 +358,7 @@ else
     app.Logger.LogInformation("Feature flag disabled: bulk add board recipes endpoint.");
 }
 
-app.MapPost("/api/v1/boards", async (CreateBoardRequest request, CookbookDbContext dbContext, AuditDbContext? auditDb = null) =>
+app.MapPost("/api/v1/boards", async (CreateBoardRequest request, CookbookDbContext dbContext, [FromServices] AuditDbContext? auditDb = null) =>
 {
     CookbookMetrics.TrackUploadAttempt();
 
@@ -765,7 +765,7 @@ app.MapGet("/api/v1/recipes/owner/{ownerUserId}", async (string ownerUserId, Coo
 })
 .WithName("GetRecipesByOwner");
 
-app.MapPost("/api/v1/recipes", async (CreateRecipeRequest request, CookbookDbContext dbContext, AuditDbContext? auditDb = null) =>
+app.MapPost("/api/v1/recipes", async (CreateRecipeRequest request, CookbookDbContext dbContext, [FromServices] AuditDbContext? auditDb = null) =>
 {
     if (string.IsNullOrWhiteSpace(request.Title))
     {
@@ -837,7 +837,7 @@ app.MapPut("/api/v1/recipes/{recipeId}", async (
     int recipeId,
     UpdateRecipeRequest request,
     CookbookDbContext dbContext,
-    AuditDbContext? auditDb = null) =>
+    [FromServices] AuditDbContext? auditDb = null) =>
 {
     if (string.IsNullOrWhiteSpace(request.Title))
     {
