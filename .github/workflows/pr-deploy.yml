@@ -4,7 +4,7 @@ on:
   pull_request:
     types: [ opened, synchronize, reopened, closed ]
 
-# Cancel in-progress deploys when a new push arrives, but never cancel teardown.
+
 concurrency:
   group: pr-preview-${{ github.event.number }}
   cancel-in-progress: ${{ github.event.action != 'closed' }}
