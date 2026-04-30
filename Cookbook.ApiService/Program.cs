@@ -65,13 +65,12 @@ builder.Services.AddDbContext<CookbookDbContext>(options =>
     options.UseSqlServer(connectionString, sql => sql.EnableRetryOnFailure()));
 
 var pgConnectionString = builder.Configuration.GetConnectionString("pgdb");
-if (string.IsNullOrWhiteSpace(pgConnectionString))
+var auditDbEnabled = !string.IsNullOrWhiteSpace(pgConnectionString);
+if (auditDbEnabled)
 {
-    throw new InvalidOperationException("Connection string 'pgdb' is not configured.");
+    builder.Services.AddDbContext<AuditDbContext>(options =>
+        options.UseNpgsql(pgConnectionString!));
 }
-
-builder.Services.AddDbContext<AuditDbContext>(options =>
-    options.UseNpgsql(pgConnectionString));
 
 var storageConnectionString = builder.Configuration["AZURE_STORAGE_CONNECTION_STRING"];
 var storageContainerName = builder.Configuration["AZURE_STORAGE_CONTAINER_NAME"] ?? "profile-pictures";
@@ -85,7 +84,15 @@ if (!string.IsNullOrWhiteSpace(storageConnectionString))
 var app = builder.Build();
 
 await ApplyDatabaseMigrationsAsync(app);
-await EnsureAuditDatabaseAsync(app);
+if (auditDbEnabled)
+{
+    await EnsureAuditDatabaseAsync(app);
+}
+else
+{
+    app.Logger.LogWarning("Audit database is disabled because ConnectionStrings:pgdb is not configured.");
+}
+
 await EnsureBlobContainerAsync(app);
 
 // Configure the HTTP request pipeline.
@@ -351,7 +358,7 @@ else
     app.Logger.LogInformation("Feature flag disabled: bulk add board recipes endpoint.");
 }
 
-app.MapPost("/api/v1/boards", async (CreateBoardRequest request, CookbookDbContext dbContext, AuditDbContext auditDb) =>
+app.MapPost("/api/v1/boards", async (CreateBoardRequest request, CookbookDbContext dbContext, AuditDbContext? auditDb = null) =>
 {
     CookbookMetrics.TrackUploadAttempt();
 
@@ -406,22 +413,25 @@ app.MapPost("/api/v1/boards", async (CreateBoardRequest request, CookbookDbConte
 
     CookbookMetrics.TrackUploadSuccess();
 
-    try
+    if (auditDb is not null)
     {
-        auditDb.AuditLogs.Add(new AuditLogEntry
+        try
         {
-            Action = "Created",
-            EntityType = "Board",
-            EntityId = board.Id.ToString(),
-            UserId = board.OwnerUserId,
-            TimestampUtc = utcNow,
-            Details = board.Name
-        });
-        await auditDb.SaveChangesAsync();
-    }
-    catch (Exception ex)
-    {
-        app.Logger.LogError(ex, "Failed to write audit log for board creation.");
+            auditDb.AuditLogs.Add(new AuditLogEntry
+            {
+                Action = "Created",
+                EntityType = "Board",
+                EntityId = board.Id.ToString(),
+                UserId = board.OwnerUserId,
+                TimestampUtc = utcNow,
+                Details = board.Name
+            });
+            await auditDb.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            app.Logger.LogError(ex, "Failed to write audit log for board creation.");
+        }
     }
 
     return Results.Created($"/api/v1/boards/{board.Id}", new BoardDto(
@@ -755,7 +765,7 @@ app.MapGet("/api/v1/recipes/owner/{ownerUserId}", async (string ownerUserId, Coo
 })
 .WithName("GetRecipesByOwner");
 
-app.MapPost("/api/v1/recipes", async (CreateRecipeRequest request, CookbookDbContext dbContext, AuditDbContext auditDb) =>
+app.MapPost("/api/v1/recipes", async (CreateRecipeRequest request, CookbookDbContext dbContext, AuditDbContext? auditDb = null) =>
 {
     if (string.IsNullOrWhiteSpace(request.Title))
     {
@@ -794,22 +804,25 @@ app.MapPost("/api/v1/recipes", async (CreateRecipeRequest request, CookbookDbCon
     dbContext.Recipes.Add(recipe);
     await dbContext.SaveChangesAsync();
 
-    try
+    if (auditDb is not null)
     {
-        auditDb.AuditLogs.Add(new AuditLogEntry
+        try
         {
-            Action = "Created",
-            EntityType = "Recipe",
-            EntityId = recipe.Id.ToString(),
-            UserId = recipe.OwnerUserId,
-            TimestampUtc = DateTime.UtcNow,
-            Details = recipe.Title
-        });
-        await auditDb.SaveChangesAsync();
-    }
-    catch (Exception ex)
-    {
-        app.Logger.LogError(ex, "Failed to write audit log for recipe creation.");
+            auditDb.AuditLogs.Add(new AuditLogEntry
+            {
+                Action = "Created",
+                EntityType = "Recipe",
+                EntityId = recipe.Id.ToString(),
+                UserId = recipe.OwnerUserId,
+                TimestampUtc = DateTime.UtcNow,
+                Details = recipe.Title
+            });
+            await auditDb.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            app.Logger.LogError(ex, "Failed to write audit log for recipe creation.");
+        }
     }
 
     return Results.Created($"/api/v1/recipes/{recipe.Id}", new RecipeDto(
@@ -824,7 +837,7 @@ app.MapPut("/api/v1/recipes/{recipeId}", async (
     int recipeId,
     UpdateRecipeRequest request,
     CookbookDbContext dbContext,
-    AuditDbContext auditDb) =>
+    AuditDbContext? auditDb = null) =>
 {
     if (string.IsNullOrWhiteSpace(request.Title))
     {
@@ -865,22 +878,25 @@ app.MapPut("/api/v1/recipes/{recipeId}", async (
 
     await dbContext.SaveChangesAsync();
 
-    try
+    if (auditDb is not null)
     {
-        auditDb.AuditLogs.Add(new AuditLogEntry
+        try
         {
-            Action = "Updated",
-            EntityType = "Recipe",
-            EntityId = recipe.Id.ToString(),
-            UserId = recipe.OwnerUserId,
-            TimestampUtc = DateTime.UtcNow,
-            Details = recipe.Title
-        });
-        await auditDb.SaveChangesAsync();
-    }
-    catch (Exception ex)
-    {
-        app.Logger.LogError(ex, "Failed to write audit log for recipe update.");
+            auditDb.AuditLogs.Add(new AuditLogEntry
+            {
+                Action = "Updated",
+                EntityType = "Recipe",
+                EntityId = recipe.Id.ToString(),
+                UserId = recipe.OwnerUserId,
+                TimestampUtc = DateTime.UtcNow,
+                Details = recipe.Title
+            });
+            await auditDb.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            app.Logger.LogError(ex, "Failed to write audit log for recipe update.");
+        }
     }
 
     return Results.Ok(new RecipeDto(
@@ -1232,7 +1248,12 @@ static async Task EnsureAuditDatabaseAsync(WebApplication app)
     using var scope = app.Services.CreateScope();
     var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("AuditDatabase");
     var config = scope.ServiceProvider.GetRequiredService<IConfiguration>();
-    var auditDb = scope.ServiceProvider.GetRequiredService<AuditDbContext>();
+    var auditDb = scope.ServiceProvider.GetService<AuditDbContext>();
+    if (auditDb is null)
+    {
+        logger.LogWarning("AuditDbContext is not registered. Skipping audit database initialization.");
+        return;
+    }
     var schema = config["AuditDb:Schema"] ?? "public";
     var escapedSchema = schema.Replace("\"", "\"\"");
 
