@@ -44,6 +44,31 @@ spec:
               value: "true"
             - name: GF_DASHBOARDS_MIN_REFRESH_INTERVAL
               value: "5s"
+            - name: PG_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: cookbook-secrets
+                  key: PG_HOST
+            - name: PG_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: cookbook-secrets
+                  key: PG_PORT
+            - name: PG_USER
+              valueFrom:
+                secretKeyRef:
+                  name: cookbook-secrets
+                  key: PG_USER
+            - name: PG_DB
+              valueFrom:
+                secretKeyRef:
+                  name: cookbook-secrets
+                  key: PG_DB
+            - name: PG_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cookbook-secrets
+                  key: PG_PASSWORD
           volumeMounts:
             - name: grafana-storage
               mountPath: /var/lib/grafana
@@ -53,6 +78,9 @@ spec:
             - name: grafana-config
               mountPath: /etc/grafana/provisioning/datasources/prometheus.yml
               subPath: prometheus.yml
+            - name: grafana-config
+              mountPath: /etc/grafana/provisioning/datasources/postgres.yml
+              subPath: postgres.yml
             - name: grafana-config
               mountPath: /etc/grafana/provisioning/dashboards/dashboards.yml
               subPath: dashboards.yml

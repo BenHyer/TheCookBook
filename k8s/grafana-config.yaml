@@ -25,6 +25,26 @@ data:
         url: http://prometheus:9090
         editable: false
 
+  postgres.yml: |
+    apiVersion: 1
+    datasources:
+      - name: PostgreSQL
+        type: postgres
+        uid: postgres-audit
+        url: ${PG_HOST}:${PG_PORT}
+        database: ${PG_DB}
+        user: ${PG_USER}
+        secureJsonData:
+          password: ${PG_PASSWORD}
+        jsonData:
+          sslmode: disable
+          maxOpenConns: 5
+          maxIdleConns: 2
+          connMaxLifetime: 14400
+          postgresVersion: 1600
+          timescaledb: false
+        editable: false
+
   dashboards.yml: |
     apiVersion: 1
     providers:

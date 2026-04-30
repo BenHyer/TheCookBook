@@ -138,6 +138,9 @@ services:
     environment:
       - GF_PANELS_DISABLE_SANITIZE_HTML=true
       - GF_DASHBOARDS_MIN_REFRESH_INTERVAL=5s
+      - PG_DB=${PG_DB:-auditdb}
+      - PG_USER=${PG_USER:-audituser}
+      - PG_PASSWORD=${PG_PASSWORD:-ChangeThisPassword_123!}
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
