@@ -34,6 +34,27 @@ if (!string.IsNullOrWhiteSpace(azureAdClientId))
     builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
     builder.Services.AddAuthorization();
+
+    // Wrap JWT events after Microsoft.Identity.Web sets up its own handlers
+    builder.Services.PostConfigure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
+    {
+        var inner = options.Events ?? new JwtBearerEvents();
+        var innerOnTokenValidated = inner.OnTokenValidated;
+        var innerOnAuthFailed = inner.OnAuthenticationFailed;
+        inner.OnTokenValidated = async ctx =>
+        {
+            if (innerOnTokenValidated != null)
+                await innerOnTokenValidated(ctx);
+            CookbookMetrics.TrackLoginAttempt("success");
+        };
+        inner.OnAuthenticationFailed = async ctx =>
+        {
+            if (innerOnAuthFailed != null)
+                await innerOnAuthFailed(ctx);
+            CookbookMetrics.TrackLoginAttempt("failure");
+        };
+        options.Events = inner;
+    });
 }
 
 if (!string.IsNullOrWhiteSpace(azureAdClientId)
@@ -332,7 +353,15 @@ if (enableBulkAddBoardRecipes)
                 });
             }
 
-            await dbContext.SaveChangesAsync();
+            try
+            {
+                await dbContext.SaveChangesAsync();
+            }
+            catch (Exception)
+            {
+                CookbookMetrics.TrackDbError("bulk_add_board_recipes");
+                throw;
+            }
         }
 
         var updatedRecipes = await dbContext.BoardRecipes
@@ -421,6 +450,7 @@ app.MapPost("/api/v1/boards", async (CreateBoardRequest request, CookbookDbConte
     }
     catch (Exception ex)
     {
+        CookbookMetrics.TrackDbError("audit_log_write");
         app.Logger.LogError(ex, "Failed to write audit log for board creation.");
     }
 
@@ -491,7 +521,15 @@ if (enableUserProfiles)
             profile.UpdatedUtc = utcNow;
         }
 
-        await dbContext.SaveChangesAsync();
+        try
+        {
+            await dbContext.SaveChangesAsync();
+        }
+        catch (Exception)
+        {
+            CookbookMetrics.TrackDbError("user_profile_upsert");
+            throw;
+        }
 
         return Results.Ok(new UserProfileDto(
             profile.UserId,
@@ -542,7 +580,15 @@ if (enableUserProfiles)
         };
 
         dbContext.UserProfiles.Add(profile);
-        await dbContext.SaveChangesAsync();
+        try
+        {
+            await dbContext.SaveChangesAsync();
+        }
+        catch (Exception)
+        {
+            CookbookMetrics.TrackDbError("ensure_user_profile");
+            throw;
+        }
 
         return Results.Ok(new UserProfileDto(
             profile.UserId,
@@ -690,7 +736,15 @@ if (enableUserProfiles && enableProfilePictures)
             profile.UpdatedUtc = utcNow;
         }
 
-        await dbContext.SaveChangesAsync();
+        try
+        {
+            await dbContext.SaveChangesAsync();
+        }
+        catch (Exception)
+        {
+            CookbookMetrics.TrackDbError("profile_picture_upload");
+            throw;
+        }
 
         return Results.Ok(new { url = pictureUrl });
     })
@@ -792,7 +846,15 @@ app.MapPost("/api/v1/recipes", async (CreateRecipeRequest request, CookbookDbCon
     };
 
     dbContext.Recipes.Add(recipe);
-    await dbContext.SaveChangesAsync();
+    try
+    {
+        await dbContext.SaveChangesAsync();
+    }
+    catch (Exception)
+    {
+        CookbookMetrics.TrackDbError("recipe_create");
+        throw;
+    }
 
     try
     {
@@ -809,6 +871,7 @@ app.MapPost("/api/v1/recipes", async (CreateRecipeRequest request, CookbookDbCon
     }
     catch (Exception ex)
     {
+        CookbookMetrics.TrackDbError("audit_log_write");
         app.Logger.LogError(ex, "Failed to write audit log for recipe creation.");
     }
 
@@ -863,7 +926,15 @@ app.MapPut("/api/v1/recipes/{recipeId}", async (
     recipe.Equipment = request.Equipment ?? new List<string>();
     recipe.Instructions = request.Instructions ?? new List<string>();
 
-    await dbContext.SaveChangesAsync();
+    try
+    {
+        await dbContext.SaveChangesAsync();
+    }
+    catch (Exception)
+    {
+        CookbookMetrics.TrackDbError("recipe_update");
+        throw;
+    }
 
     try
     {
@@ -880,6 +951,7 @@ app.MapPut("/api/v1/recipes/{recipeId}", async (
     }
     catch (Exception ex)
     {
+        CookbookMetrics.TrackDbError("audit_log_write");
         app.Logger.LogError(ex, "Failed to write audit log for recipe update.");
     }
 
@@ -927,7 +999,15 @@ if (enableRecipeImages)
         });
 
         recipe.ImageUrl = GetBlobUrl(blobClient);
-        await dbContext.SaveChangesAsync();
+        try
+        {
+            await dbContext.SaveChangesAsync();
+        }
+        catch (Exception)
+        {
+            CookbookMetrics.TrackDbError("recipe_image_upload");
+            throw;
+        }
 
         return Results.Ok(new { url = recipe.ImageUrl });
     })
@@ -1076,7 +1156,15 @@ app.MapPost("/api/v1/boards/{boardId:guid}/share", async (
     }
 
     logger.LogInformation("ShareBoard: Saving permissions - AddedCount={Added}, SkippedCount={Skipped}", addedCount, skippedCount);
-    await dbContext.SaveChangesAsync();
+    try
+    {
+        await dbContext.SaveChangesAsync();
+    }
+    catch (Exception)
+    {
+        CookbookMetrics.TrackDbError("board_share");
+        throw;
+    }
 
     // Return updated collaborators
     var collaborators = await dbContext.BoardPermissions
@@ -1139,7 +1227,15 @@ app.MapDelete("/api/v1/boards/{boardId:guid}/permissions/{userId}", async (
     }
 
     dbContext.BoardPermissions.Remove(permission);
-    await dbContext.SaveChangesAsync();
+    try
+    {
+        await dbContext.SaveChangesAsync();
+    }
+    catch (Exception)
+    {
+        CookbookMetrics.TrackDbError("remove_permission");
+        throw;
+    }
 
     return Results.Ok();
 })
