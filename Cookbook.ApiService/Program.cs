@@ -357,6 +357,7 @@ app.MapPost("/api/v1/boards", async (CreateBoardRequest request, CookbookDbConte
 
     if (string.IsNullOrWhiteSpace(request.Name))
     {
+        CookbookMetrics.TrackUploadFailure();
         return Results.ValidationProblem(new Dictionary<string, string[]>
         {
             ["name"] = ["Board name is required."]
@@ -365,6 +366,7 @@ app.MapPost("/api/v1/boards", async (CreateBoardRequest request, CookbookDbConte
 
     if (string.IsNullOrWhiteSpace(request.OwnerUserId))
     {
+        CookbookMetrics.TrackUploadFailure();
         return Results.ValidationProblem(new Dictionary<string, string[]>
         {
             ["ownerUserId"] = ["Owner user id is required."]
@@ -398,6 +400,7 @@ app.MapPost("/api/v1/boards", async (CreateBoardRequest request, CookbookDbConte
     catch (Exception)
     {
         CookbookMetrics.TrackDbError("board_create");
+        CookbookMetrics.TrackUploadFailure();
         throw;
     }
 

@@ -68,18 +68,10 @@ data:
             {
               "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
               "editorMode": "code",
-              "expr": "rate(cookbook_board_upload_successes_total[5m])",
-              "legendFormat": "Success",
+              "expr": "100 * rate(cookbook_board_upload_successes_total[5m]) / max(rate(cookbook_board_upload_attempts_total[5m]), 1e-9)",
+              "legendFormat": "Success Rate",
               "range": true,
               "refId": "A"
-            },
-            {
-              "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
-              "editorMode": "code",
-              "expr": "rate(cookbook_board_upload_attempts_total[5m]) - rate(cookbook_board_upload_successes_total[5m])",
-              "legendFormat": "Failed",
-              "range": true,
-              "refId": "B"
             }
           ],
           "title": "Upload Success Rate",
